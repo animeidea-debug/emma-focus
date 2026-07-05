@@ -48,6 +48,14 @@
 </head>
 
 <body class="bg-slate-900 text-white p-8">
+    <div class="max-w-6xl mx-auto mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-black text-white">🐾 Emma Admin 审计控制台</h1>
+        <button id="copyPromptBtn" onclick="copyGeminiPrompt()"
+            class="bg-slate-700 hover:bg-slate-600 text-xs px-4 py-2 rounded font-bold transition-colors">
+            📋 复制 Gemini Prompt
+        </button>
+    </div>
+
     <div class="max-w-6xl mx-auto grid grid-cols-2 gap-8">
         <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
             <h2 class="text-xl font-bold mb-4 text-orange-400">1. 粘贴 Gemini JSON</h2>
@@ -147,6 +155,27 @@
         let validationError = null;
         const API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
         const API_TOKEN = "emma2026_secure";
+
+        // Gemini Prompt 复制功能
+        async function copyGeminiPrompt() {
+            try {
+                const res = await fetch('gemini_prompt_v4.md');
+                const text = await res.text();
+                await navigator.clipboard.writeText(text);
+                const btn = document.getElementById('copyPromptBtn');
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅ 已复制';
+                btn.classList.add('bg-emerald-600');
+                btn.classList.remove('bg-slate-700', 'hover:bg-slate-600');
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.classList.remove('bg-emerald-600');
+                    btn.classList.add('bg-slate-700', 'hover:bg-slate-600');
+                }, 2000);
+            } catch (err) {
+                alert('复制失败：' + err.message);
+            }
+        }
 
         async function withLoading(btnId, cb) {
             const btn = document.getElementById(btnId);
@@ -249,9 +278,11 @@
                                list="categoryOpts" class="bg-slate-900 w-20" placeholder="Focus/Distraction/Eye Rest">
                     </div>`;
                 });
-                // 类别下拉沿用已知三桶，仍可手填新值（开放类别系统）
+                // 类别下拉沿用已知五桶，仍可手填新值（开放类别系统）
                 area.innerHTML += `<datalist id="categoryOpts">
                     <option value="Focus"></option>
+                    <option value="Coaching"></option>
+                    <option value="Screen"></option>
                     <option value="Distraction"></option>
                     <option value="Eye Rest"></option>
                 </datalist>`;
