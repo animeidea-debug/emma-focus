@@ -45,41 +45,6 @@
             box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
         }
 
-        /* 优化后的鼠标悬浮气泡 */
-        .tooltip-box {
-            display: none;
-            position: absolute;
-            top: 110%;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #1e293b;
-            color: #ffffff;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            width: 220px;
-            white-space: normal;
-            max-height: 250px;
-            overflow-y: auto;
-            z-index: 9999;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        }
-
-        .tooltip-box::after {
-            content: "";
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px;
-            border-style: solid;
-            border-color: transparent transparent #1e293b transparent;
-        }
-
-        .calendar-day:hover .tooltip-box {
-            display: block;
-        }
-
         .calendar-day {
             position: relative;
         }
@@ -95,11 +60,6 @@
 
         .calendar-day:hover {
             z-index: 1000 !important;
-        }
-
-        .calendar-day:hover .tooltip-box {
-            display: block;
-            z-index: 9999 !important;
         }
     </style>
 </head>
@@ -639,7 +599,7 @@
             bindExchangeModal();
             initAvatarPicker();
 
-            // -- 新增：交易记录分页按钮绑定 --
+            
             document.getElementById('ledgerPrevBtn').addEventListener('click', () => {
                 if (currentLedgerPage > 1) {
                     currentLedgerPage--;
@@ -855,7 +815,7 @@
             renderTokenLedger();
         }
 
-        // -- 修改：增加分页渲染逻辑 --
+        //
         function buildLedgerRow(tx, options = {}) {
             const { showDate = false, compact = false } = options;
             const meta = txTypeMeta(tx.type);
