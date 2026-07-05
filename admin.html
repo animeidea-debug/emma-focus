@@ -307,8 +307,8 @@ async function withLoading(btnId, cb) {
             box.innerHTML = REDEEM_ITEMS.map((item, idx) => itemRowHTML(item, idx)).join('');
             // 绑定每行的「保存」与「停用/启用」按钮
             REDEEM_ITEMS.forEach((_, idx) => {
-                document.getElementById(`saveItem-${idx}`).onclick = () => saveItemRow(idx);
-                document.getElementById(`toggleItem-${idx}`).onclick = () => toggleItemRow(idx);
+                document.getElementById(`saveItem-${idx}`).onclick = () => withLoading("saveItem-" + idx, () => saveItemRow(idx));
+                document.getElementById(`toggleItem-${idx}`).onclick = () => withLoading("toggleItem-" + idx, () => toggleItemRow(idx));
             });
         }
 
@@ -345,7 +345,7 @@ async function withLoading(btnId, cb) {
             };
         }
 
-        async function saveItemRow(idx) {
+        async function withLoading("saveItem-" + idx, () => saveItemRow(idx)) {
             const item = rowToItem(idx);
             if (!item.itemId) { alert('ItemId 不能为空'); return; }
             try {
@@ -361,7 +361,7 @@ async function withLoading(btnId, cb) {
             }
         }
 
-        async function toggleItemRow(idx) {
+        async function withLoading("toggleItem-" + idx, () => toggleItemRow(idx)) {
             const item = rowToItem(idx);
             item.active = !(REDEEM_ITEMS[idx].active !== false);
             if (!item.itemId) { alert('ItemId 不能为空'); return; }
@@ -481,11 +481,11 @@ async function withLoading(btnId, cb) {
                 + String(today.getMonth() + 1).padStart(2, '0') + '-'
                 + String(today.getDate()).padStart(2, '0');
             document.getElementById('absentDate').value = iso;
-            document.getElementById('markAbsentBtn').addEventListener('click', markAbsent);
+            document.getElementById('markAbsentBtn').addEventListener('click', () => withLoading("markAbsentBtn", markAbsent));
 
             // 汇率面板
             loadExchangeRate();
-            document.getElementById('saveExchangeRateBtn').addEventListener('click', saveExchangeRate);
+            document.getElementById('saveExchangeRateBtn').addEventListener('click', () => withLoading("saveExchangeRateBtn", saveExchangeRate));
         });
     </script>
 </body>
