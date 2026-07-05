@@ -7,7 +7,26 @@
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
-</head>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+    </style>
+<style>@keyframes spin{to{transform:rotate(360deg)}}.loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}</style></head>
 
 <body class="bg-slate-900 text-white p-8">
     <div class="max-w-6xl mx-auto grid grid-cols-2 gap-8">
@@ -24,7 +43,7 @@
             <h2 class="text-xl font-bold mb-4 text-emerald-400">2. 审计与修正</h2>
             <div id="editorArea" class="space-y-6">
             </div>
-            <button onclick="submitData()"
+            <button id="submitDataBtn" onclick="withLoading('submitDataBtn', submitData)"
                 class="mt-8 w-full bg-emerald-600 py-3 rounded font-black text-lg hover:bg-emerald-500">确认无误 ·
                 提交入库</button>
             <!-- 批量入库结果（仅在批量模式下渲染；单日提交不影响） -->
@@ -87,6 +106,17 @@
         let validationError = null;
         const API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
         const API_TOKEN = "emma2026_secure";
+
+async function withLoading(btnId, cb) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return cb();
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = "<span class=\"loading-spinner\"></span>提交中...";
+  btn.classList.add("opacity-60","cursor-not-allowed");
+  try { await cb(); }
+  finally { btn.disabled = false; btn.innerHTML = orig; btn.classList.remove("opacity-60","cursor-not-allowed"); }
+}
 
         // 校验单日 item：timeline 必须每日仅一行；如有 item.date 必须匹配
         function validateItem(item, label) {
