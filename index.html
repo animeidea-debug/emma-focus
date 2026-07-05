@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emma 的专注力成长看板</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #fffaf0;
+        }
+
+        .calendar-day {
+            min-height: 115px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .calendar-day:hover:not(.empty-day) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 优化后的鼠标悬浮气泡 */
+        .tooltip-box {
+            display: none;
+            position: absolute;
+            top: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #1e293b;
+            color: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            width: 220px;
+            white-space: normal;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 9999;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .tooltip-box::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px;
+            border-style: solid;
+            border-color: transparent transparent #1e293b transparent;
+        }
+
+        .calendar-day:hover .tooltip-box {
+            display: block;
+        }
+
+        .calendar-day {
+            position: relative;
+        }
+
+        #loadingOverlay {
+            transition: opacity 0.5s ease;
+        }
+
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .calendar-day:hover {
+            z-index: 1000 !important;
+        }
+
+        .calendar-day:hover .tooltip-box {
+            display: block;
+            z-index: 9999 !important;
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+
+    <div id="loadingOverlay"
+        class="fixed inset-0 bg-white/95 z-50 flex flex-col justify-center items-center backdrop-blur-sm">
+        <div class="text-6xl animate-bounce mb-4">🦊</div>
+        <h2 class="text-xl font-black text-orange-800 animate-pulse">正在连接 Google Cloud...</h2>
+        <p class="text-xs text-orange-600 mt-2 font-bold" id="loadingText">同步 Emma 专注力数据中，请稍候</p>
+    </div>
+
+    <div
+        class="max-w-5xl mx-auto bg-white rounded-3xl shadow-xl p-6 mb-8 border-4 border-orange-200 relative overflow-hidden">
+        <div class="absolute right-[-20px] top-[-20px] text-8xl opacity-10">🦊</div>
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-4">
+                <button id="avatarBtn"
+                    class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-4xl border-2 border-orange-400 cursor-pointer hover:bg-orange-200 transition-colors shrink-0">🐶</button>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-black text-orange-800">Emma 的专注力成长看板</h1>
+                    <p class="text-orange-600 mt-1 font-semibold text-sm md:text-base">用你不懈的努力，自驱自律，精准兑换快乐特权吧！</p>
+                </div>
+            </div>
+            <div class="flex gap-2 bg-orange-50 p-3 rounded-2xl border border-orange-200 shadow-inner text-xs z-10">
+                <div class="text-center px-3 border-r border-orange-200"><span
+                        class="text-gray-500 block font-bold">分析天数</span><span
+                        class="text-lg font-black text-orange-700" id="statDays">0 天</span></div>
+                <div class="text-center px-3 border-r border-orange-200"><span
+                        class="text-gray-500 block font-bold">工作日</span><span class="text-lg font-black text-orange-700"
+                        id="statWorkdays">0 天</span></div>
+                <div class="text-center px-3"><span class="text-gray-500 block font-bold">双休日</span><span
+                        class="text-lg font-black text-orange-700" id="statWeekends">0 天</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📜 成长指南 — 移到标题下方，默认收起 -->
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-md p-4 border-2 border-amber-200 mb-6">
+        <button id="cheatToggle"
+            class="w-full flex items-center justify-between text-left hover:opacity-80 transition-opacity">
+            <h3 class="text-base font-black text-amber-800 flex items-center gap-2">📜 Emma 的成长指南 <span
+                    class="text-xs font-normal text-amber-500">— 奖励 & 兑换规则速查</span></h3>
+            <span id="cheatArrow" class="text-amber-700 font-black text-sm">▼ 展开</span>
+        </button>
+        <div id="cheatBody" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 hidden">
+            <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3">
+                <h4 class="font-black text-amber-800 mb-1.5 flex items-center gap-1 text-sm">🎯 活动是怎么记的？</h4>
+                <p class="text-[11px] text-gray-600 mb-1.5">每天的活动会被分成 5 类，颜色与日历上的小圆点一一对应：</p>
+                <ul class="text-[11px] space-y-1 text-gray-700">
+                    <li>🔵 <strong class="text-blue-700">专注</strong>：手写 / 纸质阅读，连续 ≥ 30 分钟 → <strong>1 个专注块</strong></li>
+                    <li>🟣 <strong class="text-purple-700">辅导</strong>：和爸妈一起学 或 正式网课 / 教学软件</li>
+                    <li>🟡 <strong class="text-amber-700">屏幕</strong>：自己用手机 / iPad / 电脑（非网课）。30 分钟内 OK；<strong>超过 30
+                            分钟，每多 30 分钟 = 1 次分心</strong></li>
+                    <li>🟢 <strong class="text-emerald-700">护眼</strong>：看远处、走动、闭眼休息 ≥ 10 分钟</li>
+                    <li>🔴 <strong class="text-rose-700">分心</strong>：发呆 / 走神 > 3 分钟，或 < 15 分钟就放弃的学习</li>
+                </ul>
+            </div>
+            <div class="bg-slate-50/60 border border-slate-200 rounded-xl p-3">
+                <h4 class="font-black text-slate-800 mb-1.5 flex items-center gap-1 text-sm">🥈 银币怎么赚？</h4>
+                <p class="text-[11px] text-gray-600 mb-1.5">银币是日常努力的奖励，Gemini 每天根据视频自动发放。</p>
+                <ul class="text-[11px] space-y-1 text-gray-700">
+                    <li><strong class="text-emerald-700">+1 银币</strong>：每完成 1 个专注块（30 分钟手写或阅读）</li>
+                    <li><strong class="text-rose-700">−1 银币</strong>：每累计 3 次分心（包括屏幕超时）</li>
+                    <li><strong class="text-emerald-700">+1 银币</strong>：本周累计护眼时间每满 60 分钟，额外奖励一次</li>
+                </ul>
+                <div class="mt-1.5 pt-1.5 border-t border-slate-200 text-[11px] text-gray-600">
+                    📌 <strong>举例：</strong><br>
+                    · 3 块 / 0 分心 → <strong class="text-emerald-700">+3 银币</strong> 🎉<br>
+                    · 1 块 / 4 分心 → 1 − 1 = <strong>0 银币</strong>
+                </div>
+            </div>
+            <div class="bg-amber-50/60 border border-amber-300 rounded-xl p-3">
+                <h4 class="font-black text-amber-800 mb-1.5 flex items-center gap-1 text-sm">🥇 金币怎么赚？</h4>
+                <p class="text-[11px] text-gray-600 mb-1"><strong>🥇 赚 1 枚金币</strong>必须<strong>同时</strong>满足：</p>
+                <ul class="text-[11px] space-y-0.5 text-gray-700 mb-1">
+                    <li>✅ 至少 <strong>2 个专注块</strong></li>
+                    <li>✅ <strong>0 次分心</strong>（必须完美！）</li>
+                    <li>✅ 屏幕时间未超过 30 分钟</li>
+                </ul>
+                <div class="text-[11px] text-gray-700 pt-1 border-t border-amber-200">
+                    🔥 <strong>连击</strong>：连续 3 天「超棒一天」→ 第 3 天再多赠 1 枚金币
+                </div>
+            </div>
+            <div class="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3">
+                <h4 class="font-black text-emerald-800 mb-1.5 flex items-center gap-1 text-sm">🛒 怎么兑换？</h4>
+                <p class="text-[11px] text-gray-600 mb-1">攒到的币在下方银行里换快乐时间！</p>
+                <div class="text-[11px] text-gray-700 space-y-0.5">
+                    <div><strong>🥈 银币</strong>：Switch 30 分钟 / Netflix / 零食 = 1 银币</div>
+                    <div><strong>🥇 金币</strong>：Switch 1 小时 / 完整电影 / 外出活动 = 1 金币</div>
+                </div>
+                <div class="text-[11px] text-cyan-700 mt-1.5 pt-1.5 border-t border-emerald-200">
+                    🔄 <strong>币种交换</strong>：银币和金币可以互相兑换，汇率可在后台设置。<br>
+                    <span id="cheatExchangeRate">当前默认 5 银币 = 1 金币</span>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl p-3 md:col-span-2 text-white">
+                <h4 class="font-black mb-2 flex items-center gap-1 text-sm">🚀 Emma 的 30 分钟"深度专注力"召唤指南</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                    <div class="bg-white/15 backdrop-blur-md rounded-lg p-2.5 border border-white/20">
+                        <div class="font-bold mb-1 flex items-center gap-1">📦 1. 书桌"清空魔法"</div>
+                        <p class="opacity-90 leading-relaxed">开始前把书桌上所有无关的杂物拿走。彻底阻断开小差的想法！</p>
+                    </div>
+                    <div class="bg-white/15 backdrop-blur-md rounded-lg p-2.5 border border-white/20">
+                        <div class="font-bold mb-1 flex items-center gap-1">⏳ 2. 牢锁"半小时底线"</div>
+                        <p class="opacity-90 leading-relaxed">脑海里启动"30分钟不离座"挑战。这是保住基础金币的唯一防线！</p>
+                    </div>
+                    <div class="bg-white/15 backdrop-blur-md rounded-lg p-2.5 border border-white/20">
+                        <div class="font-bold mb-1 flex items-center gap-1">📝 3. 用笔"压制小动作"</div>
+                        <p class="opacity-90 leading-relaxed">看书或思考时，手千万不要闲着，在草稿纸上圈圈画画，小动作无机可乘！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
+        <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
+            <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span></div>
+        </div>
+        <div class="bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
+            <div class="text-3xl font-black mt-2" id="cardCoaching">0.0 <span class="text-lg font-normal">小时</span>
+            </div>
+        </div>
+        <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-sm font-medium opacity-90">📊 空白时间</div>
+            <div class="text-3xl font-black mt-2" id="cardWaste">0.0 <span class="text-lg font-normal">小时</span></div>
+        </div>
+    </div>
+
+    <div
+        class="max-w-5xl mx-auto bg-indigo-50 rounded-2xl p-6 border border-indigo-200 mb-8 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-center">
+        <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+                <button id="statsPrevBtn" type="button"
+                    class="text-indigo-400 hover:text-indigo-200 font-black text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-1">◀</button>
+                <h3 class="text-lg font-black text-indigo-900 flex items-center gap-2">📊 <span
+                        id="summaryMonthTitle">6月</span> 专注力平均大盘</h3>
+                <button id="statsNextBtn" type="button"
+                    class="text-indigo-400 hover:text-indigo-200 font-black text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-1">▶</button>
+            </div>
+            <p class="text-xs text-indigo-600">点击 ◀ ▶ 可独立切换月份，与日历导航互不影响</p>
+        </div>
+        <div class="flex gap-4 w-full md:w-auto">
+            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
+                <span class="text-xs text-gray-500 font-bold block mb-1">当月日均</span>
+                <span class="text-xl font-black text-indigo-700" id="avgOverall">0.0 小时</span>
+            </div>
+            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
+                <span class="text-xs text-gray-500 font-bold block mb-1">工作日均</span>
+                <span class="text-xl font-black text-indigo-700" id="avgWorkdays">0.0 小时</span>
+            </div>
+            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
+                <span class="text-xs text-gray-500 font-bold block mb-1">周末日均</span>
+                <span class="text-xl font-black text-indigo-700" id="avgWeekends">0.0 小时</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="latestReview"
+        class="max-w-5xl mx-auto bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl shadow-md p-6 border-2 border-orange-200 mb-8">
+        <div id="latestReviewHeader"
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-orange-200/70">
+        </div>
+        <div id="latestReviewBody" class="mt-3 text-sm text-gray-800 space-y-2">
+        </div>
+    </div>
+
+    <!-- 🏦 Emma银行和兑换商店 — 默认收起 -->
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-md border border-emerald-200 mb-8 overflow-hidden">
+        <button id="bankToggle"
+            class="w-full flex items-center justify-between text-left p-4 hover:bg-emerald-50/50 transition-colors">
+            <h3 class="text-base font-black text-emerald-800 flex items-center gap-2">🏦 Emma银行和兑换商店</h3>
+            <span id="bankArrow" class="text-emerald-600 font-black text-sm">▼ 展开</span>
+        </button>
+
+        <!-- 收起时可见：余额 + 最近5条交易 -->
+        <div id="bankCollapsed" class="px-4 pb-4">
+            <div class="flex items-center gap-4 mb-3">
+                <div
+                    class="flex-1 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl px-4 py-2.5 text-slate-800 shadow-inner">
+                    <div class="text-xs font-bold opacity-80">🥈 银币余额</div>
+                    <div class="text-xl font-black" id="silverBalanceCollapsed">0</div>
+                </div>
+                <div
+                    class="flex-1 bg-gradient-to-br from-amber-300 to-yellow-500 rounded-xl px-4 py-2.5 text-amber-900 shadow-inner">
+                    <div class="text-xs font-bold opacity-80">🥇 金币余额</div>
+                    <div class="text-xl font-black" id="goldBalanceCollapsed">0</div>
+                </div>
+            </div>
+            <div class="text-xs text-gray-500 font-semibold mb-1">📋 最近交易</div>
+            <ul id="tokenLedgerCollapsed" class="space-y-1 text-[11px] text-gray-700">
+            </ul>
+        </div>
+
+        <!-- 展开时可见：完整内容 -->
+        <div id="bankBody" class="hidden p-4 pt-0 border-t border-emerald-100">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-emerald-50/30 rounded-xl p-4">
+                    <div class="flex items-center gap-4 mb-4 pb-3 border-b border-emerald-200">
+                        <div
+                            class="flex-1 bg-gradient-to-br from-slate-200 to-slate-300 rounded-xl px-4 py-3 text-slate-800 shadow-inner">
+                            <div class="text-xs font-bold opacity-80">🥈 银币余额</div>
+                            <div class="text-2xl font-black" id="silverBalance">0</div>
+                        </div>
+                        <div
+                            class="flex-1 bg-gradient-to-br from-amber-300 to-yellow-500 rounded-xl px-4 py-3 text-amber-900 shadow-inner">
+                            <div class="text-xs font-bold opacity-80">🥇 金币余额</div>
+                            <div class="text-2xl font-black" id="goldBalance">0</div>
+                        </div>
+                    </div>
+
+                    <h3 class="text-base font-black text-emerald-800 mb-2 flex items-center gap-2">🛒 兑换商店</h3>
+                    <p class="text-xs text-emerald-600 mb-3">攒到的银币 / 金币可以在这里兑换快乐时间</p>
+
+                    <div class="text-[10px] font-bold text-slate-500 mb-1 mt-2">银币兑换（30 分钟级别）</div>
+                    <div id="redeemSilverList" class="space-y-2 mb-3"></div>
+                    <div class="text-[10px] font-bold text-amber-700 mb-1 mt-3">金币兑换（大奖级别）</div>
+                    <div id="redeemGoldList" class="space-y-2 mb-3"></div>
+
+                    <button id="bonusBtn"
+                        class="mt-3 w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg shadow-sm text-sm transition-colors">
+                        ＋ 手动奖励（需密码）
+                    </button>
+                    <button id="exchangeBtn"
+                        class="mt-2 w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 rounded-lg shadow-sm text-sm transition-colors">
+                        🔄 币种交换
+                    </button>
+                </div>
+
+                <div class="bg-rose-50/20 rounded-xl p-4 flex flex-col justify-between h-full">
+                    <div>
+                        <h3 class="text-base font-black text-rose-800 mb-2 flex items-center gap-2">📋 最近交易</h3>
+                        <p class="text-xs text-rose-600 mb-3 pb-2 border-b border-rose-100">历史奖励 / 兑换 / 手动调整记录</p>
+                    </div>
+                    <ul id="tokenLedger" class="space-y-2 text-xs text-gray-700 flex-1"></ul>
+                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-rose-100">
+                        <button id="ledgerPrevBtn"
+                            class="text-rose-500 hover:text-rose-700 font-bold text-xs px-2 py-1 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">◀
+                            上一页</button>
+                        <span id="ledgerPageInfo" class="text-xs text-rose-400 font-semibold">1 / 1</span>
+                        <button id="ledgerNextBtn"
+                            class="text-rose-500 hover:text-rose-700 font-bold text-xs px-2 py-1 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">下一页
+                            ▶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bonusModal" class="fixed inset-0 bg-black/60 z-[10000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-black text-orange-800 mb-3">＋ 手动奖励</h3>
+            <p class="text-xs text-gray-500 mb-3">输入家长密码后发放奖励，事由会写入交易记录。</p>
+            <label class="text-xs font-bold text-gray-700 block mb-1">家长密码</label>
+            <input id="bonusPin" type="password" class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-3"
+                placeholder="••••">
+            <label class="text-xs font-bold text-gray-700 block mb-1">币种</label>
+            <div class="flex gap-3 mb-3 text-sm">
+                <label class="flex items-center gap-1"><input type="radio" name="bonusCoin" value="silver" checked> 🥈
+                    银币</label>
+                <label class="flex items-center gap-1"><input type="radio" name="bonusCoin" value="gold"> 🥇 金币</label>
+            </div>
+            <label class="text-xs font-bold text-gray-700 block mb-1">数量</label>
+            <input id="bonusAmount" type="number" min="1" value="1"
+                class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-3">
+            <label class="text-xs font-bold text-gray-700 block mb-1">事由</label>
+            <input id="bonusReason" type="text" class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-4"
+                placeholder="例：主动收拾房间">
+            <div id="bonusError" class="text-xs text-rose-600 mb-2 hidden"></div>
+            <div class="flex gap-2 justify-end">
+                <button id="bonusCancel" class="px-4 py-1.5 text-sm rounded bg-gray-200 hover:bg-gray-300">取消</button>
+                <button id="bonusSubmit"
+                    class="px-4 py-1.5 text-sm rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold">发放</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exchangeModal" class="fixed inset-0 bg-black/60 z-[10000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-black text-cyan-800 mb-3">🔄 币种交换</h3>
+            <p class="text-xs text-gray-500 mb-3" id="exchangeRateHint">当前汇率：5 银币 = 1 金币</p>
+            <label class="text-xs font-bold text-gray-700 block mb-1">交换方向</label>
+            <div class="flex gap-3 mb-3 text-sm">
+                <label class="flex items-center gap-1"><input type="radio" name="exchangeDir" value="s2g" checked> 🥈
+                    银币 → 🥇 金币</label>
+                <label class="flex items-center gap-1"><input type="radio" name="exchangeDir" value="g2s"> 🥇
+                    金币 → 🥈 银币</label>
+            </div>
+            <label class="text-xs font-bold text-gray-700 block mb-1">我要交换</label>
+            <select id="exchangeAmount" class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-2">
+            </select>
+            <div id="exchangePreview" class="text-xs text-gray-500 mb-3">你将获得：1 枚</div>
+            <div id="exchangeError" class="text-xs text-rose-600 mb-2 hidden"></div>
+            <div class="flex gap-2 justify-end">
+                <button id="exchangeCancel"
+                    class="px-4 py-1.5 text-sm rounded bg-gray-200 hover:bg-gray-300">取消</button>
+                <button id="exchangeSubmit"
+                    class="px-4 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold">确认交换</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎨 头像选择弹窗 -->
+    <div id="avatarModal" class="fixed inset-0 bg-black/60 z-[10000] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-black text-orange-800 mb-3">🎨 选择你的头像</h3>
+            <p class="text-xs text-gray-500 mb-3">点击下方选项更换头像，或上传自己的图片。</p>
+
+            <!-- 预览区 -->
+            <div class="flex justify-center mb-4">
+                <div id="avatarPreview"
+                    class="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center text-5xl border-2 border-orange-400 overflow-hidden">
+                    🐶</div>
+            </div>
+
+            <!-- Emoji 选项卡 -->
+            <div class="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
+                <span>🎨 Emoji 快速选择</span>
+            </div>
+            <div class="grid grid-cols-5 gap-2 mb-4">
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐶</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐱</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐼</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐨</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦊</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐰</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦁</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐯</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐸</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐵</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦄</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐧</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐤</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐮</button>
+                <button
+                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐙</button>
+            </div>
+
+            <!-- 上传选项卡 -->
+            <div class="text-xs font-bold text-gray-700 mb-2">📷 上传自定义图片</div>
+            <input id="avatarFileInput" type="file" accept="image/*"
+                class="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 mb-4">
+
+            <div id="avatarError" class="text-xs text-rose-600 mb-2 hidden"></div>
+            <div class="flex gap-2 justify-end">
+                <button id="avatarCancel" class="px-4 py-1.5 text-sm rounded bg-gray-200 hover:bg-gray-300">取消</button>
+                <button id="avatarReset"
+                    class="px-4 py-1.5 text-sm rounded bg-gray-200 hover:bg-gray-300 text-gray-600">重置默认</button>
+                <button id="avatarConfirm"
+                    class="px-4 py-1.5 text-sm rounded bg-orange-600 hover:bg-orange-500 text-white font-bold">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-md p-6 border border-orange-100 mb-8">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-100 pb-4">
+            <div class="flex items-center gap-4">
+                <button id="prevMonthBtn"
+                    class="bg-orange-100 hover:bg-orange-200 text-orange-800 font-black px-3 py-1.5 rounded-lg transition-colors text-sm">◀
+                    前一月</button>
+                <h3 class="text-xl font-black text-gray-800 min-w-[120px] text-center" id="calendarMonthTitle">2026年 6月
+                </h3>
+                <button id="nextMonthBtn"
+                    class="bg-orange-100 hover:bg-orange-200 text-orange-800 font-black px-3 py-1.5 rounded-lg transition-colors text-sm">后一月
+                    ▶</button>
+            </div>
+
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="flex flex-col gap-1 text-[11px] font-bold">
+                    <div class="flex gap-2 items-center">
+                        <span class="text-gray-500 mr-1">日评：</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-3 h-4 rounded bg-emerald-400 block"></span>优秀</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-3 h-4 rounded bg-amber-300 block"></span>警告</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-3 h-4 rounded bg-rose-400 block"></span>危险</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-3 h-4 rounded bg-slate-200 block"></span>不在场</span>
+                    </div>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <span class="text-gray-500 mr-1">活动：</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#3b82f6">🔵</span>专注</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#a855f7">🟣</span>辅导</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#f59e0b">🟡</span>屏幕</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#22c55e">🟢</span>护眼</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#ef4444">🔴</span>分心</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="grid grid-cols-7 gap-2 text-center text-sm font-black text-gray-500 mb-2">
+            <div>一</div>
+            <div>二</div>
+            <div>三</div>
+            <div>四</div>
+            <div>五</div>
+            <div>六</div>
+            <div>日</div>
+        </div>
+        <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
+    </div>
+
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow-md p-6 border border-blue-100">
+            <h3 class="text-base font-black text-blue-800 mb-1 flex items-center gap-2">📈 全期活动时长分布</h3>
+            <p class="text-xs text-blue-600 mb-3">按活动名称累计分钟（蓝=专注 / 紫=辅导 / 黄=屏幕 / 绿=护眼 / 红=分心）</p>
+            <canvas id="chartDistribution" height="220"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl shadow-md p-6 border border-emerald-100">
+            <h3 class="text-base font-black text-emerald-800 mb-1 flex items-center gap-2">📉 90 天专注 vs 分心趋势</h3>
+            <p class="text-xs text-emerald-600 mb-3">7 日滚动平均，凸显长期变化</p>
+            <canvas id="chartTrend" height="220"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 云端配置区
+        // ==========================================
+        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
+        const API_TOKEN = "emma2026_secure";
+        const LOG_CACHE = new Map();
+
+        let currentYear = null;
+        let currentMonth = null;
+        let EMMA_DATA = {};
+        let CHART_DATA = null;
+        let CHART_INSTANCES = {};
+        let LATEST_RECORD = null;
+        let RECENT_DAYS_CACHE = [];
+        let RECENT_DAY_INDEX = 0;
+        let STATS_YM = null;
+        const MONTH_DATA_CACHE = {};
+        let TOKEN_DATA = null;
+        let REDEEM_ITEMS = [];
+
+        // -- 新增：分页参数 --
+        let currentLedgerPage = 1;
+        const LEDGER_PAGE_SIZE = 17;
+
+        const STATUS_STYLES = {
+            green: "bg-emerald-100 border-emerald-300 text-emerald-900",
+            amber: "bg-amber-100 border-amber-300 text-amber-900",
+            red: "bg-rose-100 border-rose-300 text-rose-900",
+            gray: "bg-slate-100 border-slate-300 text-slate-600"
+        };
+
+        const BUCKET_DISPLAY = {
+            focus: { color: "#3b82f6", label: "专注", emoji: "🔵" },
+            coaching: { color: "#a855f7", label: "辅导", emoji: "🟣" },
+            screen: { color: "#f59e0b", label: "屏幕", emoji: "🟡" },
+            eyerest: { color: "#22c55e", label: "护眼", emoji: "🟢" },
+            distraction: { color: "#ef4444", label: "偏离", emoji: "🔴" },
+            neutral: { color: "#9ca3af", label: "其他", emoji: "⚪" }
+        };
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            await Promise.all([loadData(null), loadCharts(), loadTokens(), loadRedeemItems()]);
+
+            const initYM = (EMMA_DATA && EMMA_DATA.ym) ||
+                (EMMA_DATA.dataRange && EMMA_DATA.dataRange.maxYM) ||
+                todayYM();
+            [currentYear, currentMonth] = parseYM(initYM);
+
+            STATS_YM = initYM;
+
+            await loadLatestRecord();
+
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('fade-out');
+                renderDashboard();
+                renderCharts();
+                window.scrollTo(0, 0);
+            }, 300);
+
+            document.getElementById('prevMonthBtn').addEventListener('click', async () => {
+                shiftMonth(-1);
+                await loadData(ymOf(currentYear, currentMonth));
+                renderDashboard();
+            });
+            document.getElementById('nextMonthBtn').addEventListener('click', async () => {
+                shiftMonth(1);
+                await loadData(ymOf(currentYear, currentMonth));
+                renderDashboard();
+            });
+
+            const sp = document.getElementById('statsPrevBtn');
+            const sn = document.getElementById('statsNextBtn');
+            if (sp) sp.addEventListener('click', () => shiftStatsMonth(-1));
+            if (sn) sn.addEventListener('click', () => shiftStatsMonth(1));
+
+            initCheatToggle();
+            initBankToggle();
+            bindBonusModal();
+            bindExchangeModal();
+            initAvatarPicker();
+
+            // -- 新增：交易记录分页按钮绑定 --
+            document.getElementById('ledgerPrevBtn').addEventListener('click', () => {
+                if (currentLedgerPage > 1) {
+                    currentLedgerPage--;
+                    renderTokenLedger();
+                }
+            });
+            document.getElementById('ledgerNextBtn').addEventListener('click', () => {
+                const txs = (TOKEN_DATA && TOKEN_DATA.transactions) || [];
+                const totalPages = Math.ceil(txs.length / LEDGER_PAGE_SIZE) || 1;
+                if (currentLedgerPage < totalPages) {
+                    currentLedgerPage++;
+                    renderTokenLedger();
+                }
+            });
+        });
+
+        function ymOf(y, m) { return y + "-" + String(m).padStart(2, "0"); }
+        function parseYM(ym) {
+            const [y, m] = ym.split("-").map(Number);
+            return [y, m];
+        }
+        function todayYM() {
+            const d = new Date();
+            return ymOf(d.getFullYear(), d.getMonth() + 1);
+        }
+        function shiftMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+            if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+            const range = EMMA_DATA && EMMA_DATA.dataRange;
+            if (range) {
+                const cur = ymOf(currentYear, currentMonth);
+                if (range.minYM && cur < range.minYM) [currentYear, currentMonth] = parseYM(range.minYM);
+                if (range.maxYM && cur > range.maxYM) [currentYear, currentMonth] = parseYM(range.maxYM);
+            }
+            updateNavButtons();
+        }
+        function updateNavButtons() {
+            const range = EMMA_DATA && EMMA_DATA.dataRange;
+            if (!range) return;
+            const cur = ymOf(currentYear, currentMonth);
+            const prev = document.getElementById('prevMonthBtn');
+            const next = document.getElementById('nextMonthBtn');
+            if (prev) prev.disabled = (range.minYM && cur <= range.minYM);
+            if (next) next.disabled = (range.maxYM && cur >= range.maxYM);
+            if (prev) prev.classList.toggle('opacity-40', !!prev.disabled);
+            if (next) next.classList.toggle('opacity-40', !!next.disabled);
+        }
+
+        function deltaYM(ym, delta) {
+            const [y, m] = ym.split('-').map(Number);
+            let nm = m + delta, ny = y;
+            if (nm < 1) { nm = 12; ny--; }
+            if (nm > 12) { nm = 1; ny++; }
+            return `${ny}-${String(nm).padStart(2, '0')}`;
+        }
+
+        async function fetchMonthData(ym) {
+            if (MONTH_DATA_CACHE[ym]) return MONTH_DATA_CACHE[ym];
+            if (EMMA_DATA && EMMA_DATA.ym === ym) {
+                MONTH_DATA_CACHE[ym] = EMMA_DATA;
+                return EMMA_DATA;
+            }
+            try {
+                const data = await fetch(
+                    `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard&ym=${ym}`
+                ).then(r => r.json());
+                if (data && !data.error) MONTH_DATA_CACHE[ym] = data;
+                return data || {};
+            } catch { return {}; }
+        }
+
+        async function loadData(ym) {
+            try {
+                const url = `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard` + (ym ? `&ym=${ym}` : "");
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.error || !data.days) {
+                    EMMA_DATA = getFallbackData();
+                } else {
+                    document.getElementById('loadingText').innerText = "数据抓取成功，正在生成仪表盘...";
+                    EMMA_DATA = data;
+                    MONTH_DATA_CACHE[data.ym] = data;
+                }
+            } catch (err) {
+                EMMA_DATA = getFallbackData();
+            }
+        }
+
+        async function loadCharts() {
+            try {
+                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getCharts`);
+                CHART_DATA = await res.json();
+                if (CHART_DATA && CHART_DATA.error) {
+                    CHART_DATA = null;
+                }
+            } catch (err) {
+                CHART_DATA = null;
+            }
+        }
+
+        async function loadLatestRecord() {
+            const maxYM = EMMA_DATA && EMMA_DATA.dataRange && EMMA_DATA.dataRange.maxYM;
+            const minYM = EMMA_DATA && EMMA_DATA.dataRange && EMMA_DATA.dataRange.minYM;
+            if (!maxYM) { RECENT_DAYS_CACHE = []; LATEST_RECORD = null; return; }
+
+            const maxData = await fetchMonthData(maxYM);
+            const maxDays = (maxData && maxData.days) || {};
+            let sorted = Object.keys(maxDays).sort().reverse();
+            let cache = sorted.map(d => maxDays[d]);
+
+            if (cache.length < 7) {
+                const pym = deltaYM(maxYM, -1);
+                if (!minYM || pym >= minYM) {
+                    const prevData = await fetchMonthData(pym);
+                    const prevDays = (prevData && prevData.days) || {};
+                    const prevSorted = Object.keys(prevDays).sort().reverse();
+                    const needed = 7 - cache.length;
+                    cache = cache.concat(prevSorted.slice(0, needed).map(d => prevDays[d]));
+                }
+            }
+
+            RECENT_DAYS_CACHE = cache.slice(0, 7);
+            RECENT_DAY_INDEX = 0;
+            LATEST_RECORD = RECENT_DAYS_CACHE[0] || null;
+        }
+
+        function navigateRecentDay(delta) {
+            const next = RECENT_DAY_INDEX + delta;
+            if (next < 0 || next >= RECENT_DAYS_CACHE.length) return;
+            RECENT_DAY_INDEX = next;
+            LATEST_RECORD = RECENT_DAYS_CACHE[RECENT_DAY_INDEX];
+            renderLatestReview();
+        }
+
+        async function loadTokens() {
+            try {
+                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getTokens`);
+                const data = await res.json();
+                if (data && !data.error) TOKEN_DATA = data;
+                else { TOKEN_DATA = { silverBalance: 0, goldBalance: 0, transactions: [] }; }
+            } catch (err) {
+                TOKEN_DATA = { silverBalance: 0, goldBalance: 0, transactions: [] };
+            }
+        }
+
+        async function loadRedeemItems() {
+            try {
+                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getRedeemItems`);
+                const data = await res.json();
+                REDEEM_ITEMS = Array.isArray(data) ? data : [];
+            } catch (err) {
+                REDEEM_ITEMS = [];
+            }
+        }
+
+        function renderTokenSection() {
+            const t = TOKEN_DATA || { silverBalance: 0, goldBalance: 0, transactions: [] };
+
+            // 展开状态的余额
+            document.getElementById('silverBalance').innerText = t.silverBalance + " 枚";
+            document.getElementById('goldBalance').innerText = t.goldBalance + " 枚";
+            // 收起状态的余额
+            const sc = document.getElementById('silverBalanceCollapsed');
+            const gc = document.getElementById('goldBalanceCollapsed');
+            if (sc) sc.innerText = t.silverBalance + " 枚";
+            if (gc) gc.innerText = t.goldBalance + " 枚";
+
+            // 收起状态：最近5条交易
+            const collapsedUl = document.getElementById('tokenLedgerCollapsed');
+            if (collapsedUl) {
+                const txs = t.transactions || [];
+                collapsedUl.innerHTML = txs.slice(0, 5).map(tx => {
+                    const meta = txTypeMeta(tx.type);
+                    const sMag = tx.silverDelta ? Math.abs(tx.silverDelta) : 0;
+                    const gMag = tx.goldDelta ? Math.abs(tx.goldDelta) : 0;
+                    const sSign = tx.silverDelta > 0 ? '+' : (tx.silverDelta < 0 ? '−' : '');
+                    const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
+                    const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag}🥈</span>` : '';
+                    const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag}🥇</span>` : '';
+                    return `<li class="flex items-start gap-2 py-0.5 border-b border-gray-100/60 last:border-0">
+                        <span title="${meta.title}" class="text-[11px]">${meta.emoji}</span>
+                        <div class="flex-1 truncate text-[11px] text-gray-600">${escapeHtml(tx.description || '')}</div>
+                        <div class="flex gap-1 text-[11px]">${sChip}${gChip}</div>
+                    </li>`;
+                }).join('');
+                if (!txs.length) collapsedUl.innerHTML = '<li class="text-gray-400 italic text-[11px]">暂无交易记录</li>';
+            }
+
+            const renderList = (containerId, coinType) => {
+                const c = document.getElementById(containerId);
+                const items = REDEEM_ITEMS.filter(i => i.active && i.coinType === coinType);
+                if (!items.length) {
+                    c.innerHTML = `<div class="text-xs text-gray-400 italic py-2">暂无可兑换项</div>`;
+                    return;
+                }
+                const balance = coinType === 'silver' ? t.silverBalance : t.goldBalance;
+                const coinEmoji = coinType === 'silver' ? '🥈' : '🥇';
+                const coinName = coinType === 'silver' ? '银币' : '金币';
+                c.innerHTML = items.map(i => {
+                    const enough = balance >= i.cost;
+                    const btnCls = enough
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed";
+                    const title = enough ? "" : "余额不足";
+                    return `
+                        <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-100">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-gray-800 text-sm truncate">${escapeHtml(i.label)}</div>
+                                <div class="text-[10px] text-gray-500 truncate">${escapeHtml(i.description || '')}</div>
+                            </div>
+                            <button data-item="${escapeAttr(i.itemId)}" data-cost="${i.cost}" data-coin="${coinType}" data-label="${escapeAttr(i.label)}"
+                                    class="redeem-btn px-3 py-1 rounded text-xs font-bold ${btnCls}" title="${title}" ${enough ? '' : 'disabled'}>
+                                ${coinEmoji} ${i.cost} ${coinName}
+                            </button>
+                        </div>`;
+                }).join('');
+            };
+            renderList('redeemSilverList', 'silver');
+            renderList('redeemGoldList', 'gold');
+
+            document.querySelectorAll('.redeem-btn').forEach(btn => {
+                btn.onclick = () => handleRedeem(btn.dataset.item, Number(btn.dataset.cost), btn.dataset.coin, btn.dataset.label);
+            });
+
+            renderTokenLedger();
+        }
+
+        // -- 修改：增加分页渲染逻辑 --
+        function renderTokenLedger() {
+            const ul = document.getElementById('tokenLedger');
+            const pageInfo = document.getElementById('ledgerPageInfo');
+            const prevBtn = document.getElementById('ledgerPrevBtn');
+            const nextBtn = document.getElementById('ledgerNextBtn');
+
+            const txs = (TOKEN_DATA && TOKEN_DATA.transactions) || [];
+            const totalPages = Math.ceil(txs.length / LEDGER_PAGE_SIZE) || 1;
+
+            if (!txs.length) {
+                ul.innerHTML = `<li class="text-gray-400 italic">暂无交易记录，从 2026-06-27 开始计算。</li>`;
+                pageInfo.innerText = `0 / 0`;
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                return;
+            }
+
+            if (currentLedgerPage > totalPages) currentLedgerPage = totalPages;
+            if (currentLedgerPage < 1) currentLedgerPage = 1;
+
+            pageInfo.innerText = `${currentLedgerPage} / ${totalPages}`;
+            prevBtn.disabled = currentLedgerPage === 1;
+            nextBtn.disabled = currentLedgerPage === totalPages;
+
+            const startIndex = (currentLedgerPage - 1) * LEDGER_PAGE_SIZE;
+            const endIndex = startIndex + LEDGER_PAGE_SIZE;
+            const currentTxs = txs.slice(startIndex, endIndex);
+
+            ul.innerHTML = currentTxs.map(tx => {
+                const meta = txTypeMeta(tx.type);
+                const sMag = tx.silverDelta ? Math.abs(tx.silverDelta) : 0;
+                const gMag = tx.goldDelta ? Math.abs(tx.goldDelta) : 0;
+                const sSign = tx.silverDelta > 0 ? '+' : (tx.silverDelta < 0 ? '−' : '');
+                const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
+                const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag} 🥈</span>` : '';
+                const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag} 🥇</span>` : '';
+                return `
+                    <li class="flex items-start gap-2 py-1 border-b border-rose-100/60 last:border-0">
+                        <span title="${meta.title}">${meta.emoji}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] text-gray-500">${tx.date}</div>
+                            <div class="text-xs text-gray-800 truncate">${escapeHtml(tx.description || '')}</div>
+                        </div>
+                        <div class="flex flex-col items-end text-xs gap-0.5">${sChip}${gChip}</div>
+                    </li>`;
+            }).join('');
+        }
+
+        function txTypeMeta(type) {
+            switch (type) {
+                case 'award_silver': return { emoji: '✨', title: '专注奖励' };
+                case 'award_gold': return { emoji: '🏆', title: '优秀日金币' };
+                case 'streak_gold': return { emoji: '🔥', title: '连击奖励' };
+                case 'eyerest_silver': return { emoji: '🟢', title: '护眼里程碑' };
+                case 'bonus_silver': return { emoji: '🎁', title: '手动奖励（银）' };
+                case 'bonus_gold': return { emoji: '🎁', title: '手动奖励（金）' };
+                case 'redeem': return { emoji: '🛒', title: '兑换' };
+                case 'exchange': return { emoji: '🔄', title: '币种交换' };
+                default: return { emoji: '•', title: type };
+            }
+        }
+
+        async function handleRedeem(itemId, cost, coinType, label) {
+            const coinName = coinType === 'silver' ? '银币' : '金币';
+            const coinEmoji = coinType === 'silver' ? '🥈' : '🥇';
+            if (!confirm(`确认消耗 ${cost} 枚${coinName}兑换「${label}」？`)) return;
+            try {
+                const res = await fetch(GOOGLE_API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ token: API_TOKEN, action: 'redeem', itemId })
+                });
+                const result = await res.json();
+                if (result.error) { alert("兑换失败：" + result.error); return; }
+                await loadTokens();
+                currentLedgerPage = 1; // 兑换成功后重置到第一页，方便查看最新记录
+                renderTokenSection();
+                showToast(`✅ 兑换成功：${label} · 扣 ${cost} ${coinEmoji}${coinName}`);
+            } catch (err) {
+                alert("兑换请求失败：" + err.message);
+            }
+        }
+
+        function showToast(msg, ms) {
+            let host = document.getElementById('emmaToast');
+            if (!host) {
+                host = document.createElement('div');
+                host.id = 'emmaToast';
+                host.className = 'fixed bottom-6 right-6 z-[10001] flex flex-col gap-2 pointer-events-none';
+                document.body.appendChild(host);
+            }
+            const card = document.createElement('div');
+            card.className = 'bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-xl transition-opacity duration-300';
+            card.innerText = msg;
+            host.appendChild(card);
+            setTimeout(() => { card.style.opacity = '0'; }, ms || 2500);
+            setTimeout(() => { card.remove(); }, (ms || 2500) + 350);
+        }
+
+        function initCheatToggle() {
+            const btn = document.getElementById('cheatToggle');
+            const body = document.getElementById('cheatBody');
+            const arrow = document.getElementById('cheatArrow');
+            if (!btn || !body || !arrow) return;
+            const apply = (collapsed) => {
+                body.classList.toggle('hidden', collapsed);
+                arrow.innerText = collapsed ? '▼ 展开' : '▲ 收起';
+            };
+            const stored = localStorage.getItem('emmaCheatCollapsed');
+            apply(stored === '1');
+            btn.addEventListener('click', () => {
+                const nowCollapsed = !body.classList.contains('hidden');
+                apply(nowCollapsed);
+                localStorage.setItem('emmaCheatCollapsed', nowCollapsed ? '1' : '0');
+            });
+        }
+
+        function bindBonusModal() {
+            const openBtn = document.getElementById('bonusBtn');
+            const modal = document.getElementById('bonusModal');
+            const cancel = document.getElementById('bonusCancel');
+            const submit = document.getElementById('bonusSubmit');
+            const errBox = document.getElementById('bonusError');
+            if (!openBtn || !modal) return;
+
+            const close = () => {
+                modal.classList.add('hidden');
+                errBox.classList.add('hidden');
+                document.getElementById('bonusPin').value = '';
+                document.getElementById('bonusAmount').value = '1';
+                document.getElementById('bonusReason').value = '';
+            };
+            openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+            cancel.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+            submit.addEventListener('click', async () => {
+                errBox.classList.add('hidden');
+                const pin = document.getElementById('bonusPin').value;
+                const coinType = document.querySelector('input[name="bonusCoin"]:checked').value;
+                const amount = Number(document.getElementById('bonusAmount').value) || 0;
+                const reason = document.getElementById('bonusReason').value.trim();
+                if (!pin) { errBox.innerText = '请输入密码'; errBox.classList.remove('hidden'); return; }
+                if (amount < 1) { errBox.innerText = '数量必须 ≥ 1'; errBox.classList.remove('hidden'); return; }
+                try {
+                    const res = await fetch(GOOGLE_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: API_TOKEN, action: 'bonus', pin, coinType, amount, reason })
+                    });
+                    const result = await res.json();
+                    if (result.error) {
+                        errBox.innerText = result.error;
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+                    await loadTokens();
+                    currentLedgerPage = 1; // 奖励成功后重置到第一页，方便查看最新记录
+                    renderTokenSection();
+                    const coinEmoji = coinType === 'silver' ? '🥈' : '🥇';
+                    showToast(`✅ 已发放 +${amount} ${coinEmoji}${coinType === 'silver' ? '银币' : '金币'}`);
+                    close();
+                } catch (err) {
+                    errBox.innerText = '请求失败：' + err.message;
+                    errBox.classList.remove('hidden');
+                }
+            });
+        }
+
+        // ==========================================
+        // 🏦 Emma银行折叠切换
+        // ==========================================
+        function initBankToggle() {
+            const btn = document.getElementById('bankToggle');
+            const body = document.getElementById('bankBody');
+            const collapsed = document.getElementById('bankCollapsed');
+            const arrow = document.getElementById('bankArrow');
+            if (!btn || !body || !collapsed || !arrow) return;
+            const apply = (expanded) => {
+                body.classList.toggle('hidden', !expanded);
+                collapsed.style.display = expanded ? 'none' : '';
+                arrow.innerText = expanded ? '▲ 收起' : '▼ 展开';
+            };
+            // 始终默认收起
+            apply(false);
+            btn.addEventListener('click', () => {
+                const nowExpanded = !body.classList.contains('hidden');
+                apply(!nowExpanded);
+                localStorage.setItem('emmaBankExpanded', nowExpanded ? '0' : '1');
+            });
+        }
+
+        // ==========================================
+        // 🔄 币种交换弹窗
+        // ==========================================
+        let EXCHANGE_RATE = 5;
+
+        function bindExchangeModal() {
+            const openBtn = document.getElementById('exchangeBtn');
+            const modal = document.getElementById('exchangeModal');
+            const cancel = document.getElementById('exchangeCancel');
+            const submit = document.getElementById('exchangeSubmit');
+            const errBox = document.getElementById('exchangeError');
+            const amountSelect = document.getElementById('exchangeAmount');
+            const preview = document.getElementById('exchangePreview');
+            const hint = document.getElementById('exchangeRateHint');
+            if (!openBtn || !modal) return;
+
+            const close = () => {
+                modal.classList.add('hidden');
+                errBox.classList.add('hidden');
+            };
+
+            // 根据方向 + 余额生成下拉选项
+            const populateOptions = () => {
+                const dir = document.querySelector('input[name="exchangeDir"]:checked').value;
+                const rate = EXCHANGE_RATE;
+                const t = TOKEN_DATA || { silverBalance: 0, goldBalance: 0 };
+                const balance = dir === 's2g' ? t.silverBalance : t.goldBalance;
+
+                let options = [];
+                if (dir === 's2g') {
+                    // 银→金：选项为 rate, rate*2, rate*3... 不超过余额
+                    const max = Math.floor(balance / rate) * rate;
+                    for (let v = rate; v <= max; v += rate) {
+                        options.push(v);
+                    }
+                } else {
+                    // 金→银：选项为 1, 2, 3... 不超过余额
+                    for (let v = 1; v <= balance; v++) {
+                        options.push(v);
+                    }
+                }
+
+                amountSelect.innerHTML = options.map(v =>
+                    `<option value="${v}">${v} 枚</option>`
+                ).join('');
+
+                // 无可用选项时显示占位
+                if (!options.length) {
+                    amountSelect.innerHTML = `<option value="" disabled>余额不足</option>`;
+                }
+
+                updatePreview();
+            };
+
+            const updatePreview = () => {
+                const dir = document.querySelector('input[name="exchangeDir"]:checked').value;
+                const amt = Number(amountSelect.value) || 0;
+                const rate = EXCHANGE_RATE;
+                if (dir === 's2g') {
+                    const out = Math.floor(amt / rate);
+                    preview.innerText = `你将获得：${out} 枚 🥇 金币`;
+                } else {
+                    const out = amt * rate;
+                    preview.innerText = `你将获得：${out} 枚 🥈 银币`;
+                }
+            };
+
+            const loadData = async () => {
+                // 同时拉取汇率和余额
+                try {
+                    const [rateRes, tokenRes] = await Promise.all([
+                        fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getExchangeRate`),
+                        fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getTokens`)
+                    ]);
+                    const rateData = await rateRes.json();
+                    const tokenData = await tokenRes.json();
+                    if (rateData && rateData.rate) {
+                        EXCHANGE_RATE = rateData.rate;
+                        hint.innerText = `当前汇率：${EXCHANGE_RATE} 银币 = 1 金币`;
+                    }
+                    if (tokenData && !tokenData.error) {
+                        TOKEN_DATA = tokenData;
+                    }
+                } catch (err) {
+                    console.log("加载数据失败", err);
+                }
+                populateOptions();
+            };
+
+            openBtn.addEventListener('click', () => {
+                loadData();
+                modal.classList.remove('hidden');
+            });
+            cancel.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+            document.querySelectorAll('input[name="exchangeDir"]').forEach(r => {
+                r.addEventListener('change', populateOptions);
+            });
+            amountSelect.addEventListener('change', updatePreview);
+
+            submit.addEventListener('click', async () => {
+                errBox.classList.add('hidden');
+                const dir = document.querySelector('input[name="exchangeDir"]:checked').value;
+                const amt = Number(amountSelect.value) || 0;
+                if (!amt) { errBox.innerText = '请选择交换数量'; errBox.classList.remove('hidden'); return; }
+                try {
+                    const res = await fetch(GOOGLE_API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ token: API_TOKEN, action: 'exchange', direction: dir, amount: amt })
+                    });
+                    const result = await res.json();
+                    if (result.error) {
+                        errBox.innerText = result.error;
+                        errBox.classList.remove('hidden');
+                        return;
+                    }
+                    await loadTokens();
+                    currentLedgerPage = 1;
+                    renderTokenSection();
+                    const dirLabel = dir === 's2g' ? '银币→金币' : '金币→银币';
+                    showToast(`✅ 交换成功：${dirLabel} ${amt} 枚`);
+                    close();
+                } catch (err) {
+                    errBox.innerText = '请求失败：' + err.message;
+                    errBox.classList.remove('hidden');
+                }
+            });
+        }
+
+        // ==========================================
+        // 🎨 头像选择器
+        // ==========================================
+        let AVATAR_PENDING = null; // 暂存选择的头像内容
+
+        function initAvatarPicker() {
+            const btn = document.getElementById('avatarBtn');
+            const modal = document.getElementById('avatarModal');
+            const cancel = document.getElementById('avatarCancel');
+            const resetBtn = document.getElementById('avatarReset');
+            const confirmBtn = document.getElementById('avatarConfirm');
+            const errBox = document.getElementById('avatarError');
+            const preview = document.getElementById('avatarPreview');
+            const fileInput = document.getElementById('avatarFileInput');
+            if (!btn || !modal) return;
+
+            // 加载已保存的头像
+            const saved = localStorage.getItem('emmaAvatar');
+            if (saved) {
+                btn.innerHTML = saved;
+                AVATAR_PENDING = saved;
+            }
+
+            // 预览更新函数
+            const updatePreview = (content) => {
+                if (content.startsWith('data:image')) {
+                    preview.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
+                } else {
+                    preview.innerText = content;
+                }
+                AVATAR_PENDING = content;
+            };
+
+            // 打开弹窗
+            btn.addEventListener('click', () => {
+                AVATAR_PENDING = btn.innerHTML;
+                if (AVATAR_PENDING.startsWith('<img')) {
+                    const src = AVATAR_PENDING.match(/src="([^"]+)"/);
+                    updatePreview(src ? src[1] : '🐶');
+                } else {
+                    updatePreview(btn.innerText);
+                }
+                modal.classList.remove('hidden');
+            });
+
+            // 关闭
+            const close = () => {
+                modal.classList.add('hidden');
+                errBox.classList.add('hidden');
+            };
+            cancel.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+            // Emoji 点击
+            document.querySelectorAll('.avatar-emoji').forEach(el => {
+                el.addEventListener('click', () => {
+                    updatePreview(el.innerText);
+                });
+            });
+
+            // 文件上传
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (file.size > 1024 * 1024) {
+                    errBox.innerText = '图片不能超过 1MB';
+                    errBox.classList.remove('hidden');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    updatePreview(ev.target.result);
+                    errBox.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // 重置
+            resetBtn.addEventListener('click', () => {
+                updatePreview('🐶');
+                fileInput.value = '';
+            });
+
+            // 确认
+            confirmBtn.addEventListener('click', () => {
+                const content = AVATAR_PENDING || '🐶';
+                localStorage.setItem('emmaAvatar', content);
+                if (content.startsWith('data:image')) {
+                    btn.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
+                } else {
+                    btn.innerText = content;
+                }
+                showToast('✅ 头像已更新');
+                close();
+            });
+        }
+
+        function renderDashboard() {
+            const s = EMMA_DATA.summary || {};
+
+            document.getElementById('statDays').innerText = (s.totalDays || 0) + " 天";
+            document.getElementById('statWorkdays').innerText = (s.workdays || 0) + " 天";
+            document.getElementById('statWeekends').innerText = (s.weekends || 0) + " 天";
+
+            const hr = v => `${(Number(v) || 0).toFixed(1)} <span class="text-lg font-normal">小时</span>`;
+            document.getElementById('cardStudy').innerHTML = hr(s.studyHours);
+            document.getElementById('cardCoaching').innerHTML = hr(s.coachingHours);
+            document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);
+
+            if (STATS_YM && MONTH_DATA_CACHE[STATS_YM]) {
+                renderStatsStrip(MONTH_DATA_CACHE[STATS_YM]);
+            } else {
+                renderStatsStrip(EMMA_DATA);
+            }
+
+            updateNavButtons();
+            renderLatestReview();
+            renderTokenSection();
+            renderCalendar(currentYear, currentMonth);
+        }
+
+        function renderStatsStrip(monthData) {
+            const ma = (monthData && monthData.monthAverages) || {};
+            const ym = (monthData && monthData.ym) || STATS_YM || ymOf(currentYear, currentMonth);
+            const [, m] = parseYM(ym);
+            document.getElementById('summaryMonthTitle').innerText = `${m}月`;
+            document.getElementById('avgOverall').innerText = (ma.overallHours || 0).toFixed(1) + ' 小时';
+            document.getElementById('avgWorkdays').innerText = (ma.workdayHours || 0).toFixed(1) + ' 小时';
+            document.getElementById('avgWeekends').innerText = (ma.weekendHours || 0).toFixed(1) + ' 小时';
+            updateStatsNavButtons();
+        }
+
+        function updateStatsNavButtons() {
+            const range = EMMA_DATA && EMMA_DATA.dataRange;
+            if (!range || !STATS_YM) return;
+            const prev = document.getElementById('statsPrevBtn');
+            const next = document.getElementById('statsNextBtn');
+            if (prev) { prev.disabled = (STATS_YM <= range.minYM); prev.classList.toggle('opacity-30', !!prev.disabled); }
+            if (next) { next.disabled = (STATS_YM >= range.maxYM); next.classList.toggle('opacity-30', !!next.disabled); }
+        }
+
+        async function shiftStatsMonth(delta) {
+            const range = EMMA_DATA && EMMA_DATA.dataRange;
+            if (!range || !STATS_YM) return;
+            const next = deltaYM(STATS_YM, delta);
+            if (next < range.minYM || next > range.maxYM) return;
+            STATS_YM = next;
+            updateStatsNavButtons();
+            const data = await fetchMonthData(STATS_YM);
+            renderStatsStrip(data);
+        }
+
+        function renderCalendar(year, month) {
+            document.getElementById('calendarMonthTitle').innerText = `${year}年 ${month}月`;
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = "";
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+            const totalDays = new Date(year, month, 0).getDate();
+
+            for (let i = 0; i < startOffset; i++) {
+                grid.innerHTML += `<div class="calendar-day empty-day bg-gray-50/40 rounded-xl border border-dashed border-gray-100"></div>`;
+            }
+
+            const days = EMMA_DATA.days || {};
+            for (let day = 1; day <= totalDays; day++) {
+                const fullDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const cellId = `cell-${fullDateStr}`;
+                const tooltipId = `tt-${fullDateStr}`;
+
+                let dayContent = `<div class="font-black text-base text-gray-800">${day}</div>`;
+                let bgStyle = "bg-white border-gray-100 text-gray-400";
+
+                const record = days[fullDateStr];
+                if (record) {
+                    bgStyle = STATUS_STYLES[record.status] || STATUS_STYLES.gray;
+                    if (LATEST_RECORD && LATEST_RECORD.date === fullDateStr) {
+                        bgStyle += " ring-2 ring-orange-400";
+                    }
+                    if (record.absent) {
+                        dayContent += `<div class="text-xs font-bold text-center mt-2 text-slate-400">⚪ 不在场</div>`;
+                    } else {
+                        const bm = record.bucketMinutes || {};
+                        const badges = ['focus', 'coaching', 'screen', 'eyerest', 'distraction']
+                            .filter(b => (b === 'focus' ? (record.focusBlocks || 0) > 0 : (record.distractions !== undefined && b === 'distraction' ? record.distractions > 0 : (bm[b] || 0) > 0)))
+                            .map(b => {
+                                const d = BUCKET_DISPLAY[b];
+                                let val, unit;
+                                if (b === 'focus') { val = record.focusBlocks; unit = '块'; }
+                                else if (b === 'distraction') { val = record.distractions; unit = '次'; }
+                                else { val = bm[b] || 0; unit = 'm'; }
+                                return `<span title="${d.label}: ${val}${unit}" class="inline-flex items-center text-[11px] font-bold" style="color:${d.color}">${d.emoji}<span class="ml-0.5 text-[9px]">${val}</span></span>`;
+                            }).join(' ');
+                        dayContent += `
+                            <div class="text-xs font-black mt-2 text-center truncate" title="${escapeAttr(record.note)}">${record.note || ''}</div>
+                            ${badges ? `<div class="text-center mt-1 flex gap-1.5 justify-center flex-wrap">${badges}</div>` : ''}
+                        `;
+                    }
+                    grid.innerHTML += `
+                        <div id="${cellId}" class="calendar-day border rounded-xl p-2.5 flex flex-col justify-between cursor-pointer relative ${bgStyle}"
+                             onmouseenter="loadDetailLogs('${fullDateStr}')"
+                             onmouseleave="document.getElementById('tt-${fullDateStr}').classList.add('hidden')">
+                            ${dayContent}
+                            <div id="${tooltipId}" class="absolute z-50 w-80 p-3 bg-black/90 text-white text-[11px] rounded-lg shadow-xl hidden pointer-events-none">
+                                ${renderTooltipBase(record)}
+                                <div class="mt-2 pt-2 border-t border-gray-700 log-content">加载细化审计...</div>
+                            </div>
+                        </div>`;
+                } else {
+                    grid.innerHTML += `<div class="calendar-day border rounded-xl p-2.5 flex flex-col justify-between ${bgStyle}">${dayContent}</div>`;
+                }
+            }
+        }
+
+        function renderTooltipBase(record) {
+            const startEnd = `⏱️ 起止：${record.startTime || '--:--'} - ${record.endTime || '--:--'}`;
+            const counters = record.absent ? '' :
+                `<div class="mt-1">块: <strong>${record.focusBlocks}</strong> · 偏离: <strong>${record.distractions}</strong></div>`;
+
+            let evalBlock = '';
+            if (record.rating || record.summary || typeof record.tokensNet === 'number') {
+                const tk = (typeof record.tokensNet === 'number') ? record.tokensNet : 0;
+                const sign = tk > 0 ? '+' : '';
+                evalBlock = `
+                    <div class="mt-2 pt-2 border-t border-gray-700">
+                        <div class="font-bold">${escapeHtml(record.rating || '')} <span class="opacity-70">币 ${sign}${tk}</span></div>
+                        ${record.summary ? `<div class="opacity-80 mt-1 leading-snug">${escapeHtml(record.summary)}</div>` : ''}
+                    </div>`;
+            }
+
+            const bm = record.bucketMinutes || {};
+            const pills = Object.keys(bm)
+                .filter(b => bm[b] > 0)
+                .map(b => {
+                    const d = BUCKET_DISPLAY[b] || BUCKET_DISPLAY.neutral;
+                    return `<span class="inline-block px-1.5 py-0.5 rounded mr-1 mb-1" style="background:${d.color}22;color:${d.color}">${d.emoji} ${d.label} ${bm[b]}m</span>`;
+                }).join('');
+            const pillsBlock = pills ? `<div class="mt-2 pt-2 border-t border-gray-700">${pills}</div>` : '';
+
+            const noteLine = record.note
+                ? `<div class="mt-1 opacity-90">📝 ${escapeHtml(record.note)}</div>`
+                : '';
+
+            return `${startEnd}${counters}${noteLine}${evalBlock}${pillsBlock}`;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+
+        function renderLatestReview() {
+            const wrap = document.getElementById('latestReview');
+            const header = document.getElementById('latestReviewHeader');
+            const body = document.getElementById('latestReviewBody');
+            if (!wrap || !header || !body) return;
+
+            const r = RECENT_DAYS_CACHE.length ? RECENT_DAYS_CACHE[RECENT_DAY_INDEX] : LATEST_RECORD;
+            if (!r || !r.date) { wrap.classList.add('hidden'); return; }
+            wrap.classList.remove('hidden');
+
+            const tk = (typeof r.tokensNet === 'number') ? r.tokensNet : 0;
+            const sign = tk > 0 ? '+' : '';
+            const title = RECENT_DAY_INDEX === 0 ? '📌 最新回顾' : '📌 历史回顾';
+            const ratingHTML = r.rating
+                ? `<span class="font-black text-base">${escapeHtml(r.rating)}</span>` : '';
+            const tokenHTML = r.absent ? ''
+                : `<span class="ml-3 inline-flex items-center gap-1 text-slate-700 font-black"><span>🥈</span><span>${sign}${tk}</span></span>`;
+
+            const total = RECENT_DAYS_CACHE.length;
+            const canPrev = RECENT_DAY_INDEX < total - 1;
+            const canNext = RECENT_DAY_INDEX > 0;
+            const navRow = total > 1 ? `
+                <div class="flex items-center justify-between mt-2 pt-2 border-t border-orange-200/60 text-xs">
+                    <button onclick="navigateRecentDay(1)"
+                            class="px-2 py-1 rounded font-bold transition-colors ${canPrev ? 'text-orange-700 hover:bg-orange-100' : 'text-gray-300 cursor-not-allowed'}"
+                            ${canPrev ? '' : 'disabled'}>◀ 上一天</button>
+                    <span class="text-gray-500 font-semibold">最近第 ${RECENT_DAY_INDEX + 1} 天 / 共 ${total} 天</span>
+                    <button onclick="navigateRecentDay(-1)"
+                            class="px-2 py-1 rounded font-bold transition-colors ${canNext ? 'text-orange-700 hover:bg-orange-100' : 'text-gray-300 cursor-not-allowed'}"
+                            ${canNext ? '' : 'disabled'}>下一天 ▶</button>
+                </div>` : '';
+
+            header.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="text-orange-600 font-black text-lg">${title}</span>
+                    <span class="text-gray-600 font-bold">${escapeHtml(r.date)} ${escapeHtml(r.dayType || '')}</span>
+                </div>
+                <div class="flex items-center">${ratingHTML}${tokenHTML}</div>
+                ${navRow}
+            `;
+
+            if (r.absent) {
+                body.innerHTML = `<div class="text-slate-500">⚪ 当日不在场，无审计数据。</div>`;
+                return;
+            }
+
+            const counters = `
+                <span>⏱️ <strong>${escapeHtml(r.startTime || '--:--')} - ${escapeHtml(r.endTime || '--:--')}</strong></span>
+                <span class="mx-3 text-gray-300">|</span>
+                <span>专注: <strong class="text-orange-600">${r.focusBlocks} 次</strong></span>
+                <span class="mx-2 text-gray-400">·</span>
+                <span>分心: <strong class="text-rose-600">${r.distractions} 次</strong></span>
+                <span class="mx-2 text-gray-400">·</span>
+                <span>护眼: <strong class="text-emerald-600">${r.eyeRestMinutes || 0} 分钟</strong></span>
+            `;
+
+            const bm = r.bucketMinutes || {};
+            const studyMin = (bm.focus || 0) + (bm.coaching || 0) + (bm.screen || 0);
+            const studyHrs = studyMin > 0
+                ? (studyMin / 60).toFixed(1)
+                : (r.focusBlocks ? (r.focusBlocks * 0.5).toFixed(1) : '0.0');
+            const studyLine = `<div class="text-gray-700 text-sm">📚 今日学习时长: <strong class="text-blue-700">${studyHrs} 小时</strong></div>`;
+
+            const noteHTML = r.note
+                ? `<div class="text-gray-700"><span class="font-bold text-orange-700">📋 总结：</span>${escapeHtml(r.note)}</div>`
+                : '';
+
+            const summaryHTML = r.summary
+                ? `<div class="bg-white/70 border border-orange-200 rounded-xl p-3 text-gray-800 leading-relaxed">
+                       <div class="font-bold text-orange-700 mb-1">🤖 AI 点评与建议</div>
+                       <div>${escapeHtml(r.summary)}</div>
+                   </div>`
+                : '';
+
+            const pills = Object.keys(bm)
+                .filter(b => bm[b] > 0)
+                .map(b => {
+                    const d = BUCKET_DISPLAY[b] || BUCKET_DISPLAY.neutral;
+                    return `<span class="inline-block px-2 py-1 rounded-lg mr-1 mb-1 text-xs font-bold"
+                                  style="background:${d.color}22;color:${d.color}">${d.emoji} ${d.label} ${bm[b]}m</span>`;
+                }).join('');
+            const pillsHTML = pills ? `<div class="pt-1">${pills}</div>` : '';
+
+            body.innerHTML = `
+                <div class="text-sm flex flex-wrap gap-x-1 items-center">${counters}</div>
+                ${studyLine}
+                ${noteHTML}
+                ${summaryHTML}
+                ${pillsHTML}
+            `;
+        }
+
+        function renderCharts() {
+            if (!CHART_DATA) return;
+            renderDistributionChart(CHART_DATA.distribution);
+            renderTrendChart(CHART_DATA.trend);
+        }
+
+        function renderDistributionChart(dist) {
+            if (!dist || !dist.items) return;
+            const ctx = document.getElementById('chartDistribution');
+            if (!ctx) return;
+            const top = dist.items.slice(0, 12);
+            const labels = top.map(i => i.stage);
+            const data = top.map(i => i.minutes);
+            const colors = top.map(i => {
+                const b = (BUCKET_DISPLAY[bucketOf(i.category)] || BUCKET_DISPLAY.neutral);
+                return b.color;
+            });
+            if (CHART_INSTANCES.dist) CHART_INSTANCES.dist.destroy();
+            CHART_INSTANCES.dist = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: '分钟', data, backgroundColor: colors }] },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function bucketOf(category) {
+            if (category === "Focus") return "focus";
+            if (category === "Coaching") return "coaching";
+            if (category === "Screen") return "screen";
+            if (category === "Eye Rest") return "eyerest";
+            if (category === "Distraction") return "distraction";
+            return "neutral";
+        }
+
+        function renderTrendChart(trend) {
+            if (!trend || !trend.rolling7) return;
+            const ctx = document.getElementById('chartTrend');
+            if (!ctx) return;
+            const labels = trend.rolling7.map(p => p.date.substring(5));
+            const fb = trend.rolling7.map(p => p.focusBlocks);
+            const dt = trend.rolling7.map(p => p.distractions);
+            if (CHART_INSTANCES.trend) CHART_INSTANCES.trend.destroy();
+            CHART_INSTANCES.trend = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: '专注块 (7日均)', data: fb, borderColor: '#3b82f6', backgroundColor: '#3b82f622', tension: 0.3, pointRadius: 0 },
+                        { label: '分心次数 (7日均)', data: dt, borderColor: '#ef4444', backgroundColor: '#ef444422', tension: 0.3, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+                    scales: { x: { ticks: { font: { size: 9 }, maxTicksLimit: 10 } }, y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        async function loadDetailLogs(dateStr) {
+            const tooltip = document.getElementById(`tt-${dateStr}`);
+            if (!tooltip) return;
+            tooltip.style.left = '20px';
+            tooltip.style.top = '20px';
+            tooltip.classList.remove('hidden');
+
+            if (LOG_CACHE.has(dateStr)) {
+                updateTooltipContent(dateStr, LOG_CACHE.get(dateStr));
+                return;
+            }
+            try {
+                const url = `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getLogs&date=${dateStr}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Network error");
+                const logs = await response.json();
+                LOG_CACHE.set(dateStr, logs);
+                updateTooltipContent(dateStr, logs);
+            } catch (err) {
+                const container = document.querySelector(`#tt-${dateStr} .log-content`);
+                if (container) container.innerHTML = '<span class="text-gray-400">当前日期无审计数据</span>';
+            }
+        }
+
+        function updateTooltipContent(dateStr, logs) {
+            const container = document.querySelector(`#tt-${dateStr} .log-content`);
+            if (!container) return;
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<span class="text-gray-400">当前日期无审计数据</span>';
+                return;
+            }
+            container.innerHTML = logs.map(l => {
+                const name = l.Stage_Name || "未知活动";
+                const dur = l.Duration || 0;
+                const b = BUCKET_DISPLAY[bucketOf(l.Category)] || BUCKET_DISPLAY.neutral;
+                return `
+                    <div class="flex items-center gap-2 py-1 text-xs">
+                        <div class="w-1 h-3 rounded" style="background:${b.color}"></div>
+                        <span class="flex-1">${escapeHtml(name)}</span>
+                        <span class="opacity-70">${dur}m</span>
+                    </div>`;
+            }).join('');
+        }
+
+        function getFallbackData() {
+            const days = {
+                "2026-05-23": { date: "2026-05-23", dayType: "周六", startTime: "17:54", endTime: "19:43", focusBlocks: 1, distractions: 6, eyeRestMinutes: 0, note: "独立充电日", absent: false, status: "amber", rating: "🟡 警告", summary: "", tokensNet: -5, bucketMinutes: {} },
+                "2026-05-24": { date: "2026-05-24", dayType: "周日", startTime: "09:14", endTime: "17:13", focusBlocks: 5, distractions: 2, eyeRestMinutes: 0, note: "混合高能日", absent: false, status: "green", rating: "🟢 优秀", summary: "", tokensNet: 5, bucketMinutes: {} },
+                "2026-05-25": { date: "2026-05-25", dayType: "周一", startTime: "00:00", endTime: "00:00", focusBlocks: 0, distractions: 0, eyeRestMinutes: 0, note: "Emma外出未归", absent: true, status: "gray", rating: "⚪ 不在场", summary: "", tokensNet: 0, bucketMinutes: {} },
+                "2026-06-27": { date: "2026-06-27", dayType: "周六", startTime: "10:24", endTime: "17:40", focusBlocks: 2, distractions: 1, eyeRestMinutes: 0, note: "全天高能突破", absent: false, status: "green", rating: "🟢 优秀", summary: "全天高能突破，独立产出2个专注块", tokensNet: 2, bucketMinutes: { focus: 90, distraction: 5 } }
+            };
+            return {
+                ym: "2026-06",
+                dataRange: { minYM: "2026-05", maxYM: "2026-06" },
+                summary: { totalDays: 10, workdays: 6, weekends: 4, totalTokens: 14, studyHours: 12.0, coachingHours: 4.0, wasteHours: 6.6 },
+                monthAverages: { overallHours: 1.0, workdayHours: 0.0, weekendHours: 2.0, dayCounts: { overall: 1, workday: 0, weekend: 1 } },
+                days
+            };
+        }
+    </script>
+</body>
+
+</html>

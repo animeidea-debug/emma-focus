@@ -1,0 +1,11 @@
+# Data files - do not upload
+Emma_Focus_DB.xlsx
+
+# macOS system files
+.DS_Store
+Thumbs.db
+
+# Personal helper scripts (not part of the project)
+pushover.sh
+mcp-pushover-server.sh
+mcp-pushover-server.js

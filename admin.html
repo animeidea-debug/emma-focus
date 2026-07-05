@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Emma Admin 审计控制台</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-900 text-white p-8">
+    <div class="max-w-6xl mx-auto grid grid-cols-2 gap-8">
+        <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+            <h2 class="text-xl font-bold mb-4 text-orange-400">1. 粘贴 Gemini JSON</h2>
+            <textarea id="jsonInput"
+                class="w-full h-64 bg-slate-950 p-4 rounded border border-slate-700 text-xs font-mono"
+                placeholder="粘贴包含 timeline, evaluations 和 stages 的 JSON..."></textarea>
+            <button onclick="parseJSON()"
+                class="mt-4 w-full bg-orange-600 py-2 rounded font-bold hover:bg-orange-500">解析数据并加载</button>
+        </div>
+
+        <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+            <h2 class="text-xl font-bold mb-4 text-emerald-400">2. 审计与修正</h2>
+            <div id="editorArea" class="space-y-6">
+            </div>
+            <button onclick="submitData()"
+                class="mt-8 w-full bg-emerald-600 py-3 rounded font-black text-lg hover:bg-emerald-500">确认无误 ·
+                提交入库</button>
+            <!-- 批量入库结果（仅在批量模式下渲染；单日提交不影响） -->
+            <div id="batchStatus" class="mt-4 text-xs space-y-1 hidden"></div>
+        </div>
+    </div>
+
+    <!-- 🛒 兑换商店配置 -->
+    <div class="max-w-6xl mx-auto mt-8 bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xl font-bold text-purple-300">🛒 兑换商店配置</h2>
+            <div class="flex gap-2">
+                <button id="reloadItemsBtn"
+                    class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded">刷新</button>
+                <button id="addItemBtn"
+                    class="bg-purple-600 hover:bg-purple-500 text-xs px-3 py-1.5 rounded font-bold">＋ 新增项</button>
+            </div>
+        </div>
+        <p class="text-xs text-slate-400 mb-3">编辑后点「保存」生效；停用即从前端商店隐藏（保留交易历史）。</p>
+        <div id="redeemItemsList" class="space-y-2 text-xs">
+            <div class="text-slate-500 italic">加载中…</div>
+        </div>
+    </div>
+
+    <!-- 🔄 币种交换汇率配置 -->
+    <div class="max-w-6xl mx-auto mt-8 bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+        <h2 class="text-xl font-bold text-cyan-300 mb-1">🔄 币种交换汇率配置</h2>
+        <p class="text-xs text-slate-400 mb-4">设置银币 ↔ 金币的交换汇率。例如汇率=5 时，5 银币 = 1 金币，5 金币 = 1 银币。</p>
+        <div class="flex items-center gap-4 flex-wrap">
+            <span class="text-sm text-slate-300 font-bold">🥈 银币 ↔ 🥇 金币 汇率：</span>
+            <input type="number" id="exchangeRateInput" min="1" value="5"
+                class="bg-slate-950 border border-slate-600 text-white rounded px-3 py-2 text-sm w-20">
+            <span class="text-sm text-slate-300">: 1</span>
+            <button id="saveExchangeRateBtn" type="button"
+                class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold px-5 py-2 rounded text-sm transition-colors">
+                保存汇率
+            </button>
+        </div>
+        <div id="exchangeRateStatus" class="mt-3 text-sm hidden"></div>
+    </div>
+
+    <!-- 📅 快速缺席标记 -->
+    <div class="max-w-6xl mx-auto mt-8 bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+        <h2 class="text-xl font-bold text-red-400 mb-1">📅 快速缺席标记</h2>
+        <p class="text-xs text-slate-400 mb-4">Emma 不在场时直接在此标记，无需手动构造 JSON。会清除该日原有数据并写入标准缺席记录。</p>
+        <div class="flex items-center gap-4 flex-wrap">
+            <input type="date" id="absentDate" title="缺席日期"
+                class="bg-slate-950 border border-slate-600 text-white rounded px-3 py-2 text-sm">
+            <button id="markAbsentBtn" type="button"
+                class="bg-red-700 hover:bg-red-600 text-white font-bold px-5 py-2 rounded text-sm transition-colors">
+                标记为不在场
+            </button>
+        </div>
+        <div id="absentStatus" class="mt-3 text-sm hidden"></div>
+    </div>
+
+    <script>
+        let currentData = {};
+        let isBatchMode = false;
+        let validationError = null;
+        const API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
+        const API_TOKEN = "emma2026_secure";
+
+        // 校验单日 item：timeline 必须每日仅一行；如有 item.date 必须匹配
+        function validateItem(item, label) {
+            if (!item || typeof item !== 'object') return `${label}: 空对象`;
+            if (!Array.isArray(item.timeline)) return `${label}: timeline 不是数组`;
+            const seen = {};
+            for (const r of item.timeline) {
+                if (!r.Date) return `${label}: timeline 行缺少 Date`;
+                if (seen[r.Date]) return `${label}: 同一日期 ${r.Date} 出现多行 — 每日仅允许一行，明细请放 stages[]`;
+                seen[r.Date] = true;
+                if (item.date && r.Date !== item.date) {
+                    return `${label}: timeline.Date (${r.Date}) 与 payload.date (${item.date}) 不一致`;
+                }
+            }
+            return null;
+        }
+
+        function parseJSON() {
+            try {
+                const parsed = JSON.parse(document.getElementById('jsonInput').value);
+
+                // 三种输入形态：裸数组 / 对象带 batch / 单日对象
+                let batch = null;
+                if (Array.isArray(parsed)) {
+                    batch = parsed;
+                } else if (parsed && Array.isArray(parsed.batch)) {
+                    batch = parsed.batch;
+                }
+
+                isBatchMode = !!batch;
+                validationError = null;
+                const area = document.getElementById('editorArea');
+                area.innerHTML = '';
+                document.getElementById('batchStatus').classList.add('hidden');
+                document.getElementById('batchStatus').innerHTML = '';
+
+                // 提前校验：每日仅一行 timeline
+                if (isBatchMode) {
+                    for (let i = 0; i < batch.length; i++) {
+                        const err = validateItem(batch[i], `批量 #${i} (${batch[i] && batch[i].date || '?'})`);
+                        if (err) { validationError = err; break; }
+                    }
+                } else {
+                    // 单日：取 evaluations.Date 作为 payload.date 进行一致性校验
+                    const probe = { ...parsed, date: parsed && parsed.evaluations && parsed.evaluations.Date };
+                    validationError = validateItem(probe, '单日');
+                }
+
+                if (validationError) {
+                    area.innerHTML = `<div class="bg-rose-900/50 border border-rose-500 text-rose-200 p-3 rounded text-xs">❌ 校验失败：${validationError}<br><span class="opacity-70">提交按钮已禁用，请修正 JSON 后重新解析。</span></div>`;
+                    return;
+                }
+
+                if (isBatchMode) {
+                    currentData = { batch };
+                    area.innerHTML += `<h3 class="text-sm font-bold text-orange-300">批量模式：共 ${batch.length} 天</h3>`;
+                    batch.forEach((item, idx) => {
+                        const tlN = (item.timeline && item.timeline.length) || 0;
+                        const stN = (item.stages && item.stages.length) || 0;
+                        const sum = (item.evaluations && item.evaluations.Summary) || '';
+                        const sumPreview = sum.length > 40 ? sum.substring(0, 40) + '…' : sum;
+                        area.innerHTML += `<div class="flex gap-2 text-xs border-b border-slate-700 pb-1">
+                            <span class="w-24 text-orange-400">${item.date || '?'}</span>
+                            <span class="w-14 text-gray-400">tl:${tlN}</span>
+                            <span class="w-14 text-gray-400">st:${stN}</span>
+                            <span class="flex-1 text-gray-300 truncate" title="${sumPreview.replace(/"/g, '&quot;')}">${sumPreview}</span>
+                        </div>`;
+                    });
+                    area.innerHTML += `<p class="text-[10px] text-gray-500 mt-2">批量模式下不在此处逐字段编辑；如需编辑请改用单日模式。</p>`;
+                    return;
+                }
+
+                // 单日模式：保持原有渲染
+                currentData = parsed;
+                area.innerHTML += `<h3 class="text-sm font-bold text-gray-400">Timeline</h3>`;
+                currentData.timeline.forEach((row, idx) => {
+                    area.innerHTML += `<div class="flex gap-2 text-xs border-b border-slate-700 pb-1">
+                        <input value="${row.Date}" onchange="update('timeline', ${idx}, 'Date', this.value)" class="bg-transparent w-20">
+                        <input value="${row.Note}" onchange="update('timeline', ${idx}, 'Note', this.value)" class="bg-transparent w-40">
+                    </div>`;
+                });
+
+                area.innerHTML += `<h3 class="text-sm font-bold text-gray-400 mt-4">Stages (细化流水)</h3>`;
+                currentData.stages.forEach((s, idx) => {
+                    area.innerHTML += `<div class="flex gap-2 text-xs border-b border-slate-700 pb-1">
+                        <input value="${s.stage}" onchange="update('stages', ${idx}, 'stage', this.value)" class="bg-transparent w-20">
+                        <input value="${s.duration}" onchange="update('stages', ${idx}, 'duration', this.value)" class="bg-transparent w-10">
+                        <input value="${s.category || ''}" onchange="update('stages', ${idx}, 'category', this.value)"
+                               list="categoryOpts" class="bg-slate-900 w-20" placeholder="Focus/Distraction/Eye Rest">
+                    </div>`;
+                });
+                // 类别下拉沿用已知三桶，仍可手填新值（开放类别系统）
+                area.innerHTML += `<datalist id="categoryOpts">
+                    <option value="Focus"></option>
+                    <option value="Distraction"></option>
+                    <option value="Eye Rest"></option>
+                </datalist>`;
+            } catch (e) { alert("JSON 格式错误！"); }
+        }
+
+        function update(cat, idx, field, val) { currentData[cat][idx][field] = val; }
+
+        async function submitData() {
+            if (validationError) {
+                alert("校验未通过，提交被阻止：" + validationError);
+                return;
+            }
+            let payload;
+            if (isBatchMode) {
+                payload = { token: API_TOKEN, batch: currentData.batch };
+            } else {
+                payload = {
+                    token: API_TOKEN,
+                    date: currentData.evaluations.Date,
+                    ...currentData
+                };
+            }
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+
+            // 批量：渲染按日 ✅/❌；单日：保留 alert 行为
+            if (isBatchMode && result.results) {
+                const box = document.getElementById('batchStatus');
+                box.classList.remove('hidden');
+                box.innerHTML =
+                    `<div class="font-bold text-orange-300 mb-1">总览：${result.status} · ${result.succeeded}/${result.processed} 成功${result.warning ? ' · ⚠️ ' + result.warning : ''}</div>` +
+                    result.results.map(r =>
+                        r.status === 'Success'
+                            ? `<div class="text-emerald-300">✅ ${r.date}</div>`
+                            : `<div class="text-rose-300">❌ ${r.date || '#' + r.index}：${r.error || '未知错误'}</div>`
+                    ).join('');
+                if (result.status === 'Success') clearForm();
+            } else {
+                if (result.status === "Success") {
+                    alert("入库成功！");
+                    clearForm();
+                } else {
+                    alert("失败: " + JSON.stringify(result));
+                }
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('editorArea').innerHTML = '';
+            document.getElementById('batchStatus').classList.add('hidden');
+            document.getElementById('batchStatus').innerHTML = '';
+            currentData = {};
+            isBatchMode = false;
+            validationError = null;
+        }
+
+        // ============================================================
+        // 🛒 兑换商店配置（与前端 index.html 共用 RedeemItems 表）
+        // ============================================================
+        let REDEEM_ITEMS = [];
+
+        async function loadRedeemItems() {
+            const box = document.getElementById('redeemItemsList');
+            box.innerHTML = '<div class="text-slate-500 italic">加载中…</div>';
+            try {
+                const res = await fetch(`${API_URL}?token=${API_TOKEN}&action=getRedeemItems`);
+                const data = await res.json();
+                // 服务端错误（如 Unauthorized）会以 {error: "..."} 返回，而不是数组
+                if (data && data.error) {
+                    box.innerHTML = `<div class="text-rose-300">服务端错误：${data.error}<br><span class="text-xs text-slate-400">检查 GAS 部署 URL 是否最新，并确认 token 一致。</span></div>`;
+                    REDEEM_ITEMS = [];
+                    return;
+                }
+                REDEEM_ITEMS = Array.isArray(data) ? data : [];
+                console.log("loadRedeemItems →", REDEEM_ITEMS.length, "items", REDEEM_ITEMS);
+                renderRedeemItems();
+            } catch (err) {
+                box.innerHTML = `<div class="text-rose-300">加载失败：${err.message}<br><span class="text-xs text-slate-400">可能是网络问题或 GAS 部署 URL 错误。</span></div>`;
+            }
+        }
+
+        function renderRedeemItems() {
+            const box = document.getElementById('redeemItemsList');
+            if (!REDEEM_ITEMS.length) {
+                box.innerHTML = '<div class="text-slate-500 italic">暂无配置项；点「＋ 新增项」开始。</div>';
+                return;
+            }
+            box.innerHTML = REDEEM_ITEMS.map((item, idx) => itemRowHTML(item, idx)).join('');
+            // 绑定每行的「保存」与「停用/启用」按钮
+            REDEEM_ITEMS.forEach((_, idx) => {
+                document.getElementById(`saveItem-${idx}`).onclick = () => saveItemRow(idx);
+                document.getElementById(`toggleItem-${idx}`).onclick = () => toggleItemRow(idx);
+            });
+        }
+
+        function itemRowHTML(item, idx) {
+            const active = item.active !== false;
+            return `
+                <div class="bg-slate-900 border border-slate-700 rounded p-3 grid grid-cols-7 gap-2 items-center">
+                    <input id="itemId-${idx}"    value="${escAttr(item.itemId)}"      class="bg-slate-950 border border-slate-700 rounded px-2 py-1 col-span-1" aria-label="ItemId">
+                    <input id="itemLabel-${idx}" value="${escAttr(item.label)}"       class="bg-slate-950 border border-slate-700 rounded px-2 py-1 col-span-2" aria-label="标签">
+                    <input id="itemDesc-${idx}"  value="${escAttr(item.description || '')}" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 col-span-2" aria-label="描述">
+                    <select id="itemCoin-${idx}" class="bg-slate-950 border border-slate-700 rounded px-2 py-1" aria-label="币种">
+                        <option value="silver" ${item.coinType === 'silver' ? 'selected' : ''}>🪙 银</option>
+                        <option value="gold"   ${item.coinType === 'gold' ? 'selected' : ''}>🏆 金</option>
+                    </select>
+                    <input id="itemCost-${idx}"  type="number" min="1" value="${item.cost || 1}" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 w-16" aria-label="价格">
+                    <input id="itemSort-${idx}"  type="number"          value="${item.sort || 0}" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 w-16" aria-label="排序">
+                    <div class="col-span-7 flex gap-2 justify-end pt-1">
+                        <span class="text-[10px] ${active ? 'text-emerald-400' : 'text-slate-500'} self-center">${active ? '启用中' : '已停用'}</span>
+                        <button id="toggleItem-${idx}" class="text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600">${active ? '停用' : '启用'}</button>
+                        <button id="saveItem-${idx}"   class="text-xs px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 font-bold">保存</button>
+                    </div>
+                </div>`;
+        }
+
+        function rowToItem(idx) {
+            return {
+                itemId: document.getElementById(`itemId-${idx}`).value.trim(),
+                label: document.getElementById(`itemLabel-${idx}`).value.trim(),
+                description: document.getElementById(`itemDesc-${idx}`).value.trim(),
+                coinType: document.getElementById(`itemCoin-${idx}`).value,
+                cost: Number(document.getElementById(`itemCost-${idx}`).value) || 1,
+                sort: Number(document.getElementById(`itemSort-${idx}`).value) || 0,
+                active: REDEEM_ITEMS[idx].active !== false
+            };
+        }
+
+        async function saveItemRow(idx) {
+            const item = rowToItem(idx);
+            if (!item.itemId) { alert('ItemId 不能为空'); return; }
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ token: API_TOKEN, action: 'upsertRedeemItem', item })
+                });
+                const r = await res.json();
+                if (r.error) { alert('保存失败：' + r.error); return; }
+                await loadRedeemItems();
+            } catch (err) {
+                alert('请求失败：' + err.message);
+            }
+        }
+
+        async function toggleItemRow(idx) {
+            const item = rowToItem(idx);
+            item.active = !(REDEEM_ITEMS[idx].active !== false);
+            if (!item.itemId) { alert('ItemId 不能为空'); return; }
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ token: API_TOKEN, action: 'upsertRedeemItem', item })
+                });
+                const r = await res.json();
+                if (r.error) { alert('操作失败：' + r.error); return; }
+                await loadRedeemItems();
+            } catch (err) {
+                alert('请求失败：' + err.message);
+            }
+        }
+
+        function addBlankItem() {
+            REDEEM_ITEMS.push({ itemId: '', label: '', description: '', coinType: 'silver', cost: 1, sort: 999, active: true });
+            renderRedeemItems();
+        }
+
+        function escAttr(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // ============================================================
+        // 📅 快速缺席标记
+        // ============================================================
+        async function markAbsent() {
+            const dateInput = document.getElementById('absentDate');
+            const statusBox = document.getElementById('absentStatus');
+            const date = dateInput.value;
+            if (!date) {
+                statusBox.className = 'mt-3 text-sm text-rose-300';
+                statusBox.innerText = '❌ 请先选择日期';
+                statusBox.classList.remove('hidden');
+                return;
+            }
+            statusBox.className = 'mt-3 text-sm text-slate-400';
+            statusBox.innerText = '提交中…';
+            statusBox.classList.remove('hidden');
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ token: API_TOKEN, action: 'markAbsent', date })
+                });
+                const result = await res.json();
+                if (result.error) {
+                    statusBox.className = 'mt-3 text-sm text-rose-300';
+                    statusBox.innerText = '❌ ' + result.error;
+                } else {
+                    statusBox.className = 'mt-3 text-sm text-emerald-300';
+                    statusBox.innerText = `✅ ${result.date} (${result.weekday}) 已标记为不在场`;
+                }
+            } catch (err) {
+                statusBox.className = 'mt-3 text-sm text-rose-300';
+                statusBox.innerText = '❌ 请求失败：' + err.message;
+            }
+        }
+
+        // ============================================================
+        // 🔄 币种交换汇率
+        // ============================================================
+        async function loadExchangeRate() {
+            try {
+                const res = await fetch(`${API_URL}?token=${API_TOKEN}&action=getExchangeRate`);
+                const data = await res.json();
+                if (data && data.rate) {
+                    document.getElementById('exchangeRateInput').value = data.rate;
+                }
+            } catch (err) {
+                console.log("加载汇率失败", err);
+            }
+        }
+
+        async function saveExchangeRate() {
+            const input = document.getElementById('exchangeRateInput');
+            const statusBox = document.getElementById('exchangeRateStatus');
+            const rate = Number(input.value);
+            if (!rate || rate < 1 || !Number.isInteger(rate)) {
+                statusBox.className = 'mt-3 text-sm text-rose-300';
+                statusBox.innerText = '❌ 请输入 ≥ 1 的整数';
+                statusBox.classList.remove('hidden');
+                return;
+            }
+            statusBox.className = 'mt-3 text-sm text-slate-400';
+            statusBox.innerText = '保存中…';
+            statusBox.classList.remove('hidden');
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ token: API_TOKEN, action: 'setExchangeRate', rate })
+                });
+                const result = await res.json();
+                if (result.error) {
+                    statusBox.className = 'mt-3 text-sm text-rose-300';
+                    statusBox.innerText = '❌ ' + result.error;
+                } else {
+                    statusBox.className = 'mt-3 text-sm text-emerald-300';
+                    statusBox.innerText = `✅ 汇率已更新为 ${result.rate} : 1`;
+                }
+            } catch (err) {
+                statusBox.className = 'mt-3 text-sm text-rose-300';
+                statusBox.innerText = '❌ 请求失败：' + err.message;
+            }
+        }
+
+        // 页面加载即拉一次
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('addItemBtn').addEventListener('click', addBlankItem);
+            document.getElementById('reloadItemsBtn').addEventListener('click', loadRedeemItems);
+            loadRedeemItems();
+
+            // 缺席面板：默认今天，绑定按钮
+            const today = new Date();
+            const iso = today.getFullYear() + '-'
+                + String(today.getMonth() + 1).padStart(2, '0') + '-'
+                + String(today.getDate()).padStart(2, '0');
+            document.getElementById('absentDate').value = iso;
+            document.getElementById('markAbsentBtn').addEventListener('click', markAbsent);
+
+            // 汇率面板
+            loadExchangeRate();
+            document.getElementById('saveExchangeRateBtn').addEventListener('click', saveExchangeRate);
+        });
+    </script>
+</body>
+
+</html>
