@@ -149,12 +149,13 @@
         <div id="cheatBody" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 hidden">
             <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3">
                 <h4 class="font-black text-amber-800 mb-1.5 flex items-center gap-1 text-sm">🎯 活动是怎么记的？</h4>
-                <p class="text-[11px] text-gray-600 mb-1.5">每天的活动会被分成 5 类，颜色与日历上的小圆点一一对应：</p>
+                <p class="text-[11px] text-gray-600 mb-1.5">每天的活动会被分成 6 类，颜色与日历上的小圆点一一对应：</p>
                 <ul class="text-[11px] space-y-1 text-gray-700">
                     <li>🔵 <strong class="text-blue-700">专注</strong>：手写 / 纸质阅读，连续 ≥ 30 分钟 → <strong>1 个专注块</strong></li>
                     <li>🟣 <strong class="text-purple-700">辅导</strong>：和爸妈一起学 或 正式网课 / 教学软件</li>
                     <li>🟡 <strong class="text-amber-700">屏幕</strong>：自己用手机 / iPad / 电脑（非网课）。30 分钟内 OK；<strong>超过 30
                             分钟，每多 30 分钟 = 1 次分心</strong></li>
+                    <li>🔷 <strong class="text-cyan-700">素质</strong>：非书面 productive 任务（3D 打印、手工、实验等）</li>
                     <li>🟢 <strong class="text-emerald-700">护眼</strong>：看远处、走动、闭眼休息 ≥ 10 分钟</li>
                     <li>🔴 <strong class="text-rose-700">分心</strong>：发呆 / 走神 > 3 分钟，或 < 15 分钟就放弃的学习</li>
                 </ul>
@@ -507,6 +508,8 @@
                         <span class="flex items-center gap-0.5"><span class="text-lg"
                                 style="color:#f59e0b">🟡</span>屏幕</span>
                         <span class="flex items-center gap-0.5"><span class="text-lg"
+                                style="color:#06b6d4">🔷</span>素质</span>
+                        <span class="flex items-center gap-0.5"><span class="text-lg"
                                 style="color:#22c55e">🟢</span>护眼</span>
                         <span class="flex items-center gap-0.5"><span class="text-lg"
                                 style="color:#ef4444">🔴</span>分心</span>
@@ -529,7 +532,7 @@
     <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-2xl shadow-md p-6 border border-blue-100">
             <h3 class="text-base font-black text-blue-800 mb-1 flex items-center gap-2">📈 全期活动时长分布</h3>
-            <p class="text-xs text-blue-600 mb-3">按活动名称累计分钟（蓝=专注 / 紫=辅导 / 黄=屏幕 / 绿=护眼 / 红=分心）</p>
+            <p class="text-xs text-blue-600 mb-3">按活动名称累计分钟（蓝=专注 / 紫=辅导 / 黄=屏幕 / 青=素质 / 绿=护眼 / 红=分心）</p>
             <canvas id="chartDistribution" height="220"></canvas>
         </div>
         <div class="bg-white rounded-2xl shadow-md p-6 border border-emerald-100">
@@ -589,6 +592,7 @@
             focus: { color: "#3b82f6", label: "专注", emoji: "🔵" },
             coaching: { color: "#a855f7", label: "辅导", emoji: "🟣" },
             screen: { color: "#f59e0b", label: "屏幕", emoji: "🟡" },
+            activity: { color: "#06b6d4", label: "素质", emoji: "🔷" },
             eyerest: { color: "#22c55e", label: "护眼", emoji: "🟢" },
             distraction: { color: "#ef4444", label: "偏离", emoji: "🔴" },
             neutral: { color: "#9ca3af", label: "其他", emoji: "⚪" }
@@ -1373,7 +1377,7 @@
                         dayContent += `<div class="text-xs font-bold text-center mt-2 text-slate-400">⚪ 不在场</div>`;
                     } else {
                         const bm = record.bucketMinutes || {};
-                        const badges = ['focus', 'coaching', 'screen', 'eyerest', 'distraction']
+                        const badges = ['focus', 'coaching', 'screen', 'activity', 'eyerest', 'distraction']
                             .filter(b => (b === 'focus' ? (record.focusBlocks || 0) > 0 : (record.distractions !== undefined && b === 'distraction' ? record.distractions > 0 : (bm[b] || 0) > 0)))
                             .map(b => {
                                 const d = BUCKET_DISPLAY[b];
@@ -1567,6 +1571,7 @@
             if (category === "Focus") return "focus";
             if (category === "Coaching") return "coaching";
             if (category === "Screen") return "screen";
+            if (category === "Activity") return "activity";
             if (category === "Eye Rest") return "eyerest";
             if (category === "Distraction") return "distraction";
             return "neutral";

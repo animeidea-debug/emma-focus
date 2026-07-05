@@ -159,7 +159,7 @@
         // Gemini Prompt 复制功能
         async function copyGeminiPrompt() {
             try {
-                const res = await fetch('gemini_prompt_v4.md');
+                const res = await fetch('gemini_prompt.md');
                 const text = await res.text();
                 await navigator.clipboard.writeText(text);
                 const btn = document.getElementById('copyPromptBtn');
