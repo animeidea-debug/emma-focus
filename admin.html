@@ -449,12 +449,12 @@
         async function resetDefault() {
             if (!confirm('确定要恢复默认兑换项？这将覆盖当前所有配置。')) return;
             const defaults = [
-                { itemId: 'switch30', label: '🕹️ Switch 30 分钟', description: 'Switch / PS5 畅玩', coinType: 'silver', cost: 1, sort: 10, active: true },
-                { itemId: 'netflix30', label: '🎬 Netflix 30 分钟', description: '轻松漫游', coinType: 'silver', cost: 1, sort: 20, active: true },
-                { itemId: 'snack', label: '🍦 一份零食', description: '犒劳一下', coinType: 'silver', cost: 1, sort: 30, active: true },
-                { itemId: 'switch1h', label: '🎮 Switch 1 小时', description: '深度沉浸', coinType: 'gold', cost: 1, sort: 100, active: true },
-                { itemId: 'movie', label: '🎬 完整电影一部', description: '约 2 小时', coinType: 'gold', cost: 1, sort: 110, active: true },
-                { itemId: 'outing', label: '🏞️ 周末外出活动', description: '公园 / 游乐场', coinType: 'gold', cost: 1, sort: 120, active: true }
+                { itemId: 'switch_30m', label: '🕹️ Switch 30 分钟', description: '畅玩 30 分钟大作', coinType: 'silver', cost: 1, sort: 10, active: true },
+                { itemId: 'netflix_30m', label: '🎬 Netflix 30 分钟', description: '轻松漫游 30 分钟', coinType: 'silver', cost: 1, sort: 20, active: true },
+                { itemId: 'snack', label: '🍦 一份零食', description: '犒劳一下自己', coinType: 'silver', cost: 1, sort: 30, active: true },
+                { itemId: 'switch_1h', label: '🎮 Switch 1 小时', description: '深度沉浸 1 小时', coinType: 'gold', cost: 1, sort: 100, active: true },
+                { itemId: 'movie', label: '🎬 完整电影一部', description: '约 2 小时电影时光', coinType: 'gold', cost: 1, sort: 110, active: true },
+                { itemId: 'outing', label: '🏞️ 周末外出活动', description: '公园 / 商场 / 朋友家', coinType: 'gold', cost: 1, sort: 120, active: true }
             ];
             try {
                 const res = await fetch(API_URL, {

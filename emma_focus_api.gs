@@ -179,6 +179,9 @@ function doPost(e) {
     if (payload.action === "upsertRedeemItem") {
       return jsonOut(actionUpsertRedeemItem(ss, payload.item));
     }
+    if (payload.action === "upsertRedeemItems") {
+      return jsonOut(actionUpsertRedeemItems(ss, payload.items));
+    }
     if (payload.action === "markAbsent") {
       return jsonOut(actionMarkAbsent(ss, payload.date));
     }
@@ -572,6 +575,47 @@ function actionUpsertRedeemItem(ss, item) {
   return { status: "Success" };
 }
 
+// 批量新增 / 更新兑换项
+function actionUpsertRedeemItems(ss, items) {
+  if (!Array.isArray(items)) throw new Error("items 必须是数组");
+  if (!ss.getSheetByName("RedeemItems")) initRedeemItemsSheet(ss);
+  const sheet = ss.getSheetByName("RedeemItems");
+  if (!sheet) throw new Error("RedeemItems 表不存在");
+  
+  const data = sheet.getDataRange().getValues();
+  const existingIds = {};
+  for (let i = 1; i < data.length; i++) {
+    existingIds[data[i][0]] = i + 1; // itemId -> row number (1-indexed)
+  }
+  
+  const results = [];
+  items.forEach(item => {
+    if (!item || !item.itemId) {
+      results.push({ itemId: item?.itemId || "unknown", status: "Failed", error: "itemId 必填" });
+      return;
+    }
+    const row = [
+      item.itemId,
+      item.label || "",
+      item.description || "",
+      item.coinType || "silver",
+      Number(item.cost) || 1,
+      item.active === false ? false : true,
+      Number(item.sort) || 0
+    ];
+    const foundRow = existingIds[item.itemId];
+    if (foundRow) {
+      sheet.getRange(foundRow, 1, 1, 7).setValues([row]);
+      results.push({ itemId: item.itemId, status: "Updated" });
+    } else {
+      sheet.appendRow(row);
+      results.push({ itemId: item.itemId, status: "Created" });
+    }
+  });
+  
+  return { status: "Success", results };
+}
+
 // 快速缺席标记：构造标准缺席 payload 并写入所有相关表
 function actionMarkAbsent(ss, dateStr) {
   if (!dateStr || typeof dateStr !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -825,7 +869,12 @@ function statusFromRating(rating, absent, blocks, dist) {
 // 全期汇总：tokens 直接累加 Evaluations.Tokens_Net；小时数按桶折算
 function computeSummary(timeline, evals, logs) {
   let totalTokens = 0;
-  evals.forEach(r => { totalTokens += Number(r.Tokens_Net) || 0; });
+  // 仅计入 TOKEN_START_DATE 之后的 evaluations，与 getTokensData 保持一致
+  evals.forEach(r => {
+    if (r.Date && r.Date >= TOKEN_START_DATE) {
+      totalTokens += Number(r.Tokens_Net) || 0;
+    }
+  });
 
   // 小时统计：通过 bucketFor 走 CATEGORY_BUCKETS → BUCKET_TO_CARD，
   // 新增类别只需在 CATEGORY_BUCKETS 和 BUCKET_TO_CARD 中各加一行即可生效。
