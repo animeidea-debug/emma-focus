@@ -15,6 +15,25 @@
             background-color: #fffaf0;
         }
 
+        /* Loading spinner animation */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
         .calendar-day {
             min-height: 115px;
             transition: all 0.2s ease;
@@ -545,6 +564,20 @@
         let currentLedgerPage = 1;
         const LEDGER_PAGE_SIZE = 17;
 
+        // ==========================================
+        // 🌀 Loading 辅助 — 按钮禁用 + spinner
+        // ==========================================
+        async function withLoading(btnId, asyncCallback) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return asyncCallback();
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="loading-spinner"></span>提交中…`;
+            btn.classList.add('opacity-60', 'cursor-not-allowed');
+            try { await asyncCallback(); }
+            finally { btn.disabled = false; btn.innerHTML = orig; btn.classList.remove('opacity-60', 'cursor-not-allowed'); }
+        }
+
         const STATUS_STYLES = {
             green: "bg-emerald-100 border-emerald-300 text-emerald-900",
             amber: "bg-amber-100 border-amber-300 text-amber-900",
@@ -898,6 +931,8 @@
             const coinName = coinType === 'silver' ? '银币' : '金币';
             const coinEmoji = coinType === 'silver' ? '🥈' : '🥇';
             if (!confirm(`确认消耗 ${cost} 枚${coinName}兑换「${label}」？`)) return;
+            // No button ID available for withLoading, so manually disable all redeem buttons
+            document.querySelectorAll('.redeem-btn').forEach(b => b.disabled = true);
             try {
                 const res = await fetch(GOOGLE_API_URL, {
                     method: 'POST',
@@ -906,11 +941,13 @@
                 const result = await res.json();
                 if (result.error) { alert("兑换失败：" + result.error); return; }
                 await loadTokens();
-                currentLedgerPage = 1; // 兑换成功后重置到第一页，方便查看最新记录
+                currentLedgerPage = 1;
                 renderTokenSection();
                 showToast(`✅ 兑换成功：${label} · 扣 ${cost} ${coinEmoji}${coinName}`);
             } catch (err) {
                 alert("兑换请求失败：" + err.message);
+            } finally {
+                document.querySelectorAll('.redeem-btn').forEach(b => b.disabled = false);
             }
         }
 
@@ -967,7 +1004,7 @@
             cancel.addEventListener('click', close);
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 
-            submit.addEventListener('click', async () => {
+            submit.addEventListener('click', () => withLoading('bonusSubmit', async () => {
                 errBox.classList.add('hidden');
                 const pin = document.getElementById('bonusPin').value;
                 const coinType = document.querySelector('input[name="bonusCoin"]:checked').value;
@@ -996,7 +1033,7 @@
                     errBox.innerText = '请求失败：' + err.message;
                     errBox.classList.remove('hidden');
                 }
-            });
+            }));
         }
 
         // ==========================================
@@ -1123,7 +1160,7 @@
             });
             amountSelect.addEventListener('change', updatePreview);
 
-            submit.addEventListener('click', async () => {
+            submit.addEventListener('click', () => withLoading('exchangeSubmit', async () => {
                 errBox.classList.add('hidden');
                 const dir = document.querySelector('input[name="exchangeDir"]:checked').value;
                 const amt = Number(amountSelect.value) || 0;
@@ -1149,7 +1186,7 @@
                     errBox.innerText = '请求失败：' + err.message;
                     errBox.classList.remove('hidden');
                 }
-            });
+            }));
         }
 
         // ==========================================
