@@ -1411,7 +1411,7 @@
         function renderTooltipBase(record) {
             const startEnd = `⏱️ 起止：${record.startTime || '--:--'} - ${record.endTime || '--:--'}`;
             const counters = record.absent ? '' :
-                `<div class="mt-1">块: <strong>${record.focusBlocks}</strong> · 偏离: <strong>${record.distractions}</strong></div>`;
+                `<div class="mt-1">块: <strong>${record.focusBlocks || 0}</strong> · 偏离: <strong>${record.distractions || 0}</strong></div>`;
 
             let evalBlock = '';
             if (record.rating || record.summary || typeof record.tokensNet === 'number') {

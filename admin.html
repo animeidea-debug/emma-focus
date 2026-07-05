@@ -26,25 +26,6 @@
             margin-right: 4px;
         }
     </style>
-    <style>
-        @keyframes spin {
-            to {
-                transform: rotate(360deg)
-            }
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid rgba(255, 255, 255, .3);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin .6s linear infinite;
-            vertical-align: middle;
-            margin-right: 4px
-        }
-    </style>
 </head>
 
 <body class="bg-slate-900 text-white p-8">
@@ -264,8 +245,8 @@
                 area.innerHTML += `<h3 class="text-sm font-bold text-gray-400">Timeline</h3>`;
                 currentData.timeline.forEach((row, idx) => {
                     area.innerHTML += `<div class="flex gap-2 text-xs border-b border-slate-700 pb-1">
-                        <input value="${row.Date}" onchange="update('timeline', ${idx}, 'Date', this.value)" class="bg-transparent w-20">
-                        <input value="${row.Note}" onchange="update('timeline', ${idx}, 'Note', this.value)" class="bg-transparent w-40">
+                        <input value="${escAttr(row.Date)}" onchange="update('timeline', ${idx}, 'Date', this.value)" class="bg-transparent w-20">
+                        <input value="${escAttr(row.Note || '')}" onchange="update('timeline', ${idx}, 'Note', this.value)" class="bg-transparent w-40">
                     </div>`;
                 });
 

@@ -164,7 +164,7 @@ function doGet(e) {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    if (payload.token !== "emma2026_secure") throw new Error("Unauthorized");
+    if (payload.token !== API_TOKEN) throw new Error("Unauthorized");
     Logger.log("接收到的 Payload: " + JSON.stringify(payload));
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -510,41 +510,53 @@ function getRedeemItemsData(ss) {
 
 // 写入一笔兑换：扣减余额，描述用 item.label
 function actionRedeem(ss, itemId) {
-  if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
-  const items = getRedeemItemsData(ss);
-  const item = items.find(i => i.itemId === itemId && i.active);
-  if (!item) throw new Error("兑换项不存在或已停用: " + itemId);
-  const { silverBalance, goldBalance } = getTokensData(ss);
-  if (item.coinType === "silver" && silverBalance < item.cost) throw new Error("银币余额不足");
-  if (item.coinType === "gold"   && goldBalance   < item.cost) throw new Error("金币余额不足");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000); // 30秒超时
+  try {
+    if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
+    const items = getRedeemItemsData(ss);
+    const item = items.find(i => i.itemId === itemId && i.active);
+    if (!item) throw new Error("兑换项不存在或已停用: " + itemId);
+    const { silverBalance, goldBalance } = getTokensData(ss);
+    if (item.coinType === "silver" && silverBalance < item.cost) throw new Error("银币余额不足");
+    if (item.coinType === "gold"   && goldBalance   < item.cost) throw new Error("金币余额不足");
 
-  const today = todayISO();
-  const sheet = ss.getSheetByName("Transactions");
-  const sDelta = item.coinType === "silver" ? -item.cost : 0;
-  const gDelta = item.coinType === "gold"   ? -item.cost : 0;
-  appendTransactionRow(sheet, [today, "redeem", "兑换 " + item.label, sDelta, gDelta, 0, 0, ""]);
-  rebuildBalances(ss);
-  const fresh = getTokensData(ss);
-  return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
+    const today = todayISO();
+    const sheet = ss.getSheetByName("Transactions");
+    const sDelta = item.coinType === "silver" ? -item.cost : 0;
+    const gDelta = item.coinType === "gold"   ? -item.cost : 0;
+    appendTransactionRow(sheet, [today, "redeem", "兑换 " + item.label, sDelta, gDelta, 0, 0, ""]);
+    rebuildBalances(ss);
+    const fresh = getTokensData(ss);
+    return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // 手动奖励：服务端校验 PIN
 function actionBonus(ss, pin, coinType, amount, reason) {
-  if (pin !== BONUS_PIN) throw new Error("PIN 校验失败");
-  if (coinType !== "silver" && coinType !== "gold") throw new Error("coinType 必须是 silver 或 gold");
-  const amt = Math.abs(Number(amount) || 0);
-  if (!amt) throw new Error("数量必须 > 0");
-  if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000); // 30秒超时
+  try {
+    if (pin !== BONUS_PIN) throw new Error("PIN 校验失败");
+    if (coinType !== "silver" && coinType !== "gold") throw new Error("coinType 必须是 silver 或 gold");
+    const amt = Math.abs(Number(amount) || 0);
+    if (!amt) throw new Error("数量必须 > 0");
+    if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
 
-  const today = todayISO();
-  const sheet = ss.getSheetByName("Transactions");
-  const sDelta = coinType === "silver" ? amt : 0;
-  const gDelta = coinType === "gold"   ? amt : 0;
-  const type = coinType === "silver" ? "bonus_silver" : "bonus_gold";
-  appendTransactionRow(sheet, [today, type, "手动奖励：" + (reason || "无说明"), sDelta, gDelta, 0, 0, reason || ""]);
-  rebuildBalances(ss);
-  const fresh = getTokensData(ss);
-  return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
+    const today = todayISO();
+    const sheet = ss.getSheetByName("Transactions");
+    const sDelta = coinType === "silver" ? amt : 0;
+    const gDelta = coinType === "gold"   ? amt : 0;
+    const type = coinType === "silver" ? "bonus_silver" : "bonus_gold";
+    appendTransactionRow(sheet, [today, type, "手动奖励：" + (reason || "无说明"), sDelta, gDelta, 0, 0, reason || ""]);
+    rebuildBalances(ss);
+    const fresh = getTokensData(ss);
+    return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // 新增 / 更新兑换项
@@ -694,33 +706,39 @@ function initAppConfigSheet(ss) {
 
 // 执行币种交换
 function actionExchange(ss, direction, amount) {
-  if (direction !== "s2g" && direction !== "g2s") throw new Error("direction 必须是 s2g（银→金）或 g2s（金→银）");
-  const { rate } = getExchangeRateData(ss);
-  const amt = Math.floor(Number(amount));
-  if (amt < 1) throw new Error("交换数量必须 ≥ 1");
-  if (direction === "s2g") {
-    if (amt < rate) throw new Error("银币交换数量不能小于汇率 " + rate);
-    if (amt % rate !== 0) throw new Error("银币交换数量必须是 " + rate + " 的整数倍");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000); // 30秒超时
+  try {
+    if (direction !== "s2g" && direction !== "g2s") throw new Error("direction 必须是 s2g（银→金）或 g2s（金→银）");
+    const { rate } = getExchangeRateData(ss);
+    const amt = Math.floor(Number(amount));
+    if (amt < 1) throw new Error("交换数量必须 ≥ 1");
+    if (direction === "s2g") {
+      if (amt < rate) throw new Error("银币交换数量不能小于汇率 " + rate);
+      if (amt % rate !== 0) throw new Error("银币交换数量必须是 " + rate + " 的整数倍");
+    }
+
+    if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
+    const { silverBalance, goldBalance } = getTokensData(ss);
+
+    if (direction === "s2g") {
+      if (silverBalance < amt) throw new Error("银币余额不足，需要 " + amt + " 枚，当前 " + silverBalance + " 枚");
+      const goldOut = amt / rate;
+      const sheet = ss.getSheetByName("Transactions");
+      appendTransactionRow(sheet, [todayISO(), "exchange", "银币→金币交换 " + amt + "→" + goldOut, -amt, goldOut, 0, 0, ""]);
+    } else {
+      if (goldBalance < amt) throw new Error("金币余额不足，需要 " + amt + " 枚，当前 " + goldBalance + " 枚");
+      const silverOut = amt * rate;
+      const sheet = ss.getSheetByName("Transactions");
+      appendTransactionRow(sheet, [todayISO(), "exchange", "金币→银币交换 " + amt + "→" + silverOut, silverOut, -amt, 0, 0, ""]);
+    }
+
+    rebuildBalances(ss);
+    const fresh = getTokensData(ss);
+    return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
+  } finally {
+    lock.releaseLock();
   }
-
-  if (!ss.getSheetByName("Transactions")) initTransactionsSheet(ss);
-  const { silverBalance, goldBalance } = getTokensData(ss);
-
-  if (direction === "s2g") {
-    if (silverBalance < amt) throw new Error("银币余额不足，需要 " + amt + " 枚，当前 " + silverBalance + " 枚");
-    const goldOut = amt / rate;
-    const sheet = ss.getSheetByName("Transactions");
-    appendTransactionRow(sheet, [todayISO(), "exchange", "银币→金币交换 " + amt + "→" + goldOut, -amt, goldOut, 0, 0, ""]);
-  } else {
-    if (goldBalance < amt) throw new Error("金币余额不足，需要 " + amt + " 枚，当前 " + goldBalance + " 枚");
-    const silverOut = amt * rate;
-    const sheet = ss.getSheetByName("Transactions");
-    appendTransactionRow(sheet, [todayISO(), "exchange", "金币→银币交换 " + amt + "→" + silverOut, silverOut, -amt, 0, 0, ""]);
-  }
-
-  rebuildBalances(ss);
-  const fresh = getTokensData(ss);
-  return { status: "Success", newSilverBalance: fresh.silverBalance, newGoldBalance: fresh.goldBalance };
 }
 
 function todayISO() {
