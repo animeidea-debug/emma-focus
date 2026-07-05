@@ -812,20 +812,7 @@
             const collapsedUl = document.getElementById('tokenLedgerCollapsed');
             if (collapsedUl) {
                 const txs = t.transactions || [];
-                collapsedUl.innerHTML = txs.slice(0, 5).map(tx => {
-                    const meta = txTypeMeta(tx.type);
-                    const sMag = tx.silverDelta ? Math.abs(tx.silverDelta) : 0;
-                    const gMag = tx.goldDelta ? Math.abs(tx.goldDelta) : 0;
-                    const sSign = tx.silverDelta > 0 ? '+' : (tx.silverDelta < 0 ? '−' : '');
-                    const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
-                    const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag}🥈</span>` : '';
-                    const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag}🥇</span>` : '';
-                    return `<li class="flex items-start gap-2 py-0.5 border-b border-gray-100/60 last:border-0">
-                        <span title="${meta.title}" class="text-[11px]">${meta.emoji}</span>
-                        <div class="flex-1 truncate text-[11px] text-gray-600">${escapeHtml(tx.description || '')}</div>
-                        <div class="flex gap-1 text-[11px]">${sChip}${gChip}</div>
-                    </li>`;
-                }).join('');
+                collapsedUl.innerHTML = txs.slice(0, 5).map(tx => buildLedgerRow(tx, { compact: true })).join('');
                 if (!txs.length) collapsedUl.innerHTML = '<li class="text-gray-400 italic text-[11px]">暂无交易记录</li>';
             }
 
@@ -869,6 +856,25 @@
         }
 
         // -- 修改：增加分页渲染逻辑 --
+        function buildLedgerRow(tx, options = {}) {
+            const { showDate = false, compact = false } = options;
+            const meta = txTypeMeta(tx.type);
+            const sMag = tx.silverDelta ? Math.abs(tx.silverDelta) : 0;
+            const gMag = tx.goldDelta ? Math.abs(tx.goldDelta) : 0;
+            const sSign = tx.silverDelta > 0 ? '+' : (tx.silverDelta < 0 ? '−' : '');
+            const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
+            const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag}🥈</span>` : '';
+            const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag}🥇</span>` : '';
+            return `<li class="flex items-start gap-2 py-${compact ? '0.5' : '1'} border-b ${compact ? 'border-gray-100/60' : 'border-rose-100/60'} last:border-0">
+                <span title="${meta.title}" class="${compact ? 'text-[11px]' : ''}">${meta.emoji}</span>
+                <div class="flex-1 min-w-0">
+                    ${showDate ? `<div class="text-[11px] text-gray-500">${tx.date}</div>` : ''}
+                    <div class="${compact ? 'text-[11px]' : 'text-xs'} text-gray-800 truncate">${escapeHtml(tx.description || '')}</div>
+                </div>
+                <div class="flex ${compact ? 'gap-1 text-[11px]' : 'flex-col items-end text-xs gap-0.5'}">${sChip}${gChip}</div>
+            </li>`;
+        }
+
         function renderTokenLedger() {
             const ul = document.getElementById('tokenLedger');
             const pageInfo = document.getElementById('ledgerPageInfo');
@@ -897,24 +903,7 @@
             const endIndex = startIndex + LEDGER_PAGE_SIZE;
             const currentTxs = txs.slice(startIndex, endIndex);
 
-            ul.innerHTML = currentTxs.map(tx => {
-                const meta = txTypeMeta(tx.type);
-                const sMag = tx.silverDelta ? Math.abs(tx.silverDelta) : 0;
-                const gMag = tx.goldDelta ? Math.abs(tx.goldDelta) : 0;
-                const sSign = tx.silverDelta > 0 ? '+' : (tx.silverDelta < 0 ? '−' : '');
-                const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
-                const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag} 🥈</span>` : '';
-                const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag} 🥇</span>` : '';
-                return `
-                    <li class="flex items-start gap-2 py-1 border-b border-rose-100/60 last:border-0">
-                        <span title="${meta.title}">${meta.emoji}</span>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] text-gray-500">${tx.date}</div>
-                            <div class="text-xs text-gray-800 truncate">${escapeHtml(tx.description || '')}</div>
-                        </div>
-                        <div class="flex flex-col items-end text-xs gap-0.5">${sChip}${gChip}</div>
-                    </li>`;
-            }).join('');
+            ul.innerHTML = currentTxs.map(tx => buildLedgerRow(tx, { showDate: true })).join('');
         }
 
         function txTypeMeta(type) {
