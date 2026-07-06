@@ -29,9 +29,24 @@
 
 ## 部署
 
+### GAS 后端
+
 1. 将 `emma_focus_api.gs` 部署到 Google Apps Script
-2. 将 `index.html` 和 `admin.html` 部署到任意静态托管服务
-3. 在 GAS 部署中获取 API URL，更新 `index.html` 中的 `GOOGLE_API_URL` 和 `API_TOKEN`
+2. 在 GAS 部署中获取 API URL，更新 `index.html` 中的 `GOOGLE_API_URL` 和 `API_TOKEN`
+
+### NAS 前端 + 脚本（一键部署）
+
+```sh
+# 直接将本地改动推送到极空间 NAS
+sh deploy.sh
+```
+
+`deploy.sh` 会自动：
+1. 从 macOS Keychain 读取 SMB 凭证（首次需在 Finder 连接并记住密码）
+2. 挂载 SMB 共享到 `/Volumes/nvme14-139XXXX2622/`
+3. `rsync` 同步 `video merge/` → `scripts/`
+4. 复制 `index.html` / `admin.html` → `docker/html/`
+5. 发送 Pushover 部署完成通知
 
 ## 技术栈
 
