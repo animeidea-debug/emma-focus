@@ -182,7 +182,11 @@
         <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
             <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
             <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span></div>
-            <div class="text-[10px] mt-1 opacity-75">专注 + 素质拓展</div>
+            <div class="text-[11px] mt-1.5 opacity-80">
+                <span>🔵 专注 <strong id="cardFocusHours">0.0</strong>h</span>
+                <span class="mx-1.5">·</span>
+                <span>🔷 素质 <strong id="cardActivityHours">0.0</strong>h</span>
+            </div>
         </div>
         <div class="bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl p-6 text-white shadow-lg">
             <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
@@ -1253,6 +1257,8 @@
 
             const hr = v => `${(Number(v) || 0).toFixed(1)} <span class="text-lg font-normal">小时</span>`;
             document.getElementById('cardStudy').innerHTML = hr(s.studyHours);
+            document.getElementById('cardFocusHours').innerText = (s.focusHours || 0).toFixed(1);
+            document.getElementById('cardActivityHours').innerText = (s.activityHours || 0).toFixed(1);
             document.getElementById('cardCoaching').innerHTML = hr(s.coachingHours);
             document.getElementById('cardScreen').innerHTML = hr(s.screenHours);
             document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);

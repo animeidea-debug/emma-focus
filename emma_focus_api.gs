@@ -895,12 +895,15 @@ function computeSummary(timeline, evals, logs) {
 
   // 小时统计：通过 bucketFor 走 CATEGORY_BUCKETS → BUCKET_TO_CARD，
   // 新增类别只需在 CATEGORY_BUCKETS 和 BUCKET_TO_CARD 中各加一行即可生效。
-  let study = 0, coaching = 0, screen = 0, waste = 0;
+  let focus = 0, activity = 0, coaching = 0, screen = 0, waste = 0;
   logs.forEach(row => {
     const dur = Number(row.Duration) || 0;
     const slot = BUCKET_TO_CARD[bucketFor(row.Category)] || null;
-    if (slot === "study")         study    += dur;
-    else if (slot === "coaching") coaching += dur;
+    if (slot === "study") {
+      const b = bucketFor(row.Category);
+      if (b === "focus")    focus    += dur;
+      if (b === "activity") activity += dur;
+    } else if (slot === "coaching") coaching += dur;
     else if (slot === "screen")   screen   += dur;
     else if (slot === "waste")    waste    += dur;
     // null 槽位（eyerest）不计入任何卡
@@ -920,7 +923,9 @@ function computeSummary(timeline, evals, logs) {
 
   return {
     totalDays, workdays, weekends, totalTokens,
-    studyHours:    +(study    / 60).toFixed(2),
+    studyHours:    +((focus + activity) / 60).toFixed(2),
+    focusHours:    +(focus    / 60).toFixed(2),
+    activityHours: +(activity / 60).toFixed(2),
     coachingHours: +(coaching / 60).toFixed(2),
     screenHours:   +(screen   / 60).toFixed(2),
     wasteHours:    +(waste    / 60).toFixed(2)
