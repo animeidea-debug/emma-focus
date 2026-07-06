@@ -9,3 +9,6 @@ Thumbs.db
 pushover.sh
 mcp-pushover-server.sh
 mcp-pushover-server.js
+
+# GAS clasp artifact (source of truth is .gs file)
+emma_focus_api.js
