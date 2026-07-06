@@ -47,7 +47,7 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" tdarr_
 
     while read -r d_path; do
         # 提取类似 2026/07/03 并压缩成 20260703
-        DATE_STR=$(echo "$d_path" | grep -oE "[0-9]{4}/[0-9]{2}/[0-9]{2}" | sed "s/\\///g")
+        DATE_STR=$(echo "$d_path" | grep -oE "[0-9]{4}/[0-9]{2}/[0-9]{2}" | sed 's|/||g')
         OUTPUT_FILE="$EXPORT_DIR/Ezviz_60x_1080P_${DATE_STR}.mp4"
         
         # 检测是否已存在成品
