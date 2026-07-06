@@ -178,18 +178,23 @@
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
+    <div class="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
         <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
             <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
             <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span></div>
+            <div class="text-[10px] mt-1 opacity-75">专注 + 素质拓展</div>
         </div>
         <div class="bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl p-6 text-white shadow-lg">
             <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
             <div class="text-3xl font-black mt-2" id="cardCoaching">0.0 <span class="text-lg font-normal">小时</span>
             </div>
         </div>
+        <div class="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-6 text-white shadow-lg">
+            <div class="text-sm font-medium opacity-90">📱 电子屏幕时间</div>
+            <div class="text-3xl font-black mt-2" id="cardScreen">0.0 <span class="text-lg font-normal">小时</span></div>
+        </div>
         <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="text-sm font-medium opacity-90">📊 空白时间</div>
+            <div class="text-sm font-medium opacity-90">📊 分心无效时间</div>
             <div class="text-3xl font-black mt-2" id="cardWaste">0.0 <span class="text-lg font-normal">小时</span></div>
         </div>
     </div>
@@ -599,7 +604,7 @@
             bindExchangeModal();
             initAvatarPicker();
 
-            
+
             document.getElementById('ledgerPrevBtn').addEventListener('click', () => {
                 if (currentLedgerPage > 1) {
                     currentLedgerPage--;
@@ -1249,6 +1254,7 @@
             const hr = v => `${(Number(v) || 0).toFixed(1)} <span class="text-lg font-normal">小时</span>`;
             document.getElementById('cardStudy').innerHTML = hr(s.studyHours);
             document.getElementById('cardCoaching').innerHTML = hr(s.coachingHours);
+            document.getElementById('cardScreen').innerHTML = hr(s.screenHours);
             document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);
 
             if (STATS_YM && MONTH_DATA_CACHE[STATS_YM]) {

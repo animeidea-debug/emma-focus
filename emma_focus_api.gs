@@ -17,14 +17,14 @@ const CATEGORY_BUCKETS = {
 };
 const NEUTRAL_COLOR = "#9ca3af"; // 未知类别回退色
 
-// 桶 → 顶部三张卡片归属。null 表示不计入任何小时卡。
+// 桶 → 顶部四张卡片归属。null 表示不计入任何小时卡。
 const BUCKET_TO_CARD = {
-  focus:       "study",
-  coaching:    "coaching",
-  screen:      "coaching",   // 屏幕时间归入「亲子与网课」卡，与正式辅导同视为数字时段
-  activity:    null,         // 非书面素质拓展不计入小时卡（productive but not study）
+  focus:       "study",      // → ① 自主高效充电
+  coaching:    "coaching",   // → ② 亲子与网课时光
+  screen:      "screen",     // → ③ 电子屏幕时间（新卡片）
+  activity:    "study",      // → ① 自主高效充电（productive 合并）
   eyerest:     null,         // 不计入小时卡（已有单独的 Eye_Rest_Minutes 字段）
-  distraction: "waste",      // 分心时间属于「空白时间」，计入 wasteHours
+  distraction: "waste",      // → ④ 分心无效时间
   neutral:     "waste"
 };
 
@@ -895,14 +895,15 @@ function computeSummary(timeline, evals, logs) {
 
   // 小时统计：通过 bucketFor 走 CATEGORY_BUCKETS → BUCKET_TO_CARD，
   // 新增类别只需在 CATEGORY_BUCKETS 和 BUCKET_TO_CARD 中各加一行即可生效。
-  let study = 0, coaching = 0, waste = 0;
+  let study = 0, coaching = 0, screen = 0, waste = 0;
   logs.forEach(row => {
     const dur = Number(row.Duration) || 0;
     const slot = BUCKET_TO_CARD[bucketFor(row.Category)] || null;
     if (slot === "study")         study    += dur;
     else if (slot === "coaching") coaching += dur;
+    else if (slot === "screen")   screen   += dur;
     else if (slot === "waste")    waste    += dur;
-    // null 槽位（eyerest / distraction）不计入任何卡
+    // null 槽位（eyerest）不计入任何卡
   });
 
   // 日期去重 → 工作日 / 周末计数（按非缺席 Timeline 行）
@@ -921,6 +922,7 @@ function computeSummary(timeline, evals, logs) {
     totalDays, workdays, weekends, totalTokens,
     studyHours:    +(study    / 60).toFixed(2),
     coachingHours: +(coaching / 60).toFixed(2),
+    screenHours:   +(screen   / 60).toFixed(2),
     wasteHours:    +(waste    / 60).toFixed(2)
   };
 }
