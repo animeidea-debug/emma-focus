@@ -9,12 +9,16 @@
 ├── admin.html              # 管理后台 - 数据审计、兑换商店、汇率配置
 ├── emma_focus_api.gs       # Google Apps Script 后端 API
 │
+├── deploy.sh               # 一键部署：NAS SMB 同步 + 权限修复
+├── infra/                  # Docker 编排文件（版本管理）
+│   ├── web/docker-compose.yml   # nginx + fastapi 前端服务
+│   └── tdarr/docker-compose.yml # tdarr 视频处理 + Intel QSV
+│
 └── video merge/            # 监控视频延时合成（部署于极空间 NAS）
     ├── run_all.sh           # crontab 总控调度 + Pushover 通知
     ├── auto_merge.sh        # 小米摄像头 → 720P 30倍速
     ├── yingshi_auto_merge.sh# 萤石摄像头 → 1080P 30倍速
-    ├── notify.sh            # Pushover 通知辅助函数库
-    └── docker-compose.yml   # tdarr 服务编排 + Intel QSV 硬解
+    └── notify.sh            # Pushover 通知辅助函数库
 ```
 
 ## 功能特性
