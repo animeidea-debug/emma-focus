@@ -16,3 +16,12 @@
 - 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
 - 这边改动后自动 `clasp push + sh deploy.sh`
 - 项目状态见 `progress.md`
+
+## Windows 首次设置
+1. 安装 [Git for Windows](https://git-scm.com/)（自带 Git Bash）
+2. 安装 [rclone for Windows](https://rclone.org/downloads/)
+3. `git clone` 仓库后，设置密码：
+   ```powershell
+   setx WEBDAV_PASS "Momoco198399"
+   ```
+4. 打开 Git Bash，运行 `sh deploy.sh`

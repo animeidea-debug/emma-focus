@@ -33,13 +33,31 @@ echo "============================================="
 echo " 🚀 Emma Focus — NAS 部署 (WebDAV)"
 echo "============================================="
 
-# ----- 1. 从 Keychain 读取 WebDAV 密码 -----
-# 首次需执行：security add-generic-password -s "emma-webdav" -a "garychen" -w "你的密码"
-PASSWORD=$(security find-generic-password -s "emma-webdav" -a "garychen" -w 2>/dev/null)
+# ----- 1. 读取 WebDAV 密码（跨平台）-----
+# 优先级：macOS Keychain > 环境变量 > 交互输入
+PASSWORD=""
+
+# macOS: 从 Keychain 读取
+if [ "$(uname)" = "Darwin" ]; then
+    PASSWORD=$(security find-generic-password -s "emma-webdav" -a "garychen" -w 2>/dev/null)
+fi
+
+# 后备：从环境变量读取（Windows/Linux/macOS 通用）
+if [ -z "$PASSWORD" ] && [ -n "$WEBDAV_PASS" ]; then
+    PASSWORD="$WEBDAV_PASS"
+fi
+
+# 最后：交互式输入
 if [ -z "$PASSWORD" ]; then
-    echo -e "${RED}❌ Keychain 中未找到 WebDAV 密码。${NC}"
-    echo "   运行以下命令设置："
-    echo "   security add-generic-password -s \"emma-webdav\" -a \"garychen\" -w \"Momoco198399\""
+    echo -e "${YELLOW}⚠️ 请输入 WebDAV 密码（输入时不显示）：${NC}"
+    read -s PASSWORD
+    echo ""
+fi
+
+if [ -z "$PASSWORD" ]; then
+    echo -e "${RED}❌ 未提供 WebDAV 密码。${NC}"
+    echo "   macOS: security add-generic-password -s \"emma-webdav\" -a \"garychen\" -w \"密码\""
+    echo "   Windows/macOS: export WEBDAV_PASS=\"密码\""
     exit 1
 fi
 OBSCURED=$(rclone obscure "$PASSWORD")
