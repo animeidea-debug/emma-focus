@@ -627,12 +627,14 @@
                 if (isCardTotal) return;
                 shiftMonth(-1);
                 await loadData(ymOf(currentYear, currentMonth));
+                prefetchAdjacentMonths(ymOf(currentYear, currentMonth));
                 renderDashboard();
             });
             document.getElementById('cardMonthNext').addEventListener('click', async () => {
                 if (isCardTotal) return;
                 shiftMonth(1);
                 await loadData(ymOf(currentYear, currentMonth));
+                prefetchAdjacentMonths(ymOf(currentYear, currentMonth));
                 renderDashboard();
             });
             document.getElementById('cardTotalBtn').addEventListener('click', async () => {
@@ -711,17 +713,46 @@
             return `${ny}-${String(nm).padStart(2, '0')}`;
         }
 
+        // localStorage 缓存键前缀
+        const LS_CACHE_PREFIX = 'emma_dashboard_';
+        const LS_CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+
+        function lsGet(ym) {
+            try {
+                const raw = localStorage.getItem(LS_CACHE_PREFIX + ym);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (Date.now() - parsed.ts > LS_CACHE_TTL) return null; // 过期
+                return parsed.data;
+            } catch { return null; }
+        }
+
+        function lsSet(ym, data) {
+            try {
+                localStorage.setItem(LS_CACHE_PREFIX + ym, JSON.stringify({ ts: Date.now(), data }));
+            } catch { /* quota exceeded, ignore */ }
+        }
+
         async function fetchMonthData(ym) {
             if (MONTH_DATA_CACHE[ym]) return MONTH_DATA_CACHE[ym];
             if (EMMA_DATA && EMMA_DATA.ym === ym) {
                 MONTH_DATA_CACHE[ym] = EMMA_DATA;
                 return EMMA_DATA;
             }
+            // 先读 localStorage
+            const ls = lsGet(ym);
+            if (ls) {
+                MONTH_DATA_CACHE[ym] = ls;
+                return ls;
+            }
             try {
                 const data = await fetch(
                     `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard&ym=${ym}`
                 ).then(r => r.json());
-                if (data && !data.error) MONTH_DATA_CACHE[ym] = data;
+                if (data && !data.error) {
+                    MONTH_DATA_CACHE[ym] = data;
+                    lsSet(ym, data);
+                }
                 return data || {};
             } catch { return {}; }
         }
@@ -737,10 +768,30 @@
                     document.getElementById('loadingText').innerText = "数据抓取成功，正在生成仪表盘...";
                     EMMA_DATA = data;
                     MONTH_DATA_CACHE[data.ym] = data;
+                    lsSet(data.ym, data);
                 }
             } catch (err) {
                 EMMA_DATA = getFallbackData();
             }
+        }
+
+        // 预加载相邻月份（静默，不阻塞渲染）
+        function prefetchAdjacentMonths(ym) {
+            const prev = deltaYM(ym, -1);
+            const next = deltaYM(ym, 1);
+            [prev, next].forEach(targetYM => {
+                if (!MONTH_DATA_CACHE[targetYM] && !lsGet(targetYM)) {
+                    fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard&ym=${targetYM}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && !data.error) {
+                                MONTH_DATA_CACHE[targetYM] = data;
+                                lsSet(targetYM, data);
+                            }
+                        })
+                        .catch(() => { });
+                }
+            });
         }
 
         async function loadCharts() {

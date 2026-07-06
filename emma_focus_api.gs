@@ -303,6 +303,9 @@ function writeOneDay(ss, item) {
   if (writeDate && writeDate >= TOKEN_START_DATE) {
     deriveTransactionsForDate(ss, writeDate);
   }
+
+  // 失效 dashboard 缓存
+  invalidateDashboardCache(ss, writeDate);
 }
 
 // 清除指定日期的所有 Activity_Logs 行（供 writeOneDay 和 actionMarkAbsent 复用）
@@ -749,8 +752,40 @@ function todayISO() {
 // 📊 大盘聚合 / 图表数据 — 把前端的计算搬到这里
 // ==========================================
 
+// 失效 dashboard 缓存（写入数据后调用）
+function invalidateDashboardCache(ss, dateStr) {
+  try {
+    const cache = CacheService.getScriptCache();
+    const keys = ["dashboard_cache:all"];
+    if (dateStr) {
+      const ym = dateStr.substring(0, 7);
+      keys.push("dashboard_cache:" + ym);
+    }
+    keys.forEach(k => cache.remove(k));
+  } catch (e) {
+    Logger.log("Cache invalidation failed: " + e.message);
+  }
+}
+
 // 单次调用读完 3 张表，全在内存里派生
 function buildDashboard(ss, ym) {
+  // 短期内存缓存：同一个月在 5 分钟内直接返回，避免重复读表
+  const CACHE_KEY = "dashboard_cache:" + (ym || "all");
+  const CACHE_TTL = 5 * 60 * 1000; // 5 分钟
+  try {
+    const cache = CacheService.getScriptCache();
+    const cached = cache.get(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.ts && (Date.now() - parsed.ts < CACHE_TTL)) {
+        return parsed.data;
+      }
+      cache.remove(CACHE_KEY);
+    }
+  } catch (e) {
+    Logger.log("Cache read failed: " + e.message);
+  }
+
   const timeline = getSheetDataAsObjects(ss.getSheetByName("Timeline"));
   const evals    = getSheetDataAsObjects(ss.getSheetByName("Evaluations"));
   const logs     = getSheetDataAsObjects(ss.getSheetByName("Activity_Logs"));
