@@ -33,8 +33,15 @@ echo "============================================="
 echo " 🚀 Emma Focus — NAS 部署 (WebDAV)"
 echo "============================================="
 
-# ----- 1. 读取密码 -----
-PASSWORD="Momoco198399"
+# ----- 1. 从 Keychain 读取 WebDAV 密码 -----
+# 首次需执行：security add-generic-password -s "emma-webdav" -a "garychen" -w "你的密码"
+PASSWORD=$(security find-generic-password -s "emma-webdav" -a "garychen" -w 2>/dev/null)
+if [ -z "$PASSWORD" ]; then
+    echo -e "${RED}❌ Keychain 中未找到 WebDAV 密码。${NC}"
+    echo "   运行以下命令设置："
+    echo "   security add-generic-password -s \"emma-webdav\" -a \"garychen\" -w \"Momoco198399\""
+    exit 1
+fi
 OBSCURED=$(rclone obscure "$PASSWORD")
 
 # ----- 2. 清理旧 remote + 重新配置 -----

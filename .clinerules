@@ -6,11 +6,11 @@
 1. `clasp push`           # GAS 后端部署
 2. `sh deploy.sh`          # NAS 同步 + 权限修复
 
-## 关键凭证
-- GAS 脚本 ID: 1Sy5hkl0lCuwNNDhrkwEvw063vjXTSJPvCUnEpQQ6pRMLl43uAyYGP2dd
-- NAS SMB: smb://192.168.6.108/nvme14-139XXXX2622
-- SMB 用户名: 13918962622 (从 macOS Keychain 自动读取)
-- WebDAV 远程: https://remote-access-8888.zconnect.cn:5006 (待配置)
+## 凭证管理
+所有密码通过 macOS Keychain 读取，不在任何文件中明文存储：
+- SMB: `security find-internet-password -s 192.168.6.108 -a 13918962622 -w`
+- WebDAV: `security find-generic-password -s "emma-webdav" -a "garychen" -w`
+- 另一台电脑首次使用前，需要先在 Keychain 中存入对应凭证
 
 ## 跨机器协作
 - 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
