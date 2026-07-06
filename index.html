@@ -205,7 +205,7 @@
         </div>
         <!-- 4 张卡片 2x2 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
+            <div class="bg-gradient-to-br from-red-400 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
                 <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
                 <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span>
                 </div>
@@ -219,31 +219,40 @@
                 <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
                 <div class="text-3xl font-black mt-2" id="cardCoaching">0.0 <span class="text-lg font-normal">小时</span>
                 </div>
+                <div class="text-[11px] mt-1.5 opacity-80">
+                    <span>🟣 辅导 <strong id="cardCoachingHours">0.0</strong>h</span>
+                </div>
             </div>
-            <div class="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-5 text-white shadow-lg">
+            <div class="bg-gradient-to-br from-yellow-400 to-amber-500 rounded-2xl p-5 text-white shadow-lg">
                 <div class="text-sm font-medium opacity-90">📱 电子屏幕时间</div>
                 <div class="text-3xl font-black mt-2" id="cardScreen">0.0 <span class="text-lg font-normal">小时</span>
+                </div>
+                <div class="text-[11px] mt-1.5 opacity-80">
+                    <span>🟡 屏幕 <strong id="cardScreenHours">0.0</strong>h</span>
                 </div>
             </div>
             <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-5 text-white shadow-lg">
                 <div class="text-sm font-medium opacity-90">📊 分心无效时间</div>
                 <div class="text-3xl font-black mt-2" id="cardWaste">0.0 <span class="text-lg font-normal">小时</span>
                 </div>
+                <div class="text-[11px] mt-1.5 opacity-80">
+                    <span>🔴 分心 <strong id="cardWasteHours">0.0</strong>h</span>
+                </div>
             </div>
         </div>
         <!-- 底部：日均数据 -->
-        <div class="flex flex-wrap gap-4 justify-center pt-3 border-t border-indigo-200/70">
-            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
-                <span class="text-[10px] text-slate-500 font-bold block">当月日均</span>
-                <span class="text-base font-black text-indigo-700" id="avgOverall">0.0 小时</span>
+        <div class="flex justify-end gap-4 pt-3 border-t border-indigo-200/70">
+            <div class="bg-white/90 px-5 py-3 rounded-xl border border-indigo-200 text-center min-w-[120px] shadow-sm">
+                <span class="text-xs text-slate-500 font-bold block mb-1">当月日均</span>
+                <span class="text-lg font-black text-indigo-700" id="avgOverall">0.0 小时</span>
             </div>
-            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
-                <span class="text-[10px] text-slate-500 font-bold block">工作日均</span>
-                <span class="text-base font-black text-indigo-700" id="avgWorkdays">0.0 小时</span>
+            <div class="bg-white/90 px-5 py-3 rounded-xl border border-indigo-200 text-center min-w-[120px] shadow-sm">
+                <span class="text-xs text-slate-500 font-bold block mb-1">工作日均</span>
+                <span class="text-lg font-black text-indigo-700" id="avgWorkdays">0.0 小时</span>
             </div>
-            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
-                <span class="text-[10px] text-slate-500 font-bold block">周末日均</span>
-                <span class="text-base font-black text-indigo-700" id="avgWeekends">0.0 小时</span>
+            <div class="bg-white/90 px-5 py-3 rounded-xl border border-indigo-200 text-center min-w-[120px] shadow-sm">
+                <span class="text-xs text-slate-500 font-bold block mb-1">周末日均</span>
+                <span class="text-lg font-black text-indigo-700" id="avgWeekends">0.0 小时</span>
             </div>
         </div>
     </div>
@@ -1316,8 +1325,11 @@
             document.getElementById('cardFocusHours').innerText = (s.focusHours || 0).toFixed(1);
             document.getElementById('cardActivityHours').innerText = (s.activityHours || 0).toFixed(1);
             document.getElementById('cardCoaching').innerHTML = hr(s.coachingHours);
+            document.getElementById('cardCoachingHours').innerText = (s.coachingHours || 0).toFixed(1);
             document.getElementById('cardScreen').innerHTML = hr(s.screenHours);
+            document.getElementById('cardScreenHours').innerText = (s.screenHours || 0).toFixed(1);
             document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);
+            document.getElementById('cardWasteHours').innerText = (s.wasteHours || 0).toFixed(1);
 
             // 底部日均（总计模式隐藏标题中的"当月"字样）
             const overallLabel = document.querySelector('#avgOverall').previousElementSibling;
