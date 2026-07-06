@@ -1,0 +1,18 @@
+# Emma Focus — 项目级 Cline 规则
+# 此文件在 git 中跟踪，克隆到任何机器后自动生效
+
+## 部署流程
+每次修改 HTML/脚本后，自动执行（无需询问）：
+1. `clasp push`           # GAS 后端部署
+2. `sh deploy.sh`          # NAS 同步 + 权限修复
+
+## 关键凭证
+- GAS 脚本 ID: 1Sy5hkl0lCuwNNDhrkwEvw063vjXTSJPvCUnEpQQ6pRMLl43uAyYGP2dd
+- NAS SMB: smb://192.168.6.108/nvme14-139XXXX2622
+- SMB 用户名: 13918962622 (从 macOS Keychain 自动读取)
+- WebDAV 远程: https://remote-access-8888.zconnect.cn:5006 (待配置)
+
+## 跨机器协作
+- 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
+- 这边改动后自动 `clasp push + sh deploy.sh`
+- 项目状态见 `progress.md`
