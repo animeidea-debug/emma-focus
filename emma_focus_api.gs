@@ -767,9 +767,10 @@ function buildDashboard(ss, ym) {
 
   const days          = consolidateTimeline(timeline, evalsByDate, logs, ym);
   const summary       = computeSummary(timeline, evals, logs);
+  const monthSummary  = ym ? computeSummary(timeline, evals, logs, ym) : summary;
   const monthAverages = computeMonthAverages(days, ym);
 
-  return { ym, dataRange, summary, monthAverages, days };
+  return { ym, dataRange, summary, monthSummary, monthAverages, days };
 }
 
 // 当年-月字符串（兜底用；getSheetDataAsObjects 已返回字符串日期）
@@ -884,11 +885,15 @@ function statusFromRating(rating, absent, blocks, dist) {
 }
 
 // 全期汇总：tokens 直接累加 Evaluations.Tokens_Net；小时数按桶折算
-function computeSummary(timeline, evals, logs) {
+// 若传入 ym（如 "2026-06"），则只统计该月的数据
+function computeSummary(timeline, evals, logs, ym) {
+  // 如果传入了 ym，过滤数据只保留该月
+  const inRange = (dateStr) => !ym || (dateStr && dateStr.substring(0, 7) === ym);
+
   let totalTokens = 0;
   // 仅计入 TOKEN_START_DATE 之后的 evaluations，与 getTokensData 保持一致
   evals.forEach(r => {
-    if (r.Date && r.Date >= TOKEN_START_DATE) {
+    if (r.Date && r.Date >= TOKEN_START_DATE && inRange(r.Date)) {
       totalTokens += Number(r.Tokens_Net) || 0;
     }
   });
@@ -897,6 +902,7 @@ function computeSummary(timeline, evals, logs) {
   // 新增类别只需在 CATEGORY_BUCKETS 和 BUCKET_TO_CARD 中各加一行即可生效。
   let focus = 0, activity = 0, coaching = 0, screen = 0, waste = 0;
   logs.forEach(row => {
+    if (!inRange(row.Date)) return;
     const dur = Number(row.Duration) || 0;
     const slot = BUCKET_TO_CARD[bucketFor(row.Category)] || null;
     if (slot === "study") {
@@ -914,6 +920,7 @@ function computeSummary(timeline, evals, logs) {
   let totalDays = 0, workdays = 0, weekends = 0;
   timeline.forEach(r => {
     if (!r.Date || seen[r.Date]) return;
+    if (!inRange(r.Date)) return;
     seen[r.Date] = true;
     if (String(r.Absent).toLowerCase() === "true" || r.Absent === true) return;
     totalDays++;

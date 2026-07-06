@@ -178,56 +178,72 @@
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
-        <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
-            <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span></div>
-            <div class="text-[11px] mt-1.5 opacity-80">
-                <span>🔵 专注 <strong id="cardFocusHours">0.0</strong>h</span>
-                <span class="mx-1.5">·</span>
-                <span>🔷 素质 <strong id="cardActivityHours">0.0</strong>h</span>
-            </div>
-        </div>
-        <div class="bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
-            <div class="text-3xl font-black mt-2" id="cardCoaching">0.0 <span class="text-lg font-normal">小时</span>
-            </div>
-        </div>
-        <div class="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="text-sm font-medium opacity-90">📱 电子屏幕时间</div>
-            <div class="text-3xl font-black mt-2" id="cardScreen">0.0 <span class="text-lg font-normal">小时</span></div>
-        </div>
-        <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-6 text-white shadow-lg">
-            <div class="text-sm font-medium opacity-90">📊 分心无效时间</div>
-            <div class="text-3xl font-black mt-2" id="cardWaste">0.0 <span class="text-lg font-normal">小时</span></div>
-        </div>
-    </div>
-
+    <!-- 📊 统一统计面板：卡片 + 日均 + 月份导航 -->
     <div
-        class="max-w-5xl mx-auto bg-indigo-50 rounded-2xl p-6 border border-indigo-200 mb-8 shadow-sm flex flex-col md:flex-row gap-6 justify-between items-center">
-        <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
-                <button id="statsPrevBtn" type="button"
-                    class="text-indigo-400 hover:text-indigo-200 font-black text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-1">◀</button>
-                <h3 class="text-lg font-black text-indigo-900 flex items-center gap-2">📊 <span
-                        id="summaryMonthTitle">6月</span> 专注力平均大盘</h3>
-                <button id="statsNextBtn" type="button"
-                    class="text-indigo-400 hover:text-indigo-200 font-black text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-1">▶</button>
+        class="max-w-5xl mx-auto bg-gradient-to-br from-indigo-50 to-slate-50 rounded-2xl p-5 border border-indigo-200 mb-8 shadow-sm">
+        <!-- 标题栏：月份导航 + 总计切换 + 天数 -->
+        <div
+            class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-3 border-b border-indigo-200/70">
+            <div class="flex items-center gap-2">
+                <button id="cardMonthPrev" type="button"
+                    class="bg-indigo-200 hover:bg-indigo-300 text-indigo-800 font-black px-2.5 py-1 rounded-lg transition-colors text-sm">◀</button>
+                <h3 class="text-lg font-black text-indigo-900 min-w-[120px] text-center" id="cardMonthTitle">2026年 6月
+                </h3>
+                <button id="cardMonthNext" type="button"
+                    class="bg-indigo-200 hover:bg-indigo-300 text-indigo-800 font-black px-2.5 py-1 rounded-lg transition-colors text-sm">▶</button>
+                <button id="cardTotalBtn" type="button"
+                    class="ml-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 font-bold px-3 py-1 rounded-lg text-xs transition-colors border border-indigo-300">📊
+                    总计</button>
             </div>
-            <p class="text-xs text-indigo-600">点击 ◀ ▶ 可独立切换月份，与日历导航互不影响</p>
+            <div class="flex gap-3 text-xs font-bold text-slate-500">
+                <span>分析天数 <strong class="text-indigo-700" id="cardTotalDays">0</strong> 天</span>
+                <span>·</span>
+                <span>工作日 <strong class="text-indigo-700" id="cardWorkdays">0</strong> 天</span>
+                <span>·</span>
+                <span>双休日 <strong class="text-indigo-700" id="cardWeekends">0</strong> 天</span>
+            </div>
         </div>
-        <div class="flex gap-4 w-full md:w-auto">
-            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
-                <span class="text-xs text-gray-500 font-bold block mb-1">当月日均</span>
-                <span class="text-xl font-black text-indigo-700" id="avgOverall">0.0 小时</span>
+        <!-- 4 张卡片 2x2 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div class="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 text-white shadow-lg">
+                <div class="text-sm font-medium opacity-90">📚 Emma累计自主高效充电</div>
+                <div class="text-3xl font-black mt-2" id="cardStudy">0.0 <span class="text-lg font-normal">小时</span>
+                </div>
+                <div class="text-[11px] mt-1.5 opacity-80">
+                    <span>🔵 专注 <strong id="cardFocusHours">0.0</strong>h</span>
+                    <span class="mx-1.5">·</span>
+                    <span>🔷 素质 <strong id="cardActivityHours">0.0</strong>h</span>
+                </div>
             </div>
-            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
-                <span class="text-xs text-gray-500 font-bold block mb-1">工作日均</span>
-                <span class="text-xl font-black text-indigo-700" id="avgWorkdays">0.0 小时</span>
+            <div class="bg-gradient-to-br from-sky-400 to-blue-500 rounded-2xl p-5 text-white shadow-lg">
+                <div class="text-sm font-medium opacity-90">👥 Emma亲子与网课时光</div>
+                <div class="text-3xl font-black mt-2" id="cardCoaching">0.0 <span class="text-lg font-normal">小时</span>
+                </div>
             </div>
-            <div class="bg-white px-4 py-3 rounded-xl border border-indigo-100 text-center min-w-[100px]">
-                <span class="text-xs text-gray-500 font-bold block mb-1">周末日均</span>
-                <span class="text-xl font-black text-indigo-700" id="avgWeekends">0.0 小时</span>
+            <div class="bg-gradient-to-br from-amber-500 to-yellow-500 rounded-2xl p-5 text-white shadow-lg">
+                <div class="text-sm font-medium opacity-90">📱 电子屏幕时间</div>
+                <div class="text-3xl font-black mt-2" id="cardScreen">0.0 <span class="text-lg font-normal">小时</span>
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-5 text-white shadow-lg">
+                <div class="text-sm font-medium opacity-90">📊 分心无效时间</div>
+                <div class="text-3xl font-black mt-2" id="cardWaste">0.0 <span class="text-lg font-normal">小时</span>
+                </div>
+            </div>
+        </div>
+        <!-- 底部：日均数据 -->
+        <div class="flex flex-wrap gap-4 justify-center pt-3 border-t border-indigo-200/70">
+            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
+                <span class="text-[10px] text-slate-500 font-bold block">当月日均</span>
+                <span class="text-base font-black text-indigo-700" id="avgOverall">0.0 小时</span>
+            </div>
+            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
+                <span class="text-[10px] text-slate-500 font-bold block">工作日均</span>
+                <span class="text-base font-black text-indigo-700" id="avgWorkdays">0.0 小时</span>
+            </div>
+            <div class="bg-white/80 px-4 py-2 rounded-xl border border-indigo-100 text-center min-w-[100px] shadow-sm">
+                <span class="text-[10px] text-slate-500 font-bold block">周末日均</span>
+                <span class="text-base font-black text-indigo-700" id="avgWeekends">0.0 小时</span>
             </div>
         </div>
     </div>
@@ -527,7 +543,7 @@
         let LATEST_RECORD = null;
         let RECENT_DAYS_CACHE = [];
         let RECENT_DAY_INDEX = 0;
-        let STATS_YM = null;
+        let isCardTotal = false;
         const MONTH_DATA_CACHE = {};
         let TOKEN_DATA = null;
         let REDEEM_ITEMS = [];
@@ -575,8 +591,6 @@
                 todayYM();
             [currentYear, currentMonth] = parseYM(initYM);
 
-            STATS_YM = initYM;
-
             await loadLatestRecord();
 
             setTimeout(() => {
@@ -589,18 +603,40 @@
             document.getElementById('prevMonthBtn').addEventListener('click', async () => {
                 shiftMonth(-1);
                 await loadData(ymOf(currentYear, currentMonth));
+                isCardTotal = false;
                 renderDashboard();
             });
             document.getElementById('nextMonthBtn').addEventListener('click', async () => {
                 shiftMonth(1);
                 await loadData(ymOf(currentYear, currentMonth));
+                isCardTotal = false;
                 renderDashboard();
             });
 
-            const sp = document.getElementById('statsPrevBtn');
-            const sn = document.getElementById('statsNextBtn');
-            if (sp) sp.addEventListener('click', () => shiftStatsMonth(-1));
-            if (sn) sn.addEventListener('click', () => shiftStatsMonth(1));
+            // 统一面板月份导航
+            document.getElementById('cardMonthPrev').addEventListener('click', async () => {
+                if (isCardTotal) return;
+                shiftMonth(-1);
+                await loadData(ymOf(currentYear, currentMonth));
+                renderDashboard();
+            });
+            document.getElementById('cardMonthNext').addEventListener('click', async () => {
+                if (isCardTotal) return;
+                shiftMonth(1);
+                await loadData(ymOf(currentYear, currentMonth));
+                renderDashboard();
+            });
+            document.getElementById('cardTotalBtn').addEventListener('click', async () => {
+                isCardTotal = !isCardTotal;
+                // 如果切回按月模式且当前 ym 与数据 ym 不一致，重新加载
+                if (!isCardTotal) {
+                    const curYM = ymOf(currentYear, currentMonth);
+                    if (EMMA_DATA.ym !== curYM) {
+                        await loadData(curYM);
+                    }
+                }
+                renderDashboard();
+            });
 
             initCheatToggle();
             initBankToggle();
@@ -1248,13 +1284,33 @@
             });
         }
 
-        function renderDashboard() {
-            const s = EMMA_DATA.summary || {};
+        // ==========================================
+        // 📊 统一卡片面板渲染
+        // ==========================================
+        function renderCardPanel() {
+            const useTotal = isCardTotal;
+            // 在总计模式下用 summary（全期），否则用 monthSummary
+            const s = useTotal ? (EMMA_DATA.summary || {}) : (EMMA_DATA.monthSummary || EMMA_DATA.summary || {});
+            const ma = useTotal ? null : (EMMA_DATA.monthAverages || {});
 
-            document.getElementById('statDays').innerText = (s.totalDays || 0) + " 天";
-            document.getElementById('statWorkdays').innerText = (s.workdays || 0) + " 天";
-            document.getElementById('statWeekends').innerText = (s.weekends || 0) + " 天";
+            // 标题
+            const ym = EMMA_DATA.ym || ymOf(currentYear, currentMonth);
+            const [, m] = parseYM(ym);
+            const titleBtn = document.getElementById('cardTotalBtn');
+            if (useTotal) {
+                document.getElementById('cardMonthTitle').innerText = '📊 全期总计';
+                titleBtn.innerHTML = '📆 按月';
+            } else {
+                document.getElementById('cardMonthTitle').innerText = `${currentYear}年 ${m}月`;
+                titleBtn.innerHTML = '📊 总计';
+            }
 
+            // 天数统计
+            document.getElementById('cardTotalDays').innerText = s.totalDays || 0;
+            document.getElementById('cardWorkdays').innerText = s.workdays || 0;
+            document.getElementById('cardWeekends').innerText = s.weekends || 0;
+
+            // 4 张卡片
             const hr = v => `${(Number(v) || 0).toFixed(1)} <span class="text-lg font-normal">小时</span>`;
             document.getElementById('cardStudy').innerHTML = hr(s.studyHours);
             document.getElementById('cardFocusHours').innerText = (s.focusHours || 0).toFixed(1);
@@ -1263,47 +1319,38 @@
             document.getElementById('cardScreen').innerHTML = hr(s.screenHours);
             document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);
 
-            if (STATS_YM && MONTH_DATA_CACHE[STATS_YM]) {
-                renderStatsStrip(MONTH_DATA_CACHE[STATS_YM]);
-            } else {
-                renderStatsStrip(EMMA_DATA);
-            }
+            // 底部日均（总计模式隐藏标题中的"当月"字样）
+            const overallLabel = document.querySelector('#avgOverall').previousElementSibling;
+            if (overallLabel) overallLabel.innerText = useTotal ? '全期日均' : '当月日均';
+            document.getElementById('avgOverall').innerText = (ma ? (ma.overallHours || 0) : 0).toFixed(1) + ' 小时';
+            document.getElementById('avgWorkdays').innerText = (ma ? (ma.workdayHours || 0) : 0).toFixed(1) + ' 小时';
+            document.getElementById('avgWeekends').innerText = (ma ? (ma.weekendHours || 0) : 0).toFixed(1) + ' 小时';
+
+            // 月份导航按钮状态
+            updateCardNavButtons();
+        }
+
+        function updateCardNavButtons() {
+            const range = EMMA_DATA && EMMA_DATA.dataRange;
+            if (!range) return;
+            const cur = ymOf(currentYear, currentMonth);
+            const prev = document.getElementById('cardMonthPrev');
+            const next = document.getElementById('cardMonthNext');
+            if (prev) { prev.disabled = isCardTotal || (range.minYM && cur <= range.minYM); prev.classList.toggle('opacity-40', !!prev.disabled); }
+            if (next) { next.disabled = isCardTotal || (range.maxYM && cur >= range.maxYM); next.classList.toggle('opacity-40', !!next.disabled); }
+        }
+
+        function renderDashboard() {
+            renderCardPanel();
+
+            document.getElementById('statDays').innerText = (EMMA_DATA.summary?.totalDays || 0) + " 天";
+            document.getElementById('statWorkdays').innerText = (EMMA_DATA.summary?.workdays || 0) + " 天";
+            document.getElementById('statWeekends').innerText = (EMMA_DATA.summary?.weekends || 0) + " 天";
 
             updateNavButtons();
             renderLatestReview();
             renderTokenSection();
             renderCalendar(currentYear, currentMonth);
-        }
-
-        function renderStatsStrip(monthData) {
-            const ma = (monthData && monthData.monthAverages) || {};
-            const ym = (monthData && monthData.ym) || STATS_YM || ymOf(currentYear, currentMonth);
-            const [, m] = parseYM(ym);
-            document.getElementById('summaryMonthTitle').innerText = `${m}月`;
-            document.getElementById('avgOverall').innerText = (ma.overallHours || 0).toFixed(1) + ' 小时';
-            document.getElementById('avgWorkdays').innerText = (ma.workdayHours || 0).toFixed(1) + ' 小时';
-            document.getElementById('avgWeekends').innerText = (ma.weekendHours || 0).toFixed(1) + ' 小时';
-            updateStatsNavButtons();
-        }
-
-        function updateStatsNavButtons() {
-            const range = EMMA_DATA && EMMA_DATA.dataRange;
-            if (!range || !STATS_YM) return;
-            const prev = document.getElementById('statsPrevBtn');
-            const next = document.getElementById('statsNextBtn');
-            if (prev) { prev.disabled = (STATS_YM <= range.minYM); prev.classList.toggle('opacity-30', !!prev.disabled); }
-            if (next) { next.disabled = (STATS_YM >= range.maxYM); next.classList.toggle('opacity-30', !!next.disabled); }
-        }
-
-        async function shiftStatsMonth(delta) {
-            const range = EMMA_DATA && EMMA_DATA.dataRange;
-            if (!range || !STATS_YM) return;
-            const next = deltaYM(STATS_YM, delta);
-            if (next < range.minYM || next > range.maxYM) return;
-            STATS_YM = next;
-            updateStatsNavButtons();
-            const data = await fetchMonthData(STATS_YM);
-            renderStatsStrip(data);
         }
 
         function renderCalendar(year, month) {
