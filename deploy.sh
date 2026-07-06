@@ -4,7 +4,7 @@
 #
 # 将本地 repo 中的脚本、HTML 和基础设施文件部署到极空间 NAS。
 # 使用 rclone + WebDAV 协议，内网 IP 优先，外网 DDNS fallback。
-# 部署后通过 SMB 挂载修复执行权限。
+# 脚本由 `sh xxx.sh` 调用，644 权限不影响运行。
 #
 # 目标路径（WebDAV 容器 clinedeploy-webdav）：
 #   video merge/*      → /scripts/          (脚本)
@@ -13,18 +13,15 @@
 #   infra/tdarr/*      → /tdarr/            (tdarr docker-compose)
 #
 # 用法：
-#   sh deploy.sh             首次运行会自动创建 rclone 配置
+#   sh deploy.sh
 # ==============================================================================
 
-# 不使用 set -e：手动错误处理更精确
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 NAS_USER="garychen"
 NAS_IP="192.168.6.108"
 NAS_PORT="8889"
 NAS_DDNS="https://zy12683em2039.vicp.fun"
-NAS_SMB="//${NAS_USER}@${NAS_IP}/nvme14-139XXXX2622"
-MOUNT_POINT="/Volumes/nvme14-139XXXX2622"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,7 +34,6 @@ echo " 🚀 Emma Focus — NAS 部署 (WebDAV)"
 echo "============================================="
 
 # ----- 1. 读取密码 -----
-# WebDAV 密码与 SMB 不同，直接使用已知密码
 PASSWORD="Momoco198399"
 OBSCURED=$(rclone obscure "$PASSWORD")
 
@@ -70,10 +66,7 @@ else
     fi
 fi
 
-# 清理密码变量
-WEBDAV_PASS="$PASSWORD"
-unset PASSWORD
-unset OBSCURED
+unset PASSWORD OBSCURED
 
 START_TS=$(date +%s)
 
@@ -107,27 +100,7 @@ if [ -f "${SCRIPT_DIR}/infra/tdarr/docker-compose.yml" ]; then
     echo "  ✅ tdarr/docker-compose.yml"
 fi
 
-# ----- 7. 修复脚本执行权限（通过 NAS 容器内 chmod）-----
-echo ""
-echo -e "${YELLOW}🔧 修复脚本执行权限...${NC}"
-# 通过容器内的 /app/scripts 映射执行 chmod
-chmod_ok=false
-
-# 方法1: 通过 SMB 挂载点 chmod（如果已挂载）
-if [ -d "${MOUNT_POINT}/scripts" ]; then
-    if chmod 755 "${MOUNT_POINT}/scripts/"*.sh 2>/dev/null; then
-        echo -e "${GREEN}✅ 通过 SMB 修复权限成功${NC}"
-        chmod_ok=true
-    fi
-fi
-
-# 方法2: 通过 WebDAV 上传 fix 脚本来执行（借用 tdarr_node 容器）
-if [ "$chmod_ok" = false ]; then
-    echo "  ⚠️ 请确认脚本权限：crontab 使用 'sh xxx.sh' 调用，644 也能正常运行"
-    echo "  如需修复，可在 NAS 上手动执行: docker exec tdarr_node chmod 755 /app/scripts/*.sh"
-fi
-
-# ----- 8. 完成 -----
+# ----- 7. 完成 -----
 END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 
