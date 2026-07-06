@@ -20,6 +20,8 @@
 
 | 日期 | Commit | 说明 |
 |------|--------|------|
+| 2026-07-06 | `a54c478` | 🐛 修复：视频合并路径转义 bug（docker exec -e 传参） |
+| 2026-07-06 | `9370a7d` | docs: progress.md + 项目级 .clinerules |
 | 2026-07-06 | `8baf19a` | infra 重构 + deploy.sh 权限修复 |
 | 2026-07-06 | `9c8180d` | clasp 配置 + GAS 自动部署 |
 | 2026-07-06 | `1da185b` | deploy.sh 一键 NAS 部署 |
@@ -30,15 +32,14 @@
 ## 待办事项
 
 - [ ] WebDAV 远程部署支持（`deploy.sh` fallback）
-- [ ] 项目级 `.clinerules` 跨机器共享
-- [ ] GAS 部署版本管理（每次 `clasp push` 后是否需要 `clasp deploy` 创建新版本？）
+- [ ] GAS 部署版本管理（`clasp deploy` 策略待确认）
 - [ ] 视频合并失败重试具体日期通知（目前只有汇总统计）
 
 ## 已知问题
 
 - SMB 权限问题：rsync 后需手动 `chmod`（已在 `deploy.sh` 中自动处理）
 - NAS 无 SSH 端口（22 refused），无法远程执行命令
-- `appsscript.json` 中 `timeZone` 为静态值，如需改动需手动更新
+- ~~docker exec 双引号 sh -c 导致路径转义错误~~ ✅ 已修复（`a54c478`）
 
 ## 项目结构
 
