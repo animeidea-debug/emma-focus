@@ -46,10 +46,10 @@ sh deploy.sh
 ```
 
 `deploy.sh` 会自动：
-1. 从 macOS Keychain 读取 SMB 凭证（首次需在 Finder 连接并记住密码）
-2. 挂载 SMB 共享到 `/Volumes/nvme14-139XXXX2622/`
-3. `rsync` 同步 `video merge/` → `scripts/`
-4. 复制 `index.html` / `admin.html` → `docker/html/`
+1. 从 macOS Keychain 读取凭证
+2. 配置 rclone WebDAV 连接（自动创建 remote）
+3. 内网 IP 优先 → 外网 DDNS fallback
+4. `rclone sync` 同步所有文件（权限自动保留）
 5. 发送 Pushover 部署完成通知
 
 ## 技术栈
