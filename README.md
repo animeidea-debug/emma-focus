@@ -10,9 +10,10 @@
 ├── emma_focus_api.gs       # Google Apps Script 后端 API
 │
 └── video merge/            # 监控视频延时合成（部署于极空间 NAS）
-    ├── run_all.sh           # crontab 总控调度（每日 22:00）
+    ├── run_all.sh           # crontab 总控调度 + Pushover 通知
     ├── auto_merge.sh        # 小米摄像头 → 720P 30倍速
     ├── yingshi_auto_merge.sh# 萤石摄像头 → 1080P 30倍速
+    ├── notify.sh            # Pushover 通知辅助函数库
     └── docker-compose.yml   # tdarr 服务编排 + Intel QSV 硬解
 ```
 
@@ -64,8 +65,36 @@
 |------|------|
 | `auto_merge.sh` | 小米摄像头 → 720P 30倍速延时，筛选 09:00-22:59 白昼时段 |
 | `yingshi_auto_merge.sh` | 萤石摄像头 → 1080P 30倍速延时，逐小时合成后无损拼接 |
-| `run_all.sh` | 串行调度：先小米后萤石，失败容错不阻塞 |
+| `run_all.sh` | 串行调度 + Pushover 通知（开始/完成/失败） |
+| `notify.sh` | Pushover 通知辅助函数库（被其他脚本 source） |
 | `docker-compose.yml` | Docker 服务编排，含 Intel QSV 硬件加速配置 |
+
+### 功能特性
+
+| 特性 | 说明 |
+|------|------|
+| 🔄 **自动重试** | ffmpeg 失败后自动重试 1 次（共 2 次尝试），记录尝试次数 |
+| 🔔 **Pushover 通知** | 开始/小米完成/萤石完成/全部完成共 4 条通知，含统计摘要 |
+| 🎯 **可配置分辨率** | `XIAOMI_RES` / `YINGSHI_RES` 环境变量，默认 720/1080 |
+| 📄 **日志轮转** | 单文件超过 10MB 自动重命名 `.old` 后新建 |
+| 📊 **文件信息** | 成功日志记录文件大小和视频时长 (mm:ss) |
+| ✅ **失败容错** | 小米异常不影响萤石执行 |
+
+### 配置方式
+
+通过环境变量自定义（可在 crontab 或 run_all.sh 中设置）：
+
+```sh
+# 调整输出分辨率
+export XIAOMI_RES=480    # 小米输出 480P
+export YINGSHI_RES=720   # 萤石输出 720P
+
+# 调整日志轮转阈值（单位 bytes）
+export MAX_LOG_SIZE=20971520  # 20MB
+
+# 然后执行
+sh run_all.sh
+```
 
 ### 部署步骤
 
