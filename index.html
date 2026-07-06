@@ -592,6 +592,16 @@
             neutral: { color: "#9ca3af", label: "其他", emoji: "⚪" }
         };
 
+        async function loadWithCache(ym) {
+            // 缓存优先版本：替代 loadData 用于翻页导航
+            const data = await fetchMonthData(ym);
+            if (data && !data.error && data.days) {
+                EMMA_DATA = data;
+            } else if (!EMMA_DATA.days) {
+                EMMA_DATA = getFallbackData();
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async function () {
             await Promise.all([loadData(null), loadCharts(), loadTokens(), loadRedeemItems()]);
 
@@ -611,13 +621,13 @@
 
             document.getElementById('prevMonthBtn').addEventListener('click', async () => {
                 shiftMonth(-1);
-                await loadData(ymOf(currentYear, currentMonth));
+                await loadWithCache(ymOf(currentYear, currentMonth));
                 isCardTotal = false;
                 renderDashboard();
             });
             document.getElementById('nextMonthBtn').addEventListener('click', async () => {
                 shiftMonth(1);
-                await loadData(ymOf(currentYear, currentMonth));
+                await loadWithCache(ymOf(currentYear, currentMonth));
                 isCardTotal = false;
                 renderDashboard();
             });
@@ -626,14 +636,14 @@
             document.getElementById('cardMonthPrev').addEventListener('click', async () => {
                 if (isCardTotal) return;
                 shiftMonth(-1);
-                await loadData(ymOf(currentYear, currentMonth));
+                await loadWithCache(ymOf(currentYear, currentMonth));
                 prefetchAdjacentMonths(ymOf(currentYear, currentMonth));
                 renderDashboard();
             });
             document.getElementById('cardMonthNext').addEventListener('click', async () => {
                 if (isCardTotal) return;
                 shiftMonth(1);
-                await loadData(ymOf(currentYear, currentMonth));
+                await loadWithCache(ymOf(currentYear, currentMonth));
                 prefetchAdjacentMonths(ymOf(currentYear, currentMonth));
                 renderDashboard();
             });
@@ -643,7 +653,7 @@
                 if (!isCardTotal) {
                     const curYM = ymOf(currentYear, currentMonth);
                     if (EMMA_DATA.ym !== curYM) {
-                        await loadData(curYM);
+                        await loadWithCache(curYM);
                     }
                 }
                 renderDashboard();
@@ -1382,12 +1392,22 @@
             document.getElementById('cardWaste').innerHTML = hr(s.wasteHours);
             document.getElementById('cardWasteHours').innerText = (s.wasteHours || 0).toFixed(1);
 
-            // 底部日均（总计模式隐藏标题中的"当月"字样）
+            // 底部日均（总计模式隐藏标题中的"当月"字样），总计模式从 summary 自行计算
             const overallLabel = document.querySelector('#avgOverall').previousElementSibling;
             if (overallLabel) overallLabel.innerText = useTotal ? '全期日均' : '当月日均';
-            document.getElementById('avgOverall').innerText = (ma ? (ma.overallHours || 0) : 0).toFixed(1) + ' 小时';
-            document.getElementById('avgWorkdays').innerText = (ma ? (ma.workdayHours || 0) : 0).toFixed(1) + ' 小时';
-            document.getElementById('avgWeekends').innerText = (ma ? (ma.weekendHours || 0) : 0).toFixed(1) + ' 小时';
+            if (useTotal) {
+                const totalHrs = (s.studyHours || 0) + (s.coachingHours || 0) + (s.screenHours || 0) + (s.wasteHours || 0);
+                const td = s.totalDays || 1;
+                const wd = s.workdays || 1;
+                const we = s.weekends || 1;
+                document.getElementById('avgOverall').innerText = (totalHrs / td).toFixed(1) + ' 小时';
+                document.getElementById('avgWorkdays').innerText = (totalHrs / wd).toFixed(1) + ' 小时';
+                document.getElementById('avgWeekends').innerText = (totalHrs / we).toFixed(1) + ' 小时';
+            } else {
+                document.getElementById('avgOverall').innerText = (ma ? (ma.overallHours || 0) : 0).toFixed(1) + ' 小时';
+                document.getElementById('avgWorkdays').innerText = (ma ? (ma.workdayHours || 0) : 0).toFixed(1) + ' 小时';
+                document.getElementById('avgWeekends').innerText = (ma ? (ma.weekendHours || 0) : 0).toFixed(1) + ' 小时';
+            }
 
             // 月份导航按钮状态
             updateCardNavButtons();
