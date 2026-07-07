@@ -4,7 +4,7 @@
 ## 部署流程
 每次修改 HTML/脚本后，自动执行（无需询问）：
 1. `clasp push`           # GAS 后端部署
-2. `sh deploy.sh`          # NAS 同步 + 权限修复
+2. `cd deploy && sh deploy.sh`  # NAS 同步（路径已迁移）或 `sh deploy/deploy.sh`
 
 ## 凭证管理
 所有密码通过 macOS Keychain 读取，不在任何文件中明文存储：

@@ -22,6 +22,7 @@ NAS_USER="garychen"
 NAS_IP="192.168.6.108"
 NAS_PORT="8889"
 NAS_TAILSCALE="https://z4pro-xxel.tail1a5bb9.ts.net/"
+NAS_DDNS="https://zy12683em2039.vicp.fun"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,9 +72,27 @@ if ip addr 2>/dev/null | grep -q "inet 192\.168\." || \
     IS_LAN=true
 fi
 
-# ----- 3. 配置已由 run_deploy.bat 预先创建，直接使用 -----
+# ----- 3. 配置 rclone remotes（跨平台兼容）-----
+OBSCURED=$(rclone obscure "$PASSWORD")
+rclone config delete emma-focus-ip 2>/dev/null || true
+rclone config delete emma-focus-ts 2>/dev/null || true
+rclone config delete emma-focus-ddns 2>/dev/null || true
 
-# ----- 4. 确定可用 remote -----
+rclone config create emma-focus-ip webdav \
+    url "http://${NAS_IP}:${NAS_PORT}" \
+    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+
+rclone config create emma-focus-ts webdav \
+    url "$NAS_TAILSCALE" \
+    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+
+rclone config create emma-focus-ddns webdav \
+    url "$NAS_DDNS" \
+    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+
+unset OBSCURED
+
+# ----- 4. 确定可用 remote（LAN > Tailscale > DDNS）-----
 REMOTE=""
 if [ "$IS_LAN" = true ]; then
     echo -e "${YELLOW}⏳ 检测到内网环境，测试 LAN: http://${NAS_IP}:${NAS_PORT}...${NC}"
@@ -81,7 +100,7 @@ if [ "$IS_LAN" = true ]; then
         REMOTE="emma-focus-ip"
         echo -e "${GREEN}✅ 内网连接成功${NC}"
     else
-        echo -e "${YELLOW}⚠️  LAN 不通，回退到 Tailscale Funnel...${NC}"
+        echo -e "${YELLOW}⚠️  LAN 不通，尝试 Tailscale Funnel...${NC}"
     fi
 fi
 
@@ -90,10 +109,20 @@ if [ -z "$REMOTE" ]; then
     if rclone lsd emma-focus-ts: --timeout 15s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
         REMOTE="emma-focus-ts"
         echo -e "${GREEN}✅ Tailscale Funnel 连接成功${NC}"
-    else
-        echo -e "${RED}❌ 所有连接均失败。${NC}"
-        exit 1
     fi
+fi
+
+if [ -z "$REMOTE" ]; then
+    echo -e "${YELLOW}⏳ 测试 DDNS: ${NAS_DDNS}...${NC}"
+    if rclone lsd emma-focus-ddns: --timeout 15s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
+        REMOTE="emma-focus-ddns"
+        echo -e "${GREEN}✅ DDNS 连接成功${NC}"
+    fi
+fi
+
+if [ -z "$REMOTE" ]; then
+    echo -e "${RED}❌ 所有连接均失败（LAN + Tailscale + DDNS）。${NC}"
+    exit 1
 fi
 
 unset PASSWORD
