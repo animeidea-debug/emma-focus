@@ -20,15 +20,16 @@
 
 | 日期 | Commit | 说明 |
 |------|--------|------|
+| 2026-07-07 | `c1b4b83` | 🔧 fix: deploy.sh --exclude .env |
+| 2026-07-07 | `08306bd` | 📝 docs: progress.md + 测试框架完善 |
 | 2026-07-07 | `bf48b13` | 🧪 test_merge.sh 快速检测模式（3/3 通过） |
 | 2026-07-07 | `b9f10a5` | 🐛 修复：scale 宽高比 + 测试限制1天 |
 | 2026-07-07 | `762a2c3` | 🐛 修复：scale -2:HEIGHT 保持 16:9 |
-| 2026-07-07 | `ebb4d57` | 🧪 测试框架 TEST_MODE + test_merge.sh |
-| 2026-07-07 | `9c00332` | 🧪 test_merge.sh + TEST_MODE |
-| 2026-07-07 | `166048e` | 🆕 客厅 4K 脚本 livingroom_auto_merge.sh |
-| 2026-07-07 | `034f0a9` | 🔐 移除 git 中硬编码的 Pushover token |
+| 2026-07-07 | `ebb4d57` | 🧪 测试框架 TEST_MODE |
+| 2026-07-07 | `9c00332` | 🧪 测试脚本 |
+| 2026-07-07 | `166048e` | 🆕 客厅 4K livingroom_auto_merge.sh |
+| 2026-07-07 | `034f0a9` | 🔐 移除 git 中 Pushover 明文 token |
 | 2026-07-06 | `a54c478` | 🐛 修复：视频合并路径转义 bug |
-| 2026-07-06 | `9370a7d` | docs: progress.md + 项目级 .clinerules |
 
 ## 待办事项
 
