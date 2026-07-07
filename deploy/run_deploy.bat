@@ -15,4 +15,4 @@ rclone config delete emma-focus-ts 2>nul
 rclone config create emma-focus-ip webdav url "http://192.168.6.108:8889" vendor other user garychen pass %RCLONE_PASS% >nul 2>&1
 rclone config create emma-focus-ts webdav url "https://z4pro-xxel.tail1a5bb9.ts.net/" vendor other user garychen pass %RCLONE_PASS% >nul 2>&1
 
-"C:\Program Files\Git\bin\sh.exe" -c "cd /c/Users/I048299/Claude\ Projects/Emma\ Focus && sh ./deploy.sh"
+"C:\Program Files\Git\bin\sh.exe" -c "cd /c/Users/I048299/Claude\ Projects/Emma\ Focus && sh ./deploy/deploy.sh"

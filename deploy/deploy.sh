@@ -103,8 +103,8 @@ START_TS=$(date +%s)
 # ----- 4. 同步 scripts -----
 echo ""
 echo -e "${YELLOW}📄 同步 scripts...${NC}"
-if [ -d "${SCRIPT_DIR}/video merge" ]; then
-    rclone sync --delete-excluded "${SCRIPT_DIR}/video merge/" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" | tail -2 || true
+if [ -d "${SCRIPT_DIR}/../../video merge" ]; then
+    rclone sync --delete-excluded "${SCRIPT_DIR}/../../video merge/" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" | tail -2 || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
 fi
 
@@ -112,8 +112,8 @@ fi
 echo ""
 echo -e "${YELLOW}📄 同步 HTML...${NC}"
 for f in index.html admin.html; do
-    if [ -f "${SCRIPT_DIR}/${f}" ]; then
-        rclone copy "${SCRIPT_DIR}/${f}" "${REMOTE}:/docker/html/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    if [ -f "${SCRIPT_DIR}/../${f}" ]; then
+        rclone copy "${SCRIPT_DIR}/../${f}" "${REMOTE}:/docker/html/" 2>&1 | grep -v "NOTICE" | tail -1 || true
         echo "  ✅ ${f}"
     fi
 done
@@ -121,12 +121,12 @@ done
 # ----- 6. 同步 infra -----
 echo ""
 echo -e "${YELLOW}📄 同步 infra...${NC}"
-if [ -f "${SCRIPT_DIR}/infra/web/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../../infra/web/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../../infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ web/docker-compose.yml"
 fi
-if [ -f "${SCRIPT_DIR}/infra/tdarr/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../../infra/tdarr/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../../infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ tdarr/docker-compose.yml"
 fi
 
@@ -142,9 +142,9 @@ echo "   耗时: ${ELAPSED}s"
 echo "============================================="
 
 # Pushover
-if command -v curl >/dev/null 2>&1 && [ -f "${SCRIPT_DIR}/video merge/notify.sh" ]; then
-    . "${SCRIPT_DIR}/video merge/notify.sh"
-    COMMIT_MSG=$(cd "$SCRIPT_DIR" && git log -1 --oneline 2>/dev/null || echo "")
+if command -v curl >/dev/null 2>&1 && [ -f "${SCRIPT_DIR}/../../video merge/notify.sh" ]; then
+    . "${SCRIPT_DIR}/../../video merge/notify.sh"
+    COMMIT_MSG=$(cd "$SCRIPT_DIR/.." && git log -1 --oneline 2>/dev/null || echo "")
     pushover_notify "Emma Focus" "✅ NAS 部署完成 (${REMOTE})
 ${COMMIT_MSG}
 耗时: ${ELAPSED}s" 2>/dev/null || true

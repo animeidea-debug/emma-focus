@@ -11,9 +11,9 @@
 | 组件 | 状态 | 部署方式 | 备注 |
 |------|------|----------|------|
 | **GAS 后端** | ✅ 运行中 | `clasp push` | 部署 ID: `AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q` |
-| **前端看板** | ✅ 运行中 | `sh deploy.sh` → NAS docker/html/ | nginx port 8888 |
-| **视频合并（小米）** | ✅ 运行中 | `sh deploy.sh` → NAS scripts/ | crontab 22:00 |
-| **视频合并（萤石）** | ✅ 运行中 | `sh deploy.sh` → NAS scripts/ | crontab 22:00 |
+| **前端看板** | ✅ 运行中 | `sh deploy/deploy.sh` → NAS docker/html/ | nginx port 8888 |
+| **视频合并（小米）** | ✅ 运行中 | `sh deploy/deploy.sh` → NAS scripts/ | crontab 22:00 |
+| **视频合并（萤石）** | ✅ 运行中 | `sh deploy/deploy.sh` → NAS scripts/ | crontab 22:00 |
 | **Pushover 通知** | ✅ 配置完成 | `~/.clinerules`（全局） | 内置于 NAS 脚本 + 部署流程 |
 
 ## 最近提交
@@ -32,7 +32,7 @@
 ## 待办事项
 
 - [x] WebDAV 远程部署支持（`deploy.sh` 已验证通过）
-- [ ] GAS 部署版本管理（`clasp deploy` 策略待确认）
+- [x] GAS 部署版本管理（`run_gas_deploy.bat` 已自动化）
 - [ ] 视频合并失败重试具体日期通知（目前只有汇总统计）
 
 ## 已知问题
@@ -48,8 +48,14 @@
 ```
 ├── index.html / admin.html       # 前端看板
 ├── emma_focus_api.gs             # GAS 后端 API
-├── deploy.sh                     # 一键部署 NAS + 权限修复
+├── .clasp.json                   # clasp 配置（scriptId）
+├── .claspignore                  # clasp 忽略规则
 ├── progress.md                   # 项目状态文档（本文件）
+│
+├── deploy/                       # 部署脚本
+│   ├── deploy.sh                 # NAS 部署（Tailscale Funnel + LAN）
+│   ├── run_deploy.bat            # Windows: NAS 部署
+│   └── run_gas_deploy.bat        # Windows: GAS 部署（含自动版本）
 │
 ├── infra/
 │   ├── web/docker-compose.yml    # nginx + fastapi 前端服务
@@ -77,7 +83,7 @@ clasp push             # 上传代码
 # 3. NAS 部署（如果需要同步到 NAS）
 # 密码从 macOS Keychain 读取（需先存入）：
 #   security add-generic-password -s "emma-webdav" -a "garychen" -w "密码"
-sh deploy.sh
+sh deploy/deploy.sh
 
 # 4. 查看最新状态
 cat progress.md
@@ -112,10 +118,10 @@ setx PATH "%PATH%;%USERPROFILE%\Downloads\rclone\rclone-v1.74.3-windows-amd64"
 # 3. 运行 deploy.sh 进行部署
 
 # 运行（注意：PowerShell 需要 .\ 前缀）
-.\run_deploy.bat
+.\deploy\run_deploy.bat
 
 # 或直接用 cmd.exe 调用
-cmd.exe /c run_deploy.bat
+cmd.exe /c deploy\run_deploy.bat
 ```
 
 ### GAS 部署（Windows）
@@ -128,8 +134,8 @@ npm install -g @google/clasp
 clasp login
 
 # 推送代码（公司网络需通过代理）
-# 方式 A：使用 run_gas_deploy.bat（推荐，已配置代理）
-.\run_gas_deploy.bat
+# 方式 A：使用 run_gas_deploy.bat（推荐，已配置代理 + 自动版本）
+.\deploy\run_gas_deploy.bat
 
 # 方式 B：手动设置代理后推送
 $env:HTTPS_PROXY = "http://proxy.sin.sap.corp:8080"
@@ -156,6 +162,6 @@ clasp push
 
 ```
 另一台电脑: git pull → 修改 → git commit → git push
-我的 Mac:   git pull → 继续开发 → clasp push + sh deploy.sh
+我的 Mac:   git pull → 继续开发 → clasp push + sh deploy/deploy.sh
 Windows:    git pull → 修改 → git commit → git push
             (部署需回家用 Mac 或配置代理后执行)
