@@ -3,7 +3,7 @@
 # 🚀 Emma Focus — NAS 一键部署脚本 (WebDAV)
 #
 # 将本地 repo 中的脚本、HTML 和基础设施文件部署到极空间 NAS。
-# 使用 rclone + WebDAV 协议，内网 IP 优先，外网 DDNS fallback。
+# 使用 rclone + WebDAV 协议，内网 IP 优先，外网 Tailscale Funnel fallback。
 # 脚本由 `sh xxx.sh` 调用，644 权限不影响运行。
 #
 # 目标路径（WebDAV 容器 clinedeploy-webdav）：
@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 NAS_USER="garychen"
 NAS_IP="192.168.6.108"
 NAS_PORT="8889"
-NAS_DDNS="https://zy12683em2039.vicp.fun"
+NAS_TAILSCALE="https://z4pro-xxel.tail1a5bb9.ts.net/"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -60,38 +60,43 @@ if [ -z "$PASSWORD" ]; then
     echo "   Windows/macOS: export WEBDAV_PASS=\"密码\""
     exit 1
 fi
-OBSCURED=$(rclone obscure "$PASSWORD")
+# Strip trailing newline/carriage return (Windows env var issue)
+PASSWORD=$(echo "$PASSWORD" | tr -d '\r\n')
 
-# ----- 2. 清理旧 remote + 重新配置 -----
-rclone config delete emma-focus-ip 2>/dev/null || true
-rclone config delete emma-focus 2>/dev/null || true
+# ----- 2. 检测网络环境（LAN vs 外网）-----
+IS_LAN=false
+if ip addr 2>/dev/null | grep -q "inet 192\.168\." || \
+   ifconfig 2>/dev/null | grep -q "inet 192\.168\." || \
+   hostname -I 2>/dev/null | grep -q "192\.168\."; then
+    IS_LAN=true
+fi
 
-rclone config create emma-focus-ip webdav \
-    url "http://${NAS_IP}:${NAS_PORT}" \
-    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+# ----- 3. 配置已由 run_deploy.bat 预先创建，直接使用 -----
 
-rclone config create emma-focus webdav \
-    url "$NAS_DDNS" \
-    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
-
-# ----- 3. 确定可用 remote -----
+# ----- 4. 确定可用 remote -----
 REMOTE=""
-echo -e "${YELLOW}⏳ 测试内网连接: http://${NAS_IP}:${NAS_PORT}...${NC}"
-if rclone lsd emma-focus-ip: --timeout 5s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
-    REMOTE="emma-focus-ip"
-    echo -e "${GREEN}✅ 内网连接成功${NC}"
-else
-    echo -e "${YELLOW}⏳ 内网不通，测试外网 DDNS...${NC}"
-    if rclone lsd emma-focus: --timeout 15s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
-        REMOTE="emma-focus"
-        echo -e "${GREEN}✅ DDNS 连接成功${NC}"
+if [ "$IS_LAN" = true ]; then
+    echo -e "${YELLOW}⏳ 检测到内网环境，测试 LAN: http://${NAS_IP}:${NAS_PORT}...${NC}"
+    if rclone lsd emma-focus-ip: --timeout 3s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
+        REMOTE="emma-focus-ip"
+        echo -e "${GREEN}✅ 内网连接成功${NC}"
+    else
+        echo -e "${YELLOW}⚠️  LAN 不通，回退到 Tailscale Funnel...${NC}"
+    fi
+fi
+
+if [ -z "$REMOTE" ]; then
+    echo -e "${YELLOW}⏳ 测试 Tailscale Funnel: ${NAS_TAILSCALE}...${NC}"
+    if rclone lsd emma-focus-ts: --timeout 15s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
+        REMOTE="emma-focus-ts"
+        echo -e "${GREEN}✅ Tailscale Funnel 连接成功${NC}"
     else
         echo -e "${RED}❌ 所有连接均失败。${NC}"
         exit 1
     fi
 fi
 
-unset PASSWORD OBSCURED
+unset PASSWORD
 
 START_TS=$(date +%s)
 
