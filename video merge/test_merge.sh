@@ -104,9 +104,15 @@ else
     echo "   ⚠️ 客厅未在超时时间内生成文件"
 fi
 
-# ----- 结果 -----
+# ----- 结果 + 清理 -----
 echo ""
 echo "============================================="
 echo " ✅ 全部测试完成！"
 docker exec tdarr_node ls -lh /mnt/export_videos_test/ 2>/dev/null
 echo "============================================="
+
+# ----- 重启容器确保测试进程全部终止 -----
+echo ""
+echo "⏳ 重启 tdarr_node 容器（终止所有测试进程）..."
+docker restart tdarr_node 2>&1
+echo "✅ 容器已重启，准备好今晚 crontab 正式运行"
