@@ -43,6 +43,12 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     find "$SOURCE_BASE" -type f -name "*.mp4" | sort > /tmp/all_files.txt
     grep -oE "2026[0-9]{4}" /tmp/all_files.txt | cut -c 1-8 | sort -u > /tmp/all_dates.txt
 
+    # 测试模式：只处理 2 个日期
+    if [ "$TEST_MODE" = "true" ]; then
+        head -2 /tmp/all_dates.txt > /tmp/all_dates_tmp.txt && mv /tmp/all_dates_tmp.txt /tmp/all_dates.txt
+        echo "🧪 测试模式: 仅处理前 2 个日期" >> "$LOG_FILE"
+    fi
+
     XIAOMI_SUCCESS=0
     XIAOMI_FAIL=0
 
@@ -74,6 +80,12 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
         if [ ! -s /tmp/list.txt ]; then
             echo "ℹ️ 日期 ${d} 无有效视频片段，跳过。" >> "$LOG_FILE"
             continue
+        fi
+
+        # 测试模式：只取前 2 个片段，加速验证
+        if [ "$TEST_MODE" = "true" ] && [ -s /tmp/list.txt ]; then
+            head -2 /tmp/list.txt > /tmp/list_trim.txt && mv /tmp/list_trim.txt /tmp/list.txt
+            echo "🧪 测试模式: 仅处理 2 个片段" >> "$LOG_FILE"
         fi
 
         # ----- ffmpeg 执行（带 2 次重试） -----

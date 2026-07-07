@@ -118,6 +118,12 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
             fi
         done < /tmp/ys_hours.txt
 
+        # 测试模式：只取前 2 个成功处理的时段
+        if [ \"\$TEST_MODE\" = \"true\" ] && [ -s \"\$HOUR_LIST_FILE\" ]; then
+            head -2 \"\$HOUR_LIST_FILE\" > \"\${HOUR_LIST_FILE}.trim\" && mv \"\${HOUR_LIST_FILE}.trim\" \"\$HOUR_LIST_FILE\"
+            echo \"🧪 测试模式: 仅缝合 2 个时段\" >> \"\$LOG_FILE\"
+        fi
+
         # ===================================================================
         # 🎉 日终无损秒级大缝合
         # ===================================================================

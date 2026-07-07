@@ -92,6 +92,12 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
             continue
         fi
 
+        # 测试模式：只取前 2 个片段
+        if [ "$TEST_MODE" = "true" ] && [ -s /tmp/lr_list.txt ]; then
+            head -2 /tmp/lr_list.txt > /tmp/lr_trim.txt && mv /tmp/lr_trim.txt /tmp/lr_list.txt
+            echo "🧪 测试模式: 仅处理 2 个片段" >> "$LOG_FILE"
+        fi
+
         # ----- ffmpeg 执行（带 2 次重试） -----
         FFMPEG_STATUS=1
         ATTEMPT=1
