@@ -10,18 +10,21 @@
 ├── emma_focus_api.gs       # Google Apps Script 后端 API
 │
 ├── deploy/                 # 部署脚本
-│   ├── deploy.sh           # 一键部署：NAS SMB 同步 + 权限修复
-│   ├── run_deploy.bat      # Windows: NAS 部署
-│   └── run_gas_deploy.bat  # Windows: GAS 部署（含自动版本）
+│   ├── deploy.sh            # NAS 部署（WebDAV + Tailscale）
+│   ├── run_deploy.bat       # Windows NAS 部署入口
+│   └── run_gas_deploy.bat   # Windows GAS 部署（含代理 + 自动版本）
+│
 ├── infra/                  # Docker 编排文件（版本管理）
 │   ├── web/docker-compose.yml   # nginx + fastapi 前端服务
 │   └── tdarr/docker-compose.yml # tdarr 视频处理 + Intel QSV
 │
 └── video merge/            # 监控视频延时合成（部署于极空间 NAS）
-    ├── run_all.sh           # crontab 总控调度 + Pushover 通知
-    ├── auto_merge.sh        # 小米摄像头 → 720P 30倍速
-    ├── yingshi_auto_merge.sh# 萤石摄像头 → 1080P 30倍速
-    └── notify.sh            # Pushover 通知辅助函数库
+    ├── run_all.sh            # crontab 总控调度 + Pushover 通知
+    ├── auto_merge.sh         # 小米摄像头 → 720P 30倍速
+    ├── yingshi_auto_merge.sh # 萤石摄像头 → 1080P 30倍速
+    ├── livingroom_auto_merge.sh # 🆕 客厅摄像头 → 4K 30倍速
+    ├── test_merge.sh         # 🧪 测试框架（快速验证所有脚本）
+    └── notify.sh             # Pushover 通知辅助函数库
 ```
 
 ## 功能特性
@@ -32,7 +35,7 @@
 - 🔄 **币种交换** — 银币金币互相兑换，汇率可后台设置
 - 🎨 **自定义头像** — 支持 Emoji 和上传自定义图片
 - 📜 **成长指南** — 活动规则、代币机制、专注力技巧速查
-- 🎥 **视频自动合并** — 小米+萤石监控视频 30 倍速延时合成
+- 🎥 **视频自动合并** — 3 路摄像头 30 倍速延时合成
 
 ## 部署
 
@@ -76,68 +79,63 @@ sh deploy/deploy.sh
 
 ## 🎥 video merge — 监控视频延时合成
 
-在极空间 NAS 上运行，通过 Docker + ffmpeg 将小米和萤石监控摄像头的每日视频片段合成为 30 倍速延时视频，供 Gemini 分析 Emma 的日常活动。
+在极空间 NAS 上运行，通过 Docker + ffmpeg 将 3 路摄像头的每日视频合成为 30 倍速延时视频，供 Gemini 分析。
 
-### 架构
+### 当前摄像头
 
-```
-极空间 NAS (Intel N100)
-  ├── crontab 22:00 ──→ run_all.sh (总控)
-  ├── Docker: tdarr_server + tdarr_node
-  │    ├── /mnt/source_videos          ← 小米原始视频 (映射自 xiaomi_camera_videos/)
-  │    ├── /mnt/export_videos           ← 小米 720P 延时输出
-  │    ├── /mnt/source_videos_yingshi   ← 萤石原始视频
-  │    └── /mnt/export_videos_yingshi   ← 萤石 1080P 延时输出
-  └── temp_workspace/                   ← 临时文件 (映射到容器 /tmp)
-```
+| # | 名称 | 位置 | 分辨率 | 源盘 | 输出目录 |
+|---|------|------|--------|------|---------|
+| 1 | 小米 (Emma) | NVMe14 `xiaomi_camera_videos/` | 720P | NVMe14 SSD | `export_videos/` |
+| 2 | 萤石 (Emma) | NVMe14 `监控中心/` | 1080P | NVMe14 SSD | `export_videos_yingshi/` |
+| 3 | 🆕 客厅小米 | SATA13 `XiaomiCamera_00_B888808E0906/` | 4K | SATA13 HDD | `export_videos_livingroom/` |
 
 ### 脚本说明
 
 | 脚本 | 功能 |
 |------|------|
-| `auto_merge.sh` | 小米摄像头 → 720P 30倍速延时，筛选 09:00-22:59 白昼时段 |
-| `yingshi_auto_merge.sh` | 萤石摄像头 → 1080P 30倍速延时，逐小时合成后无损拼接 |
-| `run_all.sh` | 串行调度 + Pushover 通知（开始/完成/失败） |
-| `notify.sh` | Pushover 通知辅助函数库（被其他脚本 source） |
-| `docker-compose.yml` | Docker 服务编排，含 Intel QSV 硬件加速配置 |
+| `auto_merge.sh` | 小米 → 720P 30x，09:00-22:59 |
+| `yingshi_auto_merge.sh` | 萤石 → 1080P 30x，逐小时合成再拼接 |
+| `livingroom_auto_merge.sh` | 🆕 客厅 → 4K 30x，平面目录文件名解析 |
+| `test_merge.sh` | 🧪 测试框架：重启容器→清 temp→快速验证（~1 分钟） |
+| `run_all.sh` | crontab 22:45 总控 [1/3][2/3][3/3] |
+| `notify.sh` | Pushover 通知（从 `.env` 读取凭证，不在 git 中） |
 
 ### 功能特性
 
 | 特性 | 说明 |
 |------|------|
-| 🔄 **自动重试** | ffmpeg 失败后自动重试 1 次（共 2 次尝试），记录尝试次数 |
-| 🔔 **Pushover 通知** | 开始/小米完成/萤石完成/全部完成共 4 条通知，含统计摘要 |
-| 🎯 **可配置分辨率** | `XIAOMI_RES` / `YINGSHI_RES` 环境变量，默认 720/1080 |
+| 🔄 **自动重试** | ffmpeg 失败后自动重试 1 次（共 2 次尝试） |
+| 🔔 **Pushover 通知** | 开始/完成/失败通知，走 NAS Task App |
+| 🎯 **可配置分辨率** | `XIAOMI_RES` / `YINGSHI_RES` / `LIVINGROOM_RES` |
 | 📄 **日志轮转** | 单文件超过 10MB 自动重命名 `.old` 后新建 |
-| 📊 **文件信息** | 成功日志记录文件大小和视频时长 (mm:ss) |
-| ✅ **失败容错** | 小米异常不影响萤石执行 |
+| 📊 **文件信息** | 成功日志记录文件大小和视频时长 |
+| 🧪 **测试模式** | `TEST_MODE=true` → 1 天 x 2 片段，不影响生产数据 |
 
 ### 配置方式
 
-通过环境变量自定义（可在 crontab 或 run_all.sh 中设置）：
-
 ```sh
 # 调整输出分辨率
-export XIAOMI_RES=480    # 小米输出 480P
-export YINGSHI_RES=720   # 萤石输出 720P
+export XIAOMI_RES=480        # 小米 480P
+export YINGSHI_RES=720       # 萤石 720P
+export LIVINGROOM_RES=2160   # 客厅 4K
 
-# 调整日志轮转阈值（单位 bytes）
+# 调整日志轮转阈值
 export MAX_LOG_SIZE=20971520  # 20MB
 
 # 然后执行
 sh run_all.sh
 ```
 
-### 部署步骤
+### 测试
 
-1. 将 `video merge/` 目录下所有文件拷贝到 NAS 脚本目录（如 `/tmp/.../data/scripts/`）
-2. 确保 docker-compose 已启动：`docker-compose -f docker-compose.yml up -d`
-3. 添加 crontab 每日定时执行：`crontab -e`
-   ```
-   0 22 * * * cd /path/to/scripts && sh run_all.sh >> /var/log/video_merge.log 2>&1
-   ```
+```sh
+# 在 NAS 上执行（自动重启容器 + 清理 temp + 快速验证）
+cd /tmp/zfsv3/nvme14/13918962622/data/scripts
+sh test_merge.sh
+```
 
 ### 输出文件
 
 - 小米：`Xiaomi_Camera_YYYYMMDD.mp4` → `export_videos/`
 - 萤石：`Ezviz_60x_1080P_YYYYMMDD.mp4` → `export_videos_yingshi/`
+- 客厅：`LivingRoom_4K_YYYYMMDD.mp4` → `export_videos_livingroom/`
