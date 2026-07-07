@@ -48,4 +48,7 @@ services:
       - /tmp/zfsv3/nvme14/13918962622/data/监控中心/2c7835a636a84263914a8e58dbd19041:/mnt/source_videos_yingshi
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos_yingshi:/mnt/export_videos_yingshi 
       - /tmp/zfsv3/nvme14/13918962622/data/temp_workspace:/tmp
+      # 🆕 客厅 Xiaomi 4K 摄像头（低优先级，SATA13 盘）
+      - /tmp/zfsv3/sata13/13918962622/data/XiaomiCamera_00_B888808E0906:/mnt/source_videos_livingroom:ro
+      - /tmp/zfsv3/nvme14/13918962622/data/export_videos_livingroom:/mnt/export_videos_livingroom
 

@@ -36,7 +36,7 @@ TODAY=$(date +%Y%m%d)
 
 # 第一步：小米（720P）任务
 echo ""
-echo "▶️ [1/2] 正在启动【小米】合并任务..."
+echo "▶️ [1/3] 正在启动【小米】合并任务..."
 sh "$SCRIPT_DIR/auto_merge.sh"
 XIAOMI_EXIT=$?
 
@@ -61,7 +61,7 @@ fi
 
 # 第二步：萤石（1080P）任务
 echo ""
-echo "▶️ [2/2] 正在启动【萤石】合并任务..."
+echo "▶️ [2/3] 正在启动【萤石】合并任务..."
 sh "$SCRIPT_DIR/yingshi_auto_merge.sh"
 YINGSHI_EXIT=$?
 
@@ -83,17 +83,41 @@ else
 成功: ${YINGSHI_SUCCESS} 天 | 失败: ${YINGSHI_FAIL} 天"
 fi
 
+# 第三步：客厅 4K（低优先级，需要容器新卷映射生效后启动）
+echo ""
+echo "▶️ [3/3] 正在启动【客厅 4K】合并任务..."
+sh "$SCRIPT_DIR/livingroom_auto_merge.sh"
+LIVINGROOM_EXIT=$?
+
+# 读取客厅结果
+LR_SUCCESS=0
+LR_FAIL=0
+if [ -f /tmp/livingroom_result.json ]; then
+    eval "$(cat /tmp/livingroom_result.json | sed 's/[{}]/ /g; s/"//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){if($i ~ /success/) {getline; LR_SUCCESS=$i} if($i ~ /fail/) {getline; LR_FAIL=$i}} print "LR_SUCCESS="LR_SUCCESS"; LR_FAIL="LR_FAIL}')"
+    rm -f /tmp/livingroom_result.json
+fi
+
+if [ $LIVINGROOM_EXIT -ne 0 ]; then
+    pushover_notify "Video Merge" "⚠️ 客厅 4K 合并异常 | ${TODAY}
+成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天
+脚本退出码: ${LIVINGROOM_EXIT}"
+else
+    pushover_notify "Video Merge" "✅ 客厅 4K 合并完成 | ${TODAY}
+成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天"
+fi
+
 # 总计
 END_TS=$(date +%s)
 ELAPSED_MIN=$(( (END_TS - START_TS) / 60 ))
 ELAPSED_SEC=$(( (END_TS - START_TS) % 60 ))
 
-TOTAL_SUCCESS=$(( XIAOMI_SUCCESS + YINGSHI_SUCCESS ))
-TOTAL_FAIL=$(( XIAOMI_FAIL + YINGSHI_FAIL ))
+TOTAL_SUCCESS=$(( XIAOMI_SUCCESS + YINGSHI_SUCCESS + LR_SUCCESS ))
+TOTAL_FAIL=$(( XIAOMI_FAIL + YINGSHI_FAIL + LR_FAIL ))
 
 pushover_notify "Video Merge" "🎉 全部完成 | ${TODAY}
 小米: ${XIAOMI_SUCCESS}✅ ${XIAOMI_FAIL}❌
 萤石: ${YINGSHI_SUCCESS}✅ ${YINGSHI_FAIL}❌
+客厅: ${LR_SUCCESS}✅ ${LR_FAIL}❌
 总计: ${TOTAL_SUCCESS}✅ ${TOTAL_FAIL}❌
 耗时: ${ELAPSED_MIN}分${ELAPSED_SEC}秒"
 
@@ -102,4 +126,5 @@ echo "✅ 所有监控视频延时处理全部完毕！"
 echo "🎉 结束时间: $(date) | 总耗时: ${ELAPSED_MIN}m${ELAPSED_SEC}s"
 echo "📊 小米: 成功 ${XIAOMI_SUCCESS} / 失败 ${XIAOMI_FAIL}"
 echo "📊 萤石: 成功 ${YINGSHI_SUCCESS} / 失败 ${YINGSHI_FAIL}"
+echo "📊 客厅: 成功 ${LR_SUCCESS} / 失败 ${LR_FAIL}"
 echo "================================================="
