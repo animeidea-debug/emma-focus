@@ -127,9 +127,17 @@ npm install -g @google/clasp
 # 登录（浏览器会打开 Google 授权页面）
 clasp login
 
-# 推送代码
+# 推送代码（公司网络需通过代理）
+# 方式 A：使用 run_gas_deploy.bat（推荐，已配置代理）
+.\run_gas_deploy.bat
+
+# 方式 B：手动设置代理后推送
+$env:HTTPS_PROXY = "http://proxy.sin.sap.corp:8080"
+$env:HTTP_PROXY = "http://proxy.sin.sap.corp:8080"
 clasp push
 ```
+
+**注意**：公司网络下 `clasp` 需要通过代理访问 Google。浏览器能直接访问是因为使用了 Windows 登录凭证，但命令行工具需要显式设置 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量。
 
 ### 网络说明
 
