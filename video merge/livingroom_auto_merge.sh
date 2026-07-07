@@ -47,6 +47,12 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     # 从文件名提取不重复的日期（第一个时间戳的 YYYYMMDD）
     grep -oE "2026[0-9]{4}" /tmp/lr_all_files.txt | sort -u > /tmp/lr_all_dates.txt
 
+    # 测试模式：只处理 1 个日期
+    if [ "$TEST_MODE" = "true" ]; then
+        head -1 /tmp/lr_all_dates.txt > /tmp/lr_dates_tmp.txt && mv /tmp/lr_dates_tmp.txt /tmp/lr_all_dates.txt
+        echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
+    fi
+
     LR_SUCCESS=0
     LR_FAIL=0
 

@@ -47,6 +47,12 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
     # 扫描深度变短，正则完美匹配包含年份的目录
     find \"\$SOURCE_BASE\" -type d -regextype posix-extended -regex \".*/[0-9]{4}/[0-9]{2}/[0-9]{2}\" | sort -u > /tmp/ys_dates.txt
 
+    # 测试模式：只处理 1 个日期
+    if [ \"\$TEST_MODE\" = \"true\" ]; then
+        head -1 /tmp/ys_dates.txt > /tmp/ys_dates_tmp.txt && mv /tmp/ys_dates_tmp.txt /tmp/ys_dates.txt
+        echo \"🧪 测试模式: 仅处理 1 个日期\" >> \"\$LOG_FILE\"
+    fi
+
     YINGSHI_SUCCESS=0
     YINGSHI_FAIL=0
 
@@ -81,6 +87,10 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
             HOUR_OUT=\"\$WORK_TMP/temp_hour_ys_\${DATE_STR}_\${HOUR_VAL}.mp4\"
 
             if [ -s \"\$WORK_TMP/list_ys_\${DATE_STR}_\${HOUR_VAL}.txt\" ]; then
+                # 测试模式：只取前 2 个片段
+                if [ \"\$TEST_MODE\" = \"true\" ]; then
+                    head -2 \"\$WORK_TMP/list_ys_\${DATE_STR}_\${HOUR_VAL}.txt\" > \"\${WORK_TMP}/list_ys_\${DATE_STR}_\${HOUR_VAL}.trim\" && mv \"\${WORK_TMP}/list_ys_\${DATE_STR}_\${HOUR_VAL}.trim\" \"\$WORK_TMP/list_ys_\${DATE_STR}_\${HOUR_VAL}.txt\"
+                fi
                 # ----- ffmpeg 执行（带 2 次重试） -----
                 FFMPEG_STATUS=1
                 ATTEMPT=1

@@ -6,9 +6,9 @@
 #   cd /path/to/scripts && sh test_merge.sh
 #
 # 安全特性：
-#   - 自动杀死之前正在运行的 merge/ffmpeg 进程
+#   - 自动重启 tdarr_node 容器（杀死所有 ffmpeg 进程 + 清理临时文件）
 #   - 自动清理测试输出目录 /mnt/export_videos_test/
-#   - TEST_MODE=true → 每个脚本只处理前 2 个日期各 2 个片段
+#   - TEST_MODE=true → 每个脚本只处理 1 个日期各 2 个片段
 #   - 输出到 /mnt/export_videos_test/，不影响生产数据
 # ==============================================================================
 
@@ -19,15 +19,15 @@ echo "============================================="
 echo " 🧪 视频合并测试开始"
 echo "============================================="
 
-# ----- 自清理：杀死旧进程 + 清理测试目录 -----
+# ----- 自清理：重启容器（杀进程 + 清 temp） -----
 echo ""
-echo "⏳ 清理旧进程和测试目录..."
-docker exec tdarr_node sh -c '
-    pkill -f "ffmpeg\|auto_merge\|yingshi\|livingroom\|test_merge" 2>/dev/null
-    sleep 1
-    rm -rf /mnt/export_videos_test 2>/dev/null
-    mkdir -p /mnt/export_videos_test
-' 2>&1
+echo "⏳ 重启 tdarr_node 容器..."
+docker restart tdarr_node 2>&1
+echo "⏳ 等待 10 秒让容器完全就绪..."
+sleep 10
+
+echo "⏳ 清理测试输出目录..."
+docker exec tdarr_node sh -c 'rm -rf /mnt/export_videos_test 2>/dev/null; mkdir -p /mnt/export_videos_test' 2>&1
 echo "✅ 清理完成"
 echo ""
 
@@ -50,6 +50,5 @@ sh "$SCRIPT_DIR/livingroom_auto_merge.sh" && echo "  ✅ 客厅测试完成" || 
 echo ""
 echo "============================================="
 echo " ✅ 全部测试完成！"
-echo " 测试输出：/mnt/export_videos_test/"
 docker exec tdarr_node ls -lh /mnt/export_videos_test/ 2>/dev/null
 echo "============================================="

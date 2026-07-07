@@ -1,4 +1,4 @@
-ous r#!/bin/sh
+#!/bin/sh
 
 # ==============================================================================
 # 🎥 小米摄像头 720P 30 倍速延时合并脚本
@@ -43,10 +43,10 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     find "$SOURCE_BASE" -type f -name "*.mp4" | sort > /tmp/all_files.txt
     grep -oE "2026[0-9]{4}" /tmp/all_files.txt | cut -c 1-8 | sort -u > /tmp/all_dates.txt
 
-    # 测试模式：只处理 2 个日期
+    # 测试模式：只处理 1 个日期
     if [ "$TEST_MODE" = "true" ]; then
-        head -2 /tmp/all_dates.txt > /tmp/all_dates_tmp.txt && mv /tmp/all_dates_tmp.txt /tmp/all_dates.txt
-        echo "🧪 测试模式: 仅处理前 2 个日期" >> "$LOG_FILE"
+        head -1 /tmp/all_dates.txt > /tmp/all_dates_tmp.txt && mv /tmp/all_dates_tmp.txt /tmp/all_dates.txt
+        echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
     fi
 
     XIAOMI_SUCCESS=0
