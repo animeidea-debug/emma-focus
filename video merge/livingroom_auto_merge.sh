@@ -18,9 +18,12 @@ LIVINGROOM_RES="${LIVINGROOM_RES:-2160}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"  # 10 MB
 
 # 通过环境变量注入容器
-docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" tdarr_node sh -c '
+docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_MODE="$TEST_MODE" -e CAMERA_NAME="livingroom" tdarr_node sh -c '
     SOURCE_BASE="/mnt/source_videos_livingroom"
     EXPORT_DIR="/mnt/export_videos_livingroom"
+    if [ "$TEST_MODE" = "true" ]; then
+        EXPORT_DIR="/mnt/export_videos_test/${CAMERA_NAME}"
+    fi
     mkdir -p "$EXPORT_DIR"
     LOG_FILE="$EXPORT_DIR/livingroom_merge.log"
 

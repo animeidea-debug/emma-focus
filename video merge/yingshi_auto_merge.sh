@@ -20,11 +20,13 @@ MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"  # 10 MB
 SCRIPT_DIR_YS="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR_YS/notify.sh"
 
-docker exec tdarr_node sh -c "
+docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_MODE="$TEST_MODE" -e CAMERA_NAME="yingshi" tdarr_node sh -c "
     SOURCE_BASE=\"/mnt/source_videos_yingshi\"
-    EXPORT_DIR=\"/mnt/export_videos_yingshi\"
     WORK_TMP=\"/tmp\"
-
+    EXPORT_DIR=\"/mnt/export_videos_yingshi\"
+    if [ \"\$TEST_MODE\" = \"true\" ]; then
+        EXPORT_DIR=\"/mnt/export_videos_test/\${CAMERA_NAME}\"
+    fi
     mkdir -p \"\$EXPORT_DIR\"
     LOG_FILE=\"\$EXPORT_DIR/yingshi_merge.log\"
 

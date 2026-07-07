@@ -16,9 +16,12 @@ XIAOMI_RES="${XIAOMI_RES:-720}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"  # 10 MB
 
 # 通过环境变量注入容器，避免双引号 sh -c 导致转义错误
-docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" tdarr_node sh -c '
+docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_MODE="$TEST_MODE" -e CAMERA_NAME="xiaomi" tdarr_node sh -c '
     SOURCE_BASE="/mnt/source_videos"
     EXPORT_DIR="/mnt/export_videos"
+    if [ "$TEST_MODE" = "true" ]; then
+        EXPORT_DIR="/mnt/export_videos_test/${CAMERA_NAME}"
+    fi
     mkdir -p "$EXPORT_DIR"
     LOG_FILE="$EXPORT_DIR/merge_log.txt"
 

@@ -14,8 +14,8 @@ services:
       - serverPort=8266
       - webUIPort=8265
     ports:
-      - 8265:8265 
-      - 8266:8266 
+      - 8265:8265
+      - 8266:8266
     volumes:
       - /tmp/zfsv3/nvme14/13918962622/data/tdarr/server:/app/server
       - /tmp/zfsv3/nvme14/13918962622/data/tdarr/configs:/app/configs
@@ -34,7 +34,7 @@ services:
       - PGID=0
       - UMASK=002
       - nodeID=Z4Pro-N100-Node
-      - serverIP=tdarr_server 
+      - serverIP=tdarr_server
       - serverPort=8266
     # 🚀 核心优化：把极空间 N100 的 Intel 核显硬件加速（VAAPI/QSV）环境注入进 Node 容器
     devices:
@@ -46,9 +46,10 @@ services:
       - /tmp/zfsv3/nvme14/13918962622/data/xiaomi_camera_videos:/mnt/source_videos
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos:/mnt/export_videos
       - /tmp/zfsv3/nvme14/13918962622/data/监控中心/2c7835a636a84263914a8e58dbd19041:/mnt/source_videos_yingshi
-      - /tmp/zfsv3/nvme14/13918962622/data/export_videos_yingshi:/mnt/export_videos_yingshi 
+      - /tmp/zfsv3/nvme14/13918962622/data/export_videos_yingshi:/mnt/export_videos_yingshi
       - /tmp/zfsv3/nvme14/13918962622/data/temp_workspace:/tmp
       # 🆕 客厅 Xiaomi 4K 摄像头（低优先级，SATA13 盘）
       - /tmp/zfsv3/sata13/13918962622/data/XiaomiCamera_00_B888808E0906:/mnt/source_videos_livingroom:ro
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos_livingroom:/mnt/export_videos_livingroom
-
+      # 🧪 测试输出目录（TEST_MODE=true 时使用，不影响生产数据）
+      - /tmp/zfsv3/nvme14/13918962622/data/export_videos_test:/mnt/export_videos_test
