@@ -9,7 +9,10 @@
 ├── admin.html              # 管理后台 - 数据审计、兑换商店、汇率配置
 ├── emma_focus_api.gs       # Google Apps Script 后端 API
 │
-├── deploy.sh               # 一键部署：NAS SMB 同步 + 权限修复
+├── deploy/                 # 部署脚本
+│   ├── deploy.sh           # 一键部署：NAS SMB 同步 + 权限修复
+│   ├── run_deploy.bat      # Windows: NAS 部署
+│   └── run_gas_deploy.bat  # Windows: GAS 部署（含自动版本）
 ├── infra/                  # Docker 编排文件（版本管理）
 │   ├── web/docker-compose.yml   # nginx + fastapi 前端服务
 │   └── tdarr/docker-compose.yml # tdarr 视频处理 + Intel QSV
@@ -42,15 +45,25 @@
 
 ```sh
 # 直接将本地改动推送到极空间 NAS
-sh deploy.sh
+sh deploy/deploy.sh
 ```
 
-`deploy.sh` 会自动：
+`deploy/deploy.sh` 会自动：
 1. 从 macOS Keychain 读取凭证
 2. 配置 rclone WebDAV 连接（自动创建 remote）
-3. 内网 IP 优先 → 外网 DDNS fallback
+3. 内网 IP 优先 → 外网 Tailscale Funnel fallback
 4. `rclone sync` 同步所有文件（权限自动保留）
 5. 发送 Pushover 部署完成通知
+
+### Windows 部署
+
+```powershell
+# NAS 部署（需先设置 WEBDAV_PASS 环境变量）
+.\deploy\run_deploy.bat
+
+# GAS 部署（公司网络需通过代理，已内置）
+.\deploy\run_gas_deploy.bat
+```
 
 ## 技术栈
 
