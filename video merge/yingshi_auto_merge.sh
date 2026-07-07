@@ -40,7 +40,7 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
     fi
 
     RESOLUTION=${YINGSHI_RES}
-    SCALE=\"\${RESOLUTION}:\${RESOLUTION}\"
+    SCALE=\"-2:\${RESOLUTION}\"
     echo \"=== [Yingshi] \${RESOLUTION}P-30x-白昼时段流水线启动: \$(date) ===\" >> \"\$LOG_FILE\"
     echo \"配置: 分辨率=\${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B\" >> \"\$LOG_FILE\"
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+ous r#!/bin/sh
 
 # ==============================================================================
 # 🎥 小米摄像头 720P 30 倍速延时合并脚本
@@ -35,7 +35,7 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     fi
 
     RESOLUTION="${XIAOMI_RES}"
-    SCALE="${RESOLUTION}:${RESOLUTION}"
+    SCALE="-2:${RESOLUTION}"
     echo "=== [Xiaomi] ${RESOLUTION}P-30x-白昼时段流水线启动: $(date) ===" >> "$LOG_FILE"
     echo "配置: 分辨率=${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 

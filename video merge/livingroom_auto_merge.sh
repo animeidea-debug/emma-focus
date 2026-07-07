@@ -37,7 +37,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     fi
 
     RESOLUTION="${LIVINGROOM_RES}"
-    SCALE="${RESOLUTION}:${RESOLUTION}"
+    SCALE="-2:${RESOLUTION}"
     echo "=== [LivingRoom] ${RESOLUTION}P-30x-流水线启动: $(date) ===" >> "$LOG_FILE"
     echo "配置: 分辨率=${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
