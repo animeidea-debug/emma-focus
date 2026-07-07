@@ -1,19 +1,42 @@
 #!/bin/sh
 # ==============================================================================
-# Pushover 通知辅助脚本
+# Pushover 通知辅助脚本 — 无明文密码版本
+#
 # 被 run_all.sh / auto_merge.sh / yingshi_auto_merge.sh source 使用
-# 通过 curl 直接调用 Pushover API，无需依赖 MCP 服务
+#
+# 凭证来源（优先级从高到低）：
+#   1. .env 文件（与 notify.sh 同目录，不在 git 中）
+#   2. 环境变量 PUSHOVER_NAS_TOKEN / PUSHOVER_NAS_USER
+#
+# .env 文件格式：
+#   export PUSHOVER_NAS_TOKEN=adaao8rhagwvj8hu2ftn1s81ayw5kd
+#   export PUSHOVER_NAS_USER=u52wpbjtdoxg19wxah39ahe5g34eqp
+#
+# 另一台电脑首次使用前，需在 NAS 上创建 .env 文件。
 # ==============================================================================
 
-PUSHOVER_TOKEN="agp3kp2fyxyfgw1rkgacn3gp9q2d11"
-PUSHOVER_USER="u52wpbjtdoxg19wxah39ahe5g34eqp"
+# 读取 .env 文件（如果存在，覆盖环境变量）
+_ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+if [ -f "$_ENV_FILE" ]; then
+    . "$_ENV_FILE"
+fi
 
+# ---------------------------------------------------------------------------
+# pushover_notify — 发送通知（使用 NAS Task App Token）
+# 参数: $1 = title, $2 = message
+# ---------------------------------------------------------------------------
 pushover_notify() {
     title="$1"
     message="$2"
+
+    if [ -z "$PUSHOVER_NAS_TOKEN" ] || [ -z "$PUSHOVER_NAS_USER" ]; then
+        echo "[notify] ⚠️ Pushover 凭证未配置，跳过通知" >&2
+        return 1
+    fi
+
     curl -s -X POST https://api.pushover.net/1/messages.json \
-        --data-urlencode "token=$PUSHOVER_TOKEN" \
-        --data-urlencode "user=$PUSHOVER_USER" \
+        --data-urlencode "token=$PUSHOVER_NAS_TOKEN" \
+        --data-urlencode "user=$PUSHOVER_NAS_USER" \
         --data-urlencode "title=$title" \
         --data-urlencode "message=$message" \
         > /dev/null 2>&1

@@ -12,3 +12,6 @@ mcp-pushover-server.js
 
 # GAS clasp artifact (source of truth is .gs file)
 emma_focus_api.js
+
+# Local environment files (contain credentials, NEVER commit)
+.env
