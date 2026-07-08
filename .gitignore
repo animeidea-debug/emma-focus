@@ -15,3 +15,6 @@ emma_focus_api.js
 
 # Local environment files (contain credentials, NEVER commit)
 .env
+
+# Local project config (copy of env.template with real values)
+env.local

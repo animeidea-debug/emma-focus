@@ -1,0 +1,24 @@
+# Cline 全局行为规则 — 通用模板
+# 用法：cp clinerules/global.template ~/.clinerules
+# 然后修改为你的项目信息
+# 注意：此模板通过 git 同步，安装到 ~/.clinerules 需手动执行
+
+## Pushover 通知
+以下操作执行时，通过 MCP 工具 `pushover_send_message` 发送通知：
+
+1. **任务完成** → "Done: " 开头，总结变更
+2. **Git commit + push** → 通知 commit 标题
+3. **部署完成** → 通知部署状态
+4. **长时间运行的任务完成**（> 30 秒）→ 通知
+5. **需要用户操作** → 通知需要切换 ACT MODE
+
+MCP 服务器路径：/Users/你的用户名/scripts/mcp-pushover-server.js
+
+## 凭证管理
+所有密码通过 macOS Keychain 读取，不在文件中明文存储：
+- WebDAV: `security find-generic-password -s "你的-webdav" -a "你的用户名" -w`
+- 其他凭证: 同上模式，service 名称自定义
+
+## 自动部署
+每次完成代码修改后执行：
+1. `cd deploy && sh deploy.sh`  # NAS 部署
