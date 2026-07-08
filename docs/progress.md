@@ -75,27 +75,31 @@
 
 ## 凭证清单（新电脑首次设置）
 
+> ⚠️ 以下命令包含占位符，需从 macOS Keychain 或管理员获取实际密码填入。
+
 ### macOS Keychain
 ```sh
-security add-generic-password -s "emma-webdav" -a "garychen" -w "Momoco198399"
-security add-generic-password -s "pushover-emma-token" -a "garychen" -w "agp3kp2fyxyfgw1rkgacn3gp9q2d11"
-security add-generic-password -s "pushover-emma-user" -a "garychen" -w "u52wpbjtdoxg19wxah39ahe5g34eqp"
-security add-generic-password -s "pushover-nas-token" -a "garychen" -w "adaao8rhagwvj8hu2ftn1s81ayw5kd"
-security add-generic-password -s "pushover-nas-user" -a "garychen" -w "u52wpbjtdoxg19wxah39ahe5g34eqp"
+security add-generic-password -s "emma-webdav" -a "garychen" -w "你的WebDAV密码"
+security add-generic-password -s "pushover-emma-token" -a "garychen" -w "你的Pushover Emma Token"
+security add-generic-password -s "pushover-emma-user" -a "garychen" -w "你的Pushover User Key"
+security add-generic-password -s "pushover-nas-token" -a "garychen" -w "你的Pushover NAS Token"
+security add-generic-password -s "pushover-nas-user" -a "garychen" -w "你的Pushover User Key"
 ```
 
 ### NAS `.env` 文件（`/tmp/.../scripts/.env`）
 ```
-export PUSHOVER_NAS_TOKEN=adaao8rhagwvj8hu2ftn1s81ayw5kd
-export PUSHOVER_NAS_USER=u52wpbjtdoxg19wxah39ahe5g34eqp
+export PUSHOVER_NAS_TOKEN=你的NAS Token
+export PUSHOVER_NAS_USER=你的Pushover User Key
 ```
 
 ### Windows 环境变量
 ```powershell
-setx WEBDAV_PASS "Momoco198399"
-setx PUSHOVER_NAS_TOKEN "adaao8rhagwvj8hu2ftn1s81ayw5kd"
-setx PUSHOVER_NAS_USER "u52wpbjtdoxg19wxah39ahe5g34eqp"
+setx WEBDAV_PASS "你的WebDAV密码"
+setx PUSHOVER_NAS_TOKEN "你的NAS Token"
+setx PUSHOVER_NAS_USER "你的Pushover User Key"
 ```
+
+> 🔴 **已从 git 历史中移除明文密码。** 如果之前 clone 过此仓库，建议轮换所有密码。
 
 ## 关键端口与 URL
 
