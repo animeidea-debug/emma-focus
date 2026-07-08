@@ -29,6 +29,7 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
     fi
     mkdir -p \"\$EXPORT_DIR\"
     LOG_FILE=\"\$EXPORT_DIR/yingshi_merge.log\"
+    RESULT_FILE=\"\$EXPORT_DIR/result_yingshi.json\"
 
     # ----- 日志轮转：超过 10MB 自动重命名 -----
     if [ -f \"\$LOG_FILE\" ]; then
@@ -169,17 +170,8 @@ docker exec -e YINGSHI_RES="$YINGSHI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TES
     rm -f /tmp/ys_dates.txt /tmp/ys_hours.txt
 
     TOTAL=\$((YINGSHI_SUCCESS + YINGSHI_FAIL))
-    echo \"=== [Yingshi] 全部处理完毕！成功: \${YINGSHI_SUCCESS} 天 | 失败: \${YINGSHI_FAIL} 天 ===\" >> \"\$LOG_FILE\"
-    echo \"{\\\"success\\\":\$YINGSHI_SUCCESS,\\\"fail\\\":\$YINGSHI_FAIL,\\\"total\\\":\$TOTAL}\" > /tmp/yingshi_result.json
+    echo \"=== [书房辅机位] 全部处理完毕！成功: \${YINGSHI_SUCCESS} 天 | 失败: \${YINGSHI_FAIL} 天 ===\" >> \"\$LOG_FILE\"
+    echo \"{\\\"success\\\":\$YINGSHI_SUCCESS,\\\"fail\\\":\$YINGSHI_FAIL,\\\"total\\\":\$TOTAL,\\\"name\\\":\\\"书房辅机位\\\"}\" > \"\$RESULT_FILE\"
 "
 YINGSHI_EXIT=$?
-
-# 读取结果
-if [ -f /tmp/yingshi_result.json ]; then
-    YINGSHI_SUMMARY=$(cat /tmp/yingshi_result.json)
-    rm -f /tmp/yingshi_result.json
-else
-    YINGSHI_SUMMARY='{"success":0,"fail":0,"total":0}'
-fi
-
 exit $YINGSHI_EXIT

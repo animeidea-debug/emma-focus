@@ -1,122 +1,111 @@
 #!/bin/sh
 
 # ==============================================================================
-# 🚀 极空间监控合并总控脚本：串行排队执行 (先小米，后萤石)
+# 🚀 极空间监控合并总控脚本：串行排队执行
 #
-# 部署路径：将整个 video-merge 目录拷贝到 NAS 的脚本目录，
-#           如 /tmp/zfsv3/nvme14/13918962622/data/scripts/
-# 定时触发：crontab 每日 22:00
-#           $ crontab -e
-#           0 22 * * * cd /path/to/scripts && sh run_all.sh >> /var/log/video_merge.log 2>&1
+# crontab 22:45（由 root 配置）：
+#   45 22 * * * /tmp/zfsv3/nvme14/13918962622/data/scripts/run_all.sh
+#
+# 执行顺序：
+#   [1/3] 书房主机位（小米）720P
+#   [2/3] 书房辅机位（萤石）1080P
+#   [3/3] 客厅 4K
 #
 # 可配置环境变量：
-#   XIAOMI_RES     — 小米输出分辨率 (默认 720)
-#   YINGSHI_RES    — 萤石输出分辨率 (默认 1080)
-#   MAX_LOG_SIZE   — 日志轮转阈值 bytes (默认 10485760 = 10MB)
+#   XIAOMI_RES       — 书房主机位分辨率 (默认 720)
+#   YINGSHI_RES      — 书房辅机位分辨率 (默认 1080)
+#   LIVINGROOM_RES   — 客厅分辨率 (默认 2160)
+#   MAX_LOG_SIZE     — 日志轮转阈值 (默认 10485760)
 # ==============================================================================
 
-# 自动获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-# 引入通知辅助
 . "$SCRIPT_DIR/notify.sh"
 
-# 启动通知
-pushover_notify "Video Merge" "🚀 监控视频合并开始 | $(date +%Y-%m-%d\ %H:%M)
-设备: 小米(${XIAOMI_RES:-720}P) + 萤石(${YINGSHI_RES:-1080}P)"
+# NAS 数据根目录
+NAS_DATA="/tmp/zfsv3/nvme14/13918962622/data"
 
 START_TS=$(date +%s)
+TODAY=$(date +%Y%m%d)
 
 echo "================================================="
 echo " 🚀 开始执行监控视频自动合并任务 | $(date)"
 echo "================================================="
 
-# 记录当前日期，用于通知
-TODAY=$(date +%Y%m%d)
+# 发送开始通知
+pushover_notify "Video Merge" "🚀 监控视频合并开始 | ${TODAY}
+设备: 书房主机位(${XIAOMI_RES:-720}P) + 书房辅机位(${YINGSHI_RES:-1080}P) + 客厅(${LIVINGROOM_RES:-2160}P)"
 
-# 第一步：小米（720P）任务
+# ========== [1/3] 书房主机位（小米）==========
 echo ""
-echo "▶️ [1/3] 正在启动【小米】合并任务..."
+echo "▶️ [1/3] 正在启动【书房主机位】合并任务..."
 sh "$SCRIPT_DIR/auto_merge.sh"
 XIAOMI_EXIT=$?
 
-# 读取小米结果
-XIAOMI_SUCCESS=0
-XIAOMI_FAIL=0
-XIAOMI_TOTAL=0
-if [ -f /tmp/xiaomi_result.json ]; then
-    eval "$(cat /tmp/xiaomi_result.json | sed 's/[{}]/ /g; s/"//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){if($i ~ /success/) {getline; XIAOMI_SUCCESS=$i} if($i ~ /fail/) {getline; XIAOMI_FAIL=$i} if($i ~ /total/) {getline; XIAOMI_TOTAL=$i}} print "XIAOMI_SUCCESS="XIAOMI_SUCCESS"; XIAOMI_FAIL="XIAOMI_FAIL"; XIAOMI_TOTAL="XIAOMI_TOTAL}')"
-    rm -f /tmp/xiaomi_result.json
+# 读取结果 JSON（从共享卷）
+XIAOMI_SUCCESS=0; XIAOMI_FAIL=0; XIAOMI_FILE=""; XIAOMI_DUR=""
+if [ -f "${NAS_DATA}/export_videos/result_xiaomi.json" ]; then
+    eval "$(cat ${NAS_DATA}/export_videos/result_xiaomi.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") XS=a[2]; if(a[1]=="fail") XF=a[2]}} END {print "XIAOMI_SUCCESS="XS"; XIAOMI_FAIL="XF}')"
+    rm -f "${NAS_DATA}/export_videos/result_xiaomi.json"
 fi
 
 if [ $XIAOMI_EXIT -ne 0 ]; then
-    pushover_notify "Video Merge" "⚠️ 小米合并异常 | ${TODAY}
-成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天
-脚本退出码: ${XIAOMI_EXIT}"
-    echo "⚠️ 小米任务返回非零状态 ($XIAOMI_EXIT)，继续执行萤石任务..."
+    pushover_notify "Video Merge" "⚠️ 书房主机位合并异常 | ${TODAY}
+成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天"
 else
-    pushover_notify "Video Merge" "✅ 小米合并完成 | ${TODAY}
+    pushover_notify "Video Merge" "✅ 书房主机位合并完成 | ${TODAY}
 成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天"
 fi
 
-# 第二步：萤石（1080P）任务
+# ========== [2/3] 书房辅机位（萤石）==========
 echo ""
-echo "▶️ [2/3] 正在启动【萤石】合并任务..."
+echo "▶️ [2/3] 正在启动【书房辅机位】合并任务..."
 sh "$SCRIPT_DIR/yingshi_auto_merge.sh"
 YINGSHI_EXIT=$?
 
-# 读取萤石结果
-YINGSHI_SUCCESS=0
-YINGSHI_FAIL=0
-YINGSHI_TOTAL=0
-if [ -f /tmp/yingshi_result.json ]; then
-    eval "$(cat /tmp/yingshi_result.json | sed 's/[{}]/ /g; s/"//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){if($i ~ /success/) {getline; YINGSHI_SUCCESS=$i} if($i ~ /fail/) {getline; YINGSHI_FAIL=$i} if($i ~ /total/) {getline; YINGSHI_TOTAL=$i}} print "YINGSHI_SUCCESS="YINGSHI_SUCCESS"; YINGSHI_FAIL="YINGSHI_FAIL"; YINGSHI_TOTAL="YINGSHI_TOTAL}')"
-    rm -f /tmp/yingshi_result.json
+YINGSHI_SUCCESS=0; YINGSHI_FAIL=0
+if [ -f "${NAS_DATA}/export_videos_yingshi/result_yingshi.json" ]; then
+    eval "$(cat ${NAS_DATA}/export_videos_yingshi/result_yingshi.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") YS=a[2]; if(a[1]=="fail") YF=a[2]}} END {print "YINGSHI_SUCCESS="YS"; YINGSHI_FAIL="YF}')"
+    rm -f "${NAS_DATA}/export_videos_yingshi/result_yingshi.json"
 fi
 
 if [ $YINGSHI_EXIT -ne 0 ]; then
-    pushover_notify "Video Merge" "⚠️ 萤石合并异常 | ${TODAY}
-成功: ${YINGSHI_SUCCESS} 天 | 失败: ${YINGSHI_FAIL} 天
-脚本退出码: ${YINGSHI_EXIT}"
+    pushover_notify "Video Merge" "⚠️ 书房辅机位合并异常 | ${TODAY}
+成功: ${YINGSHI_SUCCESS} 天 | 失败: ${YINGSHI_FAIL} 天"
 else
-    pushover_notify "Video Merge" "✅ 萤石合并完成 | ${TODAY}
+    pushover_notify "Video Merge" "✅ 书房辅机位合并完成 | ${TODAY}
 成功: ${YINGSHI_SUCCESS} 天 | 失败: ${YINGSHI_FAIL} 天"
 fi
 
-# 第三步：客厅 4K（低优先级，需要容器新卷映射生效后启动）
+# ========== [3/3] 客厅 4K ==========
 echo ""
-echo "▶️ [3/3] 正在启动【客厅 4K】合并任务..."
+echo "▶️ [3/3] 正在启动【客厅】合并任务..."
 sh "$SCRIPT_DIR/livingroom_auto_merge.sh"
 LIVINGROOM_EXIT=$?
 
-# 读取客厅结果
-LR_SUCCESS=0
-LR_FAIL=0
-if [ -f /tmp/livingroom_result.json ]; then
-    eval "$(cat /tmp/livingroom_result.json | sed 's/[{}]/ /g; s/"//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){if($i ~ /success/) {getline; LR_SUCCESS=$i} if($i ~ /fail/) {getline; LR_FAIL=$i}} print "LR_SUCCESS="LR_SUCCESS"; LR_FAIL="LR_FAIL}')"
-    rm -f /tmp/livingroom_result.json
+LR_SUCCESS=0; LR_FAIL=0
+if [ -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json" ]; then
+    eval "$(cat ${NAS_DATA}/export_videos_livingroom/result_livingroom.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") LS=a[2]; if(a[1]=="fail") LF=a[2]}} END {print "LR_SUCCESS="LS"; LR_FAIL="LF}')"
+    rm -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json"
 fi
 
 if [ $LIVINGROOM_EXIT -ne 0 ]; then
     pushover_notify "Video Merge" "⚠️ 客厅 4K 合并异常 | ${TODAY}
-成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天
-脚本退出码: ${LIVINGROOM_EXIT}"
+成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天"
 else
     pushover_notify "Video Merge" "✅ 客厅 4K 合并完成 | ${TODAY}
 成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天"
 fi
 
-# 总计
+# ========== 总计 ==========
 END_TS=$(date +%s)
 ELAPSED_MIN=$(( (END_TS - START_TS) / 60 ))
 ELAPSED_SEC=$(( (END_TS - START_TS) % 60 ))
-
 TOTAL_SUCCESS=$(( XIAOMI_SUCCESS + YINGSHI_SUCCESS + LR_SUCCESS ))
 TOTAL_FAIL=$(( XIAOMI_FAIL + YINGSHI_FAIL + LR_FAIL ))
 
 pushover_notify "Video Merge" "🎉 全部完成 | ${TODAY}
-小米: ${XIAOMI_SUCCESS}✅ ${XIAOMI_FAIL}❌
-萤石: ${YINGSHI_SUCCESS}✅ ${YINGSHI_FAIL}❌
+书房主机位: ${XIAOMI_SUCCESS}✅ ${XIAOMI_FAIL}❌
+书房辅机位: ${YINGSHI_SUCCESS}✅ ${YINGSHI_FAIL}❌
 客厅: ${LR_SUCCESS}✅ ${LR_FAIL}❌
 总计: ${TOTAL_SUCCESS}✅ ${TOTAL_FAIL}❌
 耗时: ${ELAPSED_MIN}分${ELAPSED_SEC}秒"
@@ -124,7 +113,7 @@ pushover_notify "Video Merge" "🎉 全部完成 | ${TODAY}
 echo ""
 echo "✅ 所有监控视频延时处理全部完毕！"
 echo "🎉 结束时间: $(date) | 总耗时: ${ELAPSED_MIN}m${ELAPSED_SEC}s"
-echo "📊 小米: 成功 ${XIAOMI_SUCCESS} / 失败 ${XIAOMI_FAIL}"
-echo "📊 萤石: 成功 ${YINGSHI_SUCCESS} / 失败 ${YINGSHI_FAIL}"
+echo "📊 书房主机位: 成功 ${XIAOMI_SUCCESS} / 失败 ${XIAOMI_FAIL}"
+echo "📊 书房辅机位: 成功 ${YINGSHI_SUCCESS} / 失败 ${YINGSHI_FAIL}"
 echo "📊 客厅: 成功 ${LR_SUCCESS} / 失败 ${LR_FAIL}"
 echo "================================================="

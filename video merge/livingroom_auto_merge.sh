@@ -26,6 +26,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     fi
     mkdir -p "$EXPORT_DIR"
     LOG_FILE="$EXPORT_DIR/livingroom_merge.log"
+    RESULT_FILE="$EXPORT_DIR/result_livingroom.json"
 
     # ----- 日志轮转 -----
     if [ -f "$LOG_FILE" ]; then
@@ -38,16 +39,12 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
     RESOLUTION="${LIVINGROOM_RES}"
     SCALE="-2:${RESOLUTION}"
-    echo "=== [LivingRoom] ${RESOLUTION}P-30x-流水线启动: $(date) ===" >> "$LOG_FILE"
+    echo "=== [客厅] ${RESOLUTION}P-30x-流水线启动: $(date) ===" >> "$LOG_FILE"
     echo "配置: 分辨率=${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
-    # 扫描所有 mp4，提取日期
     find "$SOURCE_BASE" -maxdepth 1 -type f -name "*.mp4" | sort > /tmp/lr_all_files.txt
-
-    # 从文件名提取不重复的日期（第一个时间戳的 YYYYMMDD）
     grep -oE "2026[0-9]{4}" /tmp/lr_all_files.txt | sort -u > /tmp/lr_all_dates.txt
 
-    # 测试模式：只处理 1 个日期
     if [ "$TEST_MODE" = "true" ]; then
         head -1 /tmp/lr_all_dates.txt > /tmp/lr_dates_tmp.txt && mv /tmp/lr_dates_tmp.txt /tmp/lr_all_dates.txt
         echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
@@ -65,16 +62,12 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
         echo "[$(date)] 🚀 开始处理日期: $d (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
 
-        # 筛选当日文件（取第一个时间戳匹配日期）
-        # 文件名: 00_YYYYMMDDHHMMSS_YYYYMMDDHHMMSS.mp4
         grep "${d}" /tmp/lr_all_files.txt > /tmp/lr_temp_list.txt
-
         if [ ! -s /tmp/lr_temp_list.txt ]; then
             echo "ℹ️ 日期 ${d} 无录像，跳过。" >> "$LOG_FILE"
             continue
         fi
 
-        # 白昼时段过滤：09:00-22:59（从开始时间戳提取小时）
         > /tmp/lr_daytime_list.txt
         while read -r file; do
             basename "$file" | grep -qE "^[0-9]+_2026[0-9]{4}(0[9-9]|1[0-9]|2[0-2])[0-9]{4}_" && echo "$file" >> /tmp/lr_daytime_list.txt
@@ -85,7 +78,6 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
             continue
         fi
 
-        # 校验（ffprobe 检查）
         > /tmp/lr_list.txt
         while read -r file; do
             if ffprobe -v error -show_format "$file" < /dev/null > /dev/null 2>&1; then
@@ -98,13 +90,10 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
             continue
         fi
 
-        # 测试模式：只取前 2 个片段
         if [ "$TEST_MODE" = "true" ] && [ -s /tmp/lr_list.txt ]; then
             head -2 /tmp/lr_list.txt > /tmp/lr_trim.txt && mv /tmp/lr_trim.txt /tmp/lr_list.txt
-            echo "🧪 测试模式: 仅处理 2 个片段" >> "$LOG_FILE"
         fi
 
-        # ----- ffmpeg 执行（带 2 次重试） -----
         FFMPEG_STATUS=1
         ATTEMPT=1
         MAX_ATTEMPTS=2
@@ -149,17 +138,8 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     rm -f /tmp/lr_all_files.txt /tmp/lr_all_dates.txt /tmp/lr_temp_list.txt /tmp/lr_daytime_list.txt /tmp/lr_list.txt
 
     TOTAL=$((LR_SUCCESS + LR_FAIL))
-    echo "=== [LivingRoom] 全部处理完毕！成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天 ===" >> "$LOG_FILE"
-    echo "{\"success\":$LR_SUCCESS,\"fail\":$LR_FAIL,\"total\":$TOTAL}" > /tmp/livingroom_result.json
+    echo "=== [客厅] 全部处理完毕！成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天 ===" >> "$LOG_FILE"
+    echo "{\"success\":$LR_SUCCESS,\"fail\":$LR_FAIL,\"total\":$TOTAL,\"name\":\"客厅\"}" > "$RESULT_FILE"
 '
 LR_EXIT=$?
-
-# 读取结果
-if [ -f /tmp/livingroom_result.json ]; then
-    LR_SUMMARY=$(cat /tmp/livingroom_result.json)
-    rm -f /tmp/livingroom_result.json
-else
-    LR_SUMMARY='{"success":0,"fail":0,"total":0}'
-fi
-
 exit $LR_EXIT

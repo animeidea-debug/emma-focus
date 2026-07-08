@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # ==============================================================================
-# 🎥 小米摄像头 720P 30 倍速延时合并脚本
+# 🎥 书房主机位（小米）720P 30 倍速延时合并脚本
 # 
 # 功能：从容器内 /mnt/source_videos 读取原始 MP4 片段，
 #       按日期聚合 → 筛选 09:00-22:59 白昼时段 → 校验 → ffmpeg 30 倍速合成
@@ -24,8 +24,9 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     fi
     mkdir -p "$EXPORT_DIR"
     LOG_FILE="$EXPORT_DIR/merge_log.txt"
+    RESULT_FILE="$EXPORT_DIR/result_xiaomi.json"
 
-    # ----- 日志轮转：超过 10MB 自动重命名 -----
+    # ----- 日志轮转 -----
     if [ -f "$LOG_FILE" ]; then
         SIZE=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat --format=%s "$LOG_FILE" 2>/dev/null || echo 0)
         if [ "$SIZE" -gt "${MAX_LOG_SIZE}" ]; then
@@ -36,14 +37,12 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
 
     RESOLUTION="${XIAOMI_RES}"
     SCALE="-2:${RESOLUTION}"
-    echo "=== [Xiaomi] ${RESOLUTION}P-30x-白昼时段流水线启动: $(date) ===" >> "$LOG_FILE"
+    echo "=== [书房主机位] ${RESOLUTION}P-30x-白昼时段流水线启动: $(date) ===" >> "$LOG_FILE"
     echo "配置: 分辨率=${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
-    # 建立索引
     find "$SOURCE_BASE" -type f -name "*.mp4" | sort > /tmp/all_files.txt
     grep -oE "2026[0-9]{4}" /tmp/all_files.txt | cut -c 1-8 | sort -u > /tmp/all_dates.txt
 
-    # 测试模式：只处理 1 个日期
     if [ "$TEST_MODE" = "true" ]; then
         head -1 /tmp/all_dates.txt > /tmp/all_dates_tmp.txt && mv /tmp/all_dates_tmp.txt /tmp/all_dates.txt
         echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
@@ -69,7 +68,6 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
             continue
         fi
 
-        # 校验循环
         > /tmp/list.txt
         while read -r file; do
             if ffprobe -v error -show_format "$file" < /dev/null > /dev/null 2>&1; then
@@ -82,13 +80,10 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
             continue
         fi
 
-        # 测试模式：只取前 2 个片段，加速验证
         if [ "$TEST_MODE" = "true" ] && [ -s /tmp/list.txt ]; then
             head -2 /tmp/list.txt > /tmp/list_trim.txt && mv /tmp/list_trim.txt /tmp/list.txt
-            echo "🧪 测试模式: 仅处理 2 个片段" >> "$LOG_FILE"
         fi
 
-        # ----- ffmpeg 执行（带 2 次重试） -----
         FFMPEG_STATUS=1
         ATTEMPT=1
         MAX_ATTEMPTS=2
@@ -133,17 +128,8 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     rm -f /tmp/all_files.txt /tmp/all_dates.txt /tmp/temp_list_all.txt /tmp/temp_list.txt /tmp/list.txt
 
     TOTAL=$((XIAOMI_SUCCESS + XIAOMI_FAIL))
-    echo "=== [Xiaomi] 全部处理完毕！成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天 ===" >> "$LOG_FILE"
-    echo "{\"success\":$XIAOMI_SUCCESS,\"fail\":$XIAOMI_FAIL,\"total\":$TOTAL}" > /tmp/xiaomi_result.json
+    echo "=== [书房主机位] 全部处理完毕！成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天 ===" >> "$LOG_FILE"
+    echo "{\"success\":$XIAOMI_SUCCESS,\"fail\":$XIAOMI_FAIL,\"total\":$TOTAL,\"name\":\"书房主机位\"}" > "$RESULT_FILE"
 '
 XIAOMI_EXIT=$?
-
-# 读取结果
-if [ -f /tmp/xiaomi_result.json ]; then
-    XIAOMI_SUMMARY=$(cat /tmp/xiaomi_result.json)
-    rm -f /tmp/xiaomi_result.json
-else
-    XIAOMI_SUMMARY='{"success":0,"fail":0,"total":0}'
-fi
-
 exit $XIAOMI_EXIT
