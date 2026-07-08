@@ -5,27 +5,36 @@
 ## 项目结构
 
 ```
-├── index.html              # 前端看板仪表盘
-├── admin.html              # 管理后台 - 数据审计、兑换商店、汇率配置
-├── emma_focus_api.gs       # Google Apps Script 后端 API
+├── index.html / admin.html  # 前端看板
+├── README.md                # 项目说明（本文件）
 │
-├── deploy/                 # 部署脚本
-│   ├── deploy.sh            # NAS 部署（跨平台：Mac/Windows/Linux）
-│   ├── deploy_gas.sh        # GAS 部署（Mac：家庭网络，直连）
-│   ├── run_deploy.bat       # NAS 部署（Windows：公司/家庭网络）
-│   └── run_gas_deploy.bat   # GAS 部署（Windows：公司网络，代理）
+├── gas/                     # GAS 后端
+│   ├── .clasp.json          # clasp 配置（scriptId）
+│   ├── .claspignore         # clasp 忽略规则
+│   ├── appsscript.json      # GAS 清单
+│   └── emma_focus_api.gs    # GAS API 实现
 │
-├── infra/                  # Docker 编排文件（版本管理）
-│   ├── web/docker-compose.yml   # nginx + fastapi 前端服务
-│   └── tdarr/docker-compose.yml # tdarr 视频处理 + Intel QSV
+├── deploy/                  # 部署脚本
+│   ├── deploy.sh            # NAS 部署（跨平台）
+│   ├── deploy_gas.sh        # GAS 部署（Mac：家庭网络）
+│   ├── run_deploy.bat       # NAS 部署（Windows）
+│   └── run_gas_deploy.bat   # GAS 部署（Windows：公司网络）
 │
-└── video merge/            # 监控视频延时合成（部署于极空间 NAS）
-    ├── run_all.sh            # crontab 总控调度 + Pushover 通知
-    ├── auto_merge.sh         # 小米摄像头 → 720P 30倍速
-    ├── yingshi_auto_merge.sh # 萤石摄像头 → 1080P 30倍速
-    ├── livingroom_auto_merge.sh # 🆕 客厅摄像头 → 4K 30倍速
-    ├── test_merge.sh         # 🧪 测试框架（快速验证所有脚本）
-    └── notify.sh             # Pushover 通知辅助函数库
+├── docs/                    # 文档
+│   ├── progress.md          # 项目进度
+│   └── gemini_prompt.md     # Gemini 提示词
+│
+├── infra/                   # Docker 编排
+│   ├── web/docker-compose.yml
+│   └── tdarr/docker-compose.yml
+│
+└── video merge/             # 视频延时合成
+    ├── run_all.sh           # crontab 总控
+    ├── auto_merge.sh        # 小米 720P
+    ├── yingshi_auto_merge.sh# 萤石 1080P
+    ├── livingroom_auto_merge.sh # 客厅 4K
+    ├── test_merge.sh        # 测试框架
+    └── notify.sh            # Pushover 通知
 ```
 
 ## 功能特性
@@ -42,7 +51,7 @@
 
 ### GAS 后端
 
-1. 将 `emma_focus_api.gs` 部署到 Google Apps Script
+1. 将 `gas/emma_focus_api.gs` 部署到 Google Apps Script
 2. 在 GAS 部署中获取 API URL，更新 `index.html` 中的 `GOOGLE_API_URL` 和 `API_TOKEN`
 
 ### NAS 前端 + 脚本（一键部署）

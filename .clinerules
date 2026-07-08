@@ -3,8 +3,8 @@
 
 ## 部署流程
 每次修改 HTML/脚本后，自动执行（无需询问）：
-1. `clasp push`           # GAS 后端部署
-2. `cd deploy && sh deploy.sh`  # NAS 同步（路径已迁移）或 `sh deploy/deploy.sh`
+1. `cd gas && clasp push`   # GAS 后端部署
+2. `sh deploy/deploy.sh`    # NAS 同步
 
 ## 凭证管理
 所有密码通过 macOS Keychain 读取，不在任何文件中明文存储：
@@ -14,8 +14,8 @@
 
 ## 跨机器协作
 - 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
-- 这边改动后自动 `clasp push + sh deploy.sh`
-- 项目状态见 `progress.md`
+- 这边改动后自动 `cd gas && clasp push + sh deploy/deploy.sh`
+- 项目状态见 `docs/progress.md`
 
 ## Windows 首次设置
 1. 安装 [Git for Windows](https://git-scm.com/)（自带 Git Bash）
@@ -24,4 +24,8 @@
    ```powershell
    setx WEBDAV_PASS "Momoco198399"
    ```
-4. 打开 Git Bash，运行 `sh deploy.sh`
+4. 运行部署：
+   ```powershell
+   .\deploy\run_deploy.bat    # NAS 部署
+   .\deploy\run_gas_deploy.bat # GAS 部署（公司网络）
+   ```

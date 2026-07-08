@@ -17,6 +17,8 @@ echo =============================================
 echo   网络: 公司代理 (proxy.sin.sap.corp:8080)
 echo.
 
+cd /d %~dp0..\gas
+
 echo 📤 推送代码到 Google Apps Script...
 clasp push
 if %ERRORLEVEL% neq 0 (
