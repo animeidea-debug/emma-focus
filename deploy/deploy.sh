@@ -18,10 +18,13 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-NAS_USER="garychen"
-NAS_IP="192.168.6.108"
-NAS_PORT="8889"
-NAS_TAILSCALE="https://z4pro-xxel.tail1a5bb9.ts.net/"
+# 加载 ~/.nas-env 本地共享配置（如果存在），不提交 git，所有项目共享
+[ -f ~/.nas-env ] && . ~/.nas-env
+
+NAS_USER="${NAS_USER:-garychen}"
+NAS_IP="${NAS_IP:-192.168.6.108}"
+NAS_PORT="${NAS_WEBDAV_PORT:-8889}"
+NAS_TAILSCALE="${TAILSCALE_FUNNEL:-https://z4pro-xxel.tail1a5bb9.ts.net/}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
