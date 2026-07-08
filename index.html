@@ -403,58 +403,87 @@
 
     <!-- 🎨 头像选择弹窗 -->
     <div id="avatarModal" class="fixed inset-0 bg-black/60 z-[10000] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
             <h3 class="text-lg font-black text-orange-800 mb-3">🎨 选择你的头像</h3>
-            <p class="text-xs text-gray-500 mb-3">点击下方选项更换头像，或上传自己的图片。</p>
 
-            <!-- 预览区 -->
-            <div class="flex justify-center mb-4">
+            <!-- 模式切换：Emoji / 图片 -->
+            <div class="flex gap-2 mb-4">
+                <button id="avatarModeEmoji"
+                    class="flex-1 py-1.5 text-sm font-bold rounded bg-orange-100 text-orange-700">😊 Emoji</button>
+                <button id="avatarModeImage"
+                    class="flex-1 py-1.5 text-sm font-bold rounded bg-gray-100 text-gray-500">📷 图片</button>
+            </div>
+
+            <!-- Emoji 模式 -->
+            <div id="avatarEmojiPanel" class="">
+                <p class="text-xs text-gray-500 mb-2">选择一个 Emoji 作为头像</p>
+                <div class="grid grid-cols-5 gap-2 mb-4">
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐶</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐱</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐼</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐨</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦊</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐰</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦁</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐯</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐸</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐵</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦄</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐧</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐤</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐮</button>
+                    <button
+                        class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐙</button>
+                </div>
+            </div>
+
+            <!-- 图片裁切模式 -->
+            <div id="avatarImagePanel" class="hidden">
+                <p class="text-xs text-gray-500 mb-2">拖拽移动 · 滚轮/滑块缩放</p>
+
+                <!-- 裁剪容器 -->
+                <div class="flex justify-center mb-3">
+                    <div id="avatarCropContainer"
+                        class="relative w-56 h-56 rounded-full overflow-hidden bg-gray-100 border-2 border-orange-400 cursor-move select-none">
+                        <img id="avatarCropImage" class="hidden w-full h-full object-cover" src="" alt="crop"
+                            style="transform-origin: center center;">
+                    </div>
+                </div>
+
+                <!-- 缩放滑块 -->
+                <div class="flex items-center gap-3 mb-3 px-2">
+                    <span class="text-xs text-gray-500">🔍</span>
+                    <input id="avatarZoomRange" type="range" min="1" max="3" step="0.05" value="1" class="flex-1">
+                    <span class="text-xs text-gray-500">+</span>
+                </div>
+
+                <!-- 上传按钮 -->
+                <input id="avatarFileInput" type="file" accept="image/*"
+                    class="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 mb-1">
+            </div>
+
+            <!-- 预览 + 预览文字 -->
+            <div class="flex items-center gap-3 mb-3">
+                <span class="text-xs text-gray-500 font-bold">预览:</span>
                 <div id="avatarPreview"
-                    class="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center text-5xl border-2 border-orange-400 overflow-hidden">
+                    class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-xl border border-orange-300 overflow-hidden shrink-0">
                     🐶</div>
+                <span id="avatarPreviewLabel" class="text-xs text-gray-400">—</span>
             </div>
-
-            <!-- Emoji 选项卡 -->
-            <div class="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
-                <span>🎨 Emoji 快速选择</span>
-            </div>
-            <div class="grid grid-cols-5 gap-2 mb-4">
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐶</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐱</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐼</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐨</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦊</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐰</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦁</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐯</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐸</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐵</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🦄</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐧</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐤</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐮</button>
-                <button
-                    class="avatar-emoji w-12 h-12 bg-orange-50 hover:bg-orange-100 rounded-xl text-2xl flex items-center justify-center transition-colors">🐙</button>
-            </div>
-
-            <!-- 上传选项卡 -->
-            <div class="text-xs font-bold text-gray-700 mb-2">📷 上传自定义图片</div>
-            <input id="avatarFileInput" type="file" accept="image/*"
-                class="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200 mb-4">
 
             <div id="avatarError" class="text-xs text-rose-600 mb-2 hidden"></div>
             <div class="flex gap-2 justify-end">
@@ -1258,31 +1287,130 @@
         }
 
         // ==========================================
-        // 🎨 头像选择器 — NAS 服务端存储 + Canvas 圆形裁剪
+        // 🎨 头像选择器 — NAS 服务端存储 + 拖拽/缩放裁剪
         // ==========================================
-        // 头像 API — 通过 nginx 反向代理（内外网统一）
         const AVATAR_API = `/api/avatar`;
         let AVATAR_PENDING = null;
+        let AVATAR_MODE = 'emoji'; // 'emoji' | 'image'
 
-        // 将图片裁剪为圆形并压缩
-        async function cropToCircle(file, maxSize = 200) {
-            const img = await createImageBitmap(file);
-            const size = Math.min(img.width, img.height, maxSize);
+        // 图片裁剪状态
+        let cropImage = null;  // original Image element
+        let cropX = 0, cropY = 0;
+        let cropScale = 1;
+        let cropDragging = false;
+        let cropDragStartX = 0, cropDragStartY = 0;
+
+        // 生成最终头像：根据当前 transform 状态裁剪
+        function renderAvatarFromCrop(outputSize = 200) {
+            if (!cropImage) return null;
             const canvas = document.createElement('canvas');
-            canvas.width = canvas.height = size;
+            canvas.width = canvas.height = outputSize;
             const ctx = canvas.getContext('2d');
 
             // 圆形裁剪
             ctx.beginPath();
-            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+            ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
             ctx.closePath();
             ctx.clip();
 
-            // 居中绘制
-            const sx = (img.width - size) / 2;
-            const sy = (img.height - size) / 2;
-            ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+            const containerSize = 224; // w-56 = 224px
+            const drawSize = containerSize * cropScale;
+            const offsetX = cropX + (containerSize - drawSize) / 2;
+            const offsetY = cropY + (containerSize - drawSize) / 2;
+            const sx = -offsetX / drawSize * cropImage.naturalWidth;
+            const sy = -offsetY / drawSize * cropImage.naturalHeight;
+            const sw = containerSize / drawSize * cropImage.naturalWidth;
+            const sh = containerSize / drawSize * cropImage.naturalHeight;
+
+            ctx.drawImage(cropImage, sx, sy, sw, sh, 0, 0, outputSize, outputSize);
             return canvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        // 更新裁剪预览
+        function updateCropPreview() {
+            const img = document.getElementById('avatarCropImage');
+            if (!img || !cropImage) return;
+            img.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
+            // 更新小预览
+            const preview = document.getElementById('avatarPreview');
+            const label = document.getElementById('avatarPreviewLabel');
+            const dataUrl = renderAvatarFromCrop(200);
+            if (dataUrl) {
+                preview.innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+                AVATAR_PENDING = dataUrl;
+                if (label) label.innerText = '200×200';
+            }
+        }
+
+        // 初始化裁剪拖拽
+        function initCropDrag() {
+            const container = document.getElementById('avatarCropContainer');
+            const img = document.getElementById('avatarCropImage');
+            if (!container || !img) return;
+
+            const startDrag = (clientX, clientY) => {
+                cropDragging = true;
+                cropDragStartX = clientX - cropX;
+                cropDragStartY = clientY - cropY;
+            };
+            const moveDrag = (clientX, clientY) => {
+                if (!cropDragging) return;
+                cropX = clientX - cropDragStartX;
+                cropY = clientY - cropDragStartY;
+                updateCropPreview();
+            };
+            const endDrag = () => { cropDragging = false; };
+
+            container.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+            document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+            document.addEventListener('mouseup', endDrag);
+
+            container.addEventListener('touchstart', (e) => {
+                const t = e.touches[0];
+                startDrag(t.clientX, t.clientY);
+            }, { passive: true });
+            document.addEventListener('touchmove', (e) => {
+                const t = e.touches[0];
+                moveDrag(t.clientX, t.clientY);
+            }, { passive: true });
+            document.addEventListener('touchend', endDrag, { passive: true });
+
+            // 滚轮缩放
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                cropScale = Math.max(1, Math.min(3, cropScale + delta));
+                document.getElementById('avatarZoomRange').value = cropScale;
+                updateCropPreview();
+            });
+
+            // 滑块缩放
+            document.getElementById('avatarZoomRange').addEventListener('input', (e) => {
+                cropScale = parseFloat(e.target.value);
+                updateCropPreview();
+            });
+        }
+
+        // 加载图片到裁剪器
+        function loadImageToCrop(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    cropImage = img;
+                    cropX = 0;
+                    cropY = 0;
+                    cropScale = 1;
+                    const el = document.getElementById('avatarCropImage');
+                    el.src = e.target.result;
+                    el.classList.remove('hidden');
+                    document.getElementById('avatarZoomRange').value = 1;
+                    document.getElementById('avatarPreviewLabel').innerText = '原始尺寸 ' + img.naturalWidth + '×' + img.naturalHeight;
+                    updateCropPreview();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
         }
 
         // 从 NAS 加载服务端头像
@@ -1302,7 +1430,6 @@
                     }
                 }
             } catch (e) {
-                // 后端不可用时回退到 localStorage
                 const saved = localStorage.getItem('emmaAvatar');
                 if (saved) {
                     const btn = document.getElementById('avatarBtn');
@@ -1315,6 +1442,30 @@
             }
         }
 
+        // 切换到图片模式
+        function switchToImageMode() {
+            AVATAR_MODE = 'image';
+            document.getElementById('avatarModeEmoji').className = 'flex-1 py-1.5 text-sm font-bold rounded bg-gray-100 text-gray-500';
+            document.getElementById('avatarModeImage').className = 'flex-1 py-1.5 text-sm font-bold rounded bg-orange-100 text-orange-700';
+            document.getElementById('avatarEmojiPanel').classList.add('hidden');
+            document.getElementById('avatarImagePanel').classList.remove('hidden');
+            const label = document.getElementById('avatarPreviewLabel');
+            if (cropImage) {
+                label.innerText = cropImage.naturalWidth + '×' + cropImage.naturalHeight;
+                updateCropPreview();
+            } else {
+                label.innerText = '请上传图片';
+            }
+        }
+
+        function switchToEmojiMode() {
+            AVATAR_MODE = 'emoji';
+            document.getElementById('avatarModeEmoji').className = 'flex-1 py-1.5 text-sm font-bold rounded bg-orange-100 text-orange-700';
+            document.getElementById('avatarModeImage').className = 'flex-1 py-1.5 text-sm font-bold rounded bg-gray-100 text-gray-500';
+            document.getElementById('avatarEmojiPanel').classList.remove('hidden');
+            document.getElementById('avatarImagePanel').classList.add('hidden');
+        }
+
         function initAvatarPicker() {
             const btn = document.getElementById('avatarBtn');
             const modal = document.getElementById('avatarModal');
@@ -1324,18 +1475,23 @@
             const errBox = document.getElementById('avatarError');
             const preview = document.getElementById('avatarPreview');
             const fileInput = document.getElementById('avatarFileInput');
+            const previewLabel = document.getElementById('avatarPreviewLabel');
             if (!btn || !modal) return;
 
-            // 加载头像（服务端优先 → localStorage fallback）
             loadServerAvatar();
+            initCropDrag();
 
-            const updatePreview = (content) => {
+            document.getElementById('avatarModeEmoji').addEventListener('click', switchToEmojiMode);
+            document.getElementById('avatarModeImage').addEventListener('click', switchToImageMode);
+
+            const updatePreview = (content, label) => {
                 if (content.startsWith('data:image')) {
                     preview.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
                 } else {
                     preview.innerText = content;
                 }
                 AVATAR_PENDING = content;
+                if (previewLabel) previewLabel.innerText = label || '—';
             };
 
             btn.addEventListener('click', () => {
@@ -1357,10 +1513,12 @@
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 
             document.querySelectorAll('.avatar-emoji').forEach(el => {
-                el.addEventListener('click', () => updatePreview(el.innerText));
+                el.addEventListener('click', () => {
+                    updatePreview(el.innerText);
+                    switchToEmojiMode();
+                });
             });
 
-            // 文件上传 — 任意大小，Canvas 压缩
             fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -1369,40 +1527,37 @@
                     errBox.classList.remove('hidden');
                     return;
                 }
-                try {
-                    const compressed = await cropToCircle(file);
-                    updatePreview(compressed);
-                    errBox.classList.add('hidden');
-                } catch (err) {
-                    errBox.innerText = '图片处理失败：' + err.message;
-                    errBox.classList.remove('hidden');
-                }
+                errBox.classList.add('hidden');
+                switchToImageMode();
+                loadImageToCrop(file);
             });
 
             resetBtn.addEventListener('click', () => {
                 updatePreview('🐶');
                 fileInput.value = '';
+                switchToEmojiMode();
             });
 
-            // 确认 — 存 localStorage + 同步到 NAS
             confirmBtn.addEventListener('click', async () => {
-                const content = AVATAR_PENDING || '🐶';
+                let content = AVATAR_PENDING || '🐶';
+                // 如果是图片模式，使用当前裁剪状态生成最终头像
+                if (AVATAR_MODE === 'image' && cropImage) {
+                    content = renderAvatarFromCrop(200);
+                    if (!content) content = AVATAR_PENDING || '🐶';
+                }
                 localStorage.setItem('emmaAvatar', content);
                 if (content.startsWith('data:image')) {
                     btn.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
                 } else {
                     btn.innerText = content;
                 }
-                // 异步同步到 NAS
                 try {
                     await fetch(`${AVATAR_API}/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ avatar: content })
                     });
-                } catch (e) {
-                    // NAS 不可用时，本地仍然可用
-                }
+                } catch (e) { /* offline fallback */ }
                 showToast('✅ 头像已更新');
                 close();
             });
