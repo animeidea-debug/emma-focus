@@ -1260,8 +1260,8 @@
         // ==========================================
         // 🎨 头像选择器 — NAS 服务端存储 + Canvas 圆形裁剪
         // ==========================================
-        // NAS fastapi 后端（site_backend 容器，端口 5000）
-        const AVATAR_API = `http://192.168.6.108:5000/api/avatar`;
+        // 头像 API — 通过 nginx 反向代理（内外网统一）
+        const AVATAR_API = `/api/avatar`;
         let AVATAR_PENDING = null;
 
         // 将图片裁剪为圆形并压缩
