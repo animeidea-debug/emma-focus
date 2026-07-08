@@ -1258,9 +1258,62 @@
         }
 
         // ==========================================
-        // 🎨 头像选择器
+        // 🎨 头像选择器 — NAS 服务端存储 + Canvas 圆形裁剪
         // ==========================================
-        let AVATAR_PENDING = null; // 暂存选择的头像内容
+        // NAS fastapi 后端（site_backend 容器，端口 5000）
+        const AVATAR_API = `http://192.168.6.108:5000/api/avatar`;
+        let AVATAR_PENDING = null;
+
+        // 将图片裁剪为圆形并压缩
+        async function cropToCircle(file, maxSize = 200) {
+            const img = await createImageBitmap(file);
+            const size = Math.min(img.width, img.height, maxSize);
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // 圆形裁剪
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            // 居中绘制
+            const sx = (img.width - size) / 2;
+            const sy = (img.height - size) / 2;
+            ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+            return canvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        // 从 NAS 加载服务端头像
+        async function loadServerAvatar() {
+            try {
+                const res = await fetch(`${AVATAR_API}/load`);
+                const data = await res.json();
+                if (data.status === 'ok' && data.avatar) {
+                    localStorage.setItem('emmaAvatar', data.avatar);
+                    const btn = document.getElementById('avatarBtn');
+                    if (btn) {
+                        if (data.avatar.startsWith('data:image')) {
+                            btn.innerHTML = `<img src="${data.avatar}" class="w-full h-full object-cover rounded-full">`;
+                        } else {
+                            btn.innerText = data.avatar;
+                        }
+                    }
+                }
+            } catch (e) {
+                // 后端不可用时回退到 localStorage
+                const saved = localStorage.getItem('emmaAvatar');
+                if (saved) {
+                    const btn = document.getElementById('avatarBtn');
+                    if (saved.startsWith('data:image')) {
+                        btn.innerHTML = `<img src="${saved}" class="w-full h-full object-cover rounded-full">`;
+                    } else {
+                        btn.innerText = saved;
+                    }
+                }
+            }
+        }
 
         function initAvatarPicker() {
             const btn = document.getElementById('avatarBtn');
@@ -1273,14 +1326,9 @@
             const fileInput = document.getElementById('avatarFileInput');
             if (!btn || !modal) return;
 
-            // 加载已保存的头像
-            const saved = localStorage.getItem('emmaAvatar');
-            if (saved) {
-                btn.innerHTML = saved;
-                AVATAR_PENDING = saved;
-            }
+            // 加载头像（服务端优先 → localStorage fallback）
+            loadServerAvatar();
 
-            // 预览更新函数
             const updatePreview = (content) => {
                 if (content.startsWith('data:image')) {
                     preview.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
@@ -1290,7 +1338,6 @@
                 AVATAR_PENDING = content;
             };
 
-            // 打开弹窗
             btn.addEventListener('click', () => {
                 AVATAR_PENDING = btn.innerHTML;
                 if (AVATAR_PENDING.startsWith('<img')) {
@@ -1302,7 +1349,6 @@
                 modal.classList.remove('hidden');
             });
 
-            // 关闭
             const close = () => {
                 modal.classList.add('hidden');
                 errBox.classList.add('hidden');
@@ -1310,44 +1356,52 @@
             cancel.addEventListener('click', close);
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 
-            // Emoji 点击
             document.querySelectorAll('.avatar-emoji').forEach(el => {
-                el.addEventListener('click', () => {
-                    updatePreview(el.innerText);
-                });
+                el.addEventListener('click', () => updatePreview(el.innerText));
             });
 
-            // 文件上传
-            fileInput.addEventListener('change', (e) => {
+            // 文件上传 — 任意大小，Canvas 压缩
+            fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (file.size > 1024 * 1024) {
-                    errBox.innerText = '图片不能超过 1MB';
+                if (!file.type.startsWith('image/')) {
+                    errBox.innerText = '请选择图片文件';
                     errBox.classList.remove('hidden');
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    updatePreview(ev.target.result);
+                try {
+                    const compressed = await cropToCircle(file);
+                    updatePreview(compressed);
                     errBox.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
+                } catch (err) {
+                    errBox.innerText = '图片处理失败：' + err.message;
+                    errBox.classList.remove('hidden');
+                }
             });
 
-            // 重置
             resetBtn.addEventListener('click', () => {
                 updatePreview('🐶');
                 fileInput.value = '';
             });
 
-            // 确认
-            confirmBtn.addEventListener('click', () => {
+            // 确认 — 存 localStorage + 同步到 NAS
+            confirmBtn.addEventListener('click', async () => {
                 const content = AVATAR_PENDING || '🐶';
                 localStorage.setItem('emmaAvatar', content);
                 if (content.startsWith('data:image')) {
                     btn.innerHTML = `<img src="${content}" class="w-full h-full object-cover rounded-full">`;
                 } else {
                     btn.innerText = content;
+                }
+                // 异步同步到 NAS
+                try {
+                    await fetch(`${AVATAR_API}/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ avatar: content })
+                    });
+                } catch (e) {
+                    // NAS 不可用时，本地仍然可用
                 }
                 showToast('✅ 头像已更新');
                 close();
