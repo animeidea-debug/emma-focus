@@ -20,13 +20,12 @@
 
 | 日期 | Commit | 说明 |
 |------|--------|------|
+| 2026-07-08 | `078868f` | 🗂️ 重构：整理仓库结构（gas/, docs/ 文件夹） |
+| 2026-07-08 | `cc3aff2` | 🔧 fix: 移除 run_deploy.bat 中重复的 rclone 配置 |
+| 2026-07-08 | `596ac74` | 📝 docs: README + 客厅摄像头 + 测试框架 |
 | 2026-07-07 | `c1b4b83` | 🔧 fix: deploy.sh --exclude .env |
 | 2026-07-07 | `08306bd` | 📝 docs: progress.md + 测试框架完善 |
 | 2026-07-07 | `bf48b13` | 🧪 test_merge.sh 快速检测模式（3/3 通过） |
-| 2026-07-07 | `b9f10a5` | 🐛 修复：scale 宽高比 + 测试限制1天 |
-| 2026-07-07 | `762a2c3` | 🐛 修复：scale -2:HEIGHT 保持 16:9 |
-| 2026-07-07 | `ebb4d57` | 🧪 测试框架 TEST_MODE |
-| 2026-07-07 | `9c00332` | 🧪 测试脚本 |
 | 2026-07-07 | `166048e` | 🆕 客厅 4K livingroom_auto_merge.sh |
 | 2026-07-07 | `034f0a9` | 🔐 移除 git 中 Pushover 明文 token |
 | 2026-07-06 | `a54c478` | 🐛 修复：视频合并路径转义 bug |
@@ -49,25 +48,35 @@
 
 ```
 ├── index.html / admin.html       # 前端看板
-├── emma_focus_api.gs             # GAS 后端 API
-├── .clasp.json                   # clasp 配置（scriptId）
-├── .claspignore                  # clasp 忽略规则
-├── progress.md                   # 项目状态文档（本文件）
+├── README.md                     # 项目说明
+│
+├── gas/                          # GAS 后端
+│   ├── .clasp.json               # clasp 配置
+│   ├── .claspignore              # clasp 忽略
+│   ├── appsscript.json           # GAS 清单
+│   └── emma_focus_api.gs         # GAS API
 │
 ├── deploy/                       # 部署脚本
-│   ├── deploy.sh                 # NAS 部署（Tailscale Funnel + LAN）
-│   ├── run_deploy.bat            # Windows: NAS 部署
-│   └── run_gas_deploy.bat        # Windows: GAS 部署（含自动版本）
+│   ├── deploy.sh                 # NAS 部署（跨平台）
+│   ├── deploy_gas.sh             # GAS 部署（Mac）
+│   ├── run_deploy.bat            # NAS 部署（Windows）
+│   └── run_gas_deploy.bat        # GAS 部署（Windows）
+│
+├── docs/                         # 文档
+│   ├── progress.md               # 本文件
+│   └── gemini_prompt.md          # Gemini 提示词
 │
 ├── infra/
-│   ├── web/docker-compose.yml    # nginx + fastapi 前端服务
-│   └── tdarr/docker-compose.yml  # tdarr 视频处理 (Intel QSV)
+│   ├── web/docker-compose.yml    # nginx + fastapi
+│   └── tdarr/docker-compose.yml  # tdarr 视频处理
 │
 └── video merge/                  # 延时合成脚本
-    ├── run_all.sh                # crontab 总控 + Pushover
-    ├── auto_merge.sh             # 小米 720P 30倍速
-    ├── yingshi_auto_merge.sh     # 萤石 1080P 30倍速
-    └── notify.sh                 # Pushover 辅助函数
+    ├── run_all.sh                # crontab 总控
+    ├── auto_merge.sh             # 小米 720P
+    ├── yingshi_auto_merge.sh     # 萤石 1080P
+    ├── livingroom_auto_merge.sh  # 客厅 4K
+    ├── test_merge.sh             # 测试框架
+    └── notify.sh                 # Pushover 通知
 ```
 
 ## 快速开始（macOS）
