@@ -15,11 +15,25 @@ services:
     container_name: site_backend
     ports:
       - "5000:80"
-    # 修复路径：这里直接挂载当前目录下的 backend 文件夹
     volumes:
       - ./backend:/app
     working_dir: /app
     command: >
       sh -c "pip install fastapi uvicorn && 
+             uvicorn main:app --host 0.0.0.0 --port 80"
+    restart: always
+
+  poc-backend:
+    image: python:3.10-alpine
+    container_name: site_poc
+    ports:
+      - "5001:80"
+    volumes:
+      - ./backend:/app
+      - ../../poc:/poc
+    working_dir: /poc
+    command: >
+      sh -c "pip install fastapi uvicorn && 
+             cp /app/data/poc.db /poc/data/ 2>/dev/null; mkdir -p data && 
              uvicorn main:app --host 0.0.0.0 --port 80"
     restart: always

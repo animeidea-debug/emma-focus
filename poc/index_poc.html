@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Emma Focus — PoC 验证看板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="p-6 bg-gray-50">
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-2xl font-black text-orange-800 mb-2">🧪 PoC 验证看板</h1>
+        <p class="text-sm text-gray-500 mb-6">独立验证环境 — 数据来自 NAS SQLite，不影响生产 GAS</p>
+
+        <div id="status" class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <h2 class="font-bold text-blue-800 mb-2">🔌 后端连接状态</h2>
+            <div id="healthResult" class="text-sm text-gray-600">检测中...</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+                <h2 class="font-bold text-gray-800 mb-3">📊 看板数据</h2>
+                <button onclick="loadDashboard()"
+                    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-bold">加载数据</button>
+                <div id="dashboardResult" class="mt-3 text-xs text-gray-600 whitespace-pre-wrap max-h-60 overflow-auto">
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+                <h2 class="font-bold text-gray-800 mb-3">💾 填充模拟数据</h2>
+                <button onclick="seedData()"
+                    class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm font-bold">填充 5
+                    天模拟数据</button>
+                <div id="seedResult" class="mt-3 text-xs text-gray-600"></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100 mb-6">
+            <h2 class="font-bold text-gray-800 mb-3">📝 提交评估（PoC 写入测试）</h2>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">日期</label>
+                    <input id="evalDate" type="date" value="2026-07-08" class="border rounded px-2 py-1 w-full">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">类型</label>
+                    <select id="evalDayType" class="border rounded px-2 py-1 w-full">
+                        <option>周一</option>
+                        <option>周二</option>
+                        <option>周三</option>
+                        <option>周四</option>
+                        <option>周五</option>
+                        <option>周六</option>
+                        <option>周日</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">专注块</label>
+                    <input id="evalFocus" type="number" value="2" class="border rounded px-2 py-1 w-full">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">分心</label>
+                    <input id="evalDist" type="number" value="1" class="border rounded px-2 py-1 w-full">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">🥈 银币</label>
+                    <input id="evalSilver" type="number" value="1" class="border rounded px-2 py-1 w-full">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">🥇 金币</label>
+                    <input id="evalGold" type="number" value="0" class="border rounded px-2 py-1 w-full">
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="block text-xs font-bold text-gray-600 mb-1">评语</label>
+                <input id="evalSummary" type="text" value="PoC 测试写入，不影响生产"
+                    class="border rounded px-2 py-1 w-full text-sm">
+            </div>
+            <button onclick="submitEval()"
+                class="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-bold">提交测试</button>
+            <div id="submitResult" class="mt-2 text-xs text-gray-600"></div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-4 border border-gray-100">
+            <h2 class="font-bold text-gray-800 mb-3">📋 API 日志</h2>
+            <button onclick="loadLog()"
+                class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded text-sm font-bold">刷新日志</button>
+            <div id="logResult" class="mt-3 text-xs text-gray-600 whitespace-pre-wrap max-h-40 overflow-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin + '/api/poc';
+
+        async function apiGet(path) {
+            try {
+                const res = await fetch(API + path);
+                return await res.json();
+            } catch (e) { return { error: e.message }; }
+        }
+
+        async function apiPost(path, data) {
+            try {
+                const res = await fetch(API + path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                return await res.json();
+            } catch (e) { return { error: e.message }; }
+        }
+
+        async function init() {
+            const h = await apiGet('/health');
+            document.getElementById('healthResult').innerHTML = h.evaluations !== undefined
+                ? `✅ 连接成功 | 数据库记录: ${h.evaluations} 条 | ${new Date().toLocaleString()}`
+                : `❌ 连接失败: ${JSON.stringify(h)}`;
+        }
+
+        async function loadDashboard() {
+            const d = await apiGet('/dashboard?ym=2026-07');
+            document.getElementById('dashboardResult').innerText = JSON.stringify(d, null, 2);
+        }
+
+        async function seedData() {
+            const r = await apiPost('/seed-dummy', {});
+            document.getElementById('seedResult').innerHTML = r.status === 'ok'
+                ? `✅ 成功填充 ${r.seeded} 天模拟数据`
+                : `❌ 失败: ${JSON.stringify(r)}`;
+            init();
+        }
+
+        async function submitEval() {
+            const data = {
+                date: document.getElementById('evalDate').value,
+                day_type: document.getElementById('evalDayType').value,
+                focus_blocks: parseInt(document.getElementById('evalFocus').value) || 0,
+                distractions: parseInt(document.getElementById('evalDist').value) || 0,
+                token_silver: parseInt(document.getElementById('evalSilver').value) || 0,
+                token_gold: parseInt(document.getElementById('evalGold').value) || 0,
+                summary: document.getElementById('evalSummary').value
+            };
+            const r = await apiPost('/evaluation', data);
+            document.getElementById('submitResult').innerHTML = r.status === 'ok'
+                ? `✅ 写入成功: ${r.date}`
+                : `❌ 失败: ${JSON.stringify(r)}`;
+            init();
+        }
+
+        async function loadLog() {
+            const l = await apiGet('/log?limit=10');
+            document.getElementById('logResult').innerText = JSON.stringify(l, null, 2);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
