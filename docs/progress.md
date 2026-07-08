@@ -112,7 +112,18 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 | 8265 | tdarr Web UI | `http://192.168.6.108:8265` | — |
 | 5000 | fastapi 后端 | `http://192.168.6.108:5000` | — |
 
-## 已知问题
+## 已知问题 / 事故记录
+
+### 2026-07-08：`.env` 文件被 rclone sync 意外删除
+- **原因**：`rclone sync` 同步脚本目录时，远程 `.env` 文件在本地不存在，被 `--delete-excluded` 删除
+- **影响**：通知静默失败，当晚所有 Pushover 通知未发送
+- **修复**：
+  1. `deploy/deploy.sh` 添加 `--exclude ".env"` ✅
+  2. `run_all.sh` 启动时自检 `.env` 是否存在，缺失时通过硬编码凭证发送紧急通知 ✅
+  3. 此文档记录事件便于排查 ✅
+- **教训**：以后所有敏感文件需在 deploy.sh 中显式排除，不要在 repo 中创建同名的 `.env.example` 之外的任何文件
+
+### 其他已知问题
 
 - SMB 权限问题：已弃用（改用 WebDAV）
 - ~~docker exec 双引号 sh -c 导致路径转义错误~~ ✅ 已修复（`a54c478`）
