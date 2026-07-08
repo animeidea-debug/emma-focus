@@ -10,9 +10,10 @@
 ├── emma_focus_api.gs       # Google Apps Script 后端 API
 │
 ├── deploy/                 # 部署脚本
-│   ├── deploy.sh            # NAS 部署（WebDAV + Tailscale）
-│   ├── run_deploy.bat       # Windows NAS 部署入口
-│   └── run_gas_deploy.bat   # Windows GAS 部署（含代理 + 自动版本）
+│   ├── deploy.sh            # NAS 部署（跨平台：Mac/Windows/Linux）
+│   ├── deploy_gas.sh        # GAS 部署（Mac：家庭网络，直连）
+│   ├── run_deploy.bat       # NAS 部署（Windows：公司/家庭网络）
+│   └── run_gas_deploy.bat   # GAS 部署（Windows：公司网络，代理）
 │
 ├── infra/                  # Docker 编排文件（版本管理）
 │   ├── web/docker-compose.yml   # nginx + fastapi 前端服务
@@ -52,20 +53,29 @@ sh deploy/deploy.sh
 ```
 
 `deploy/deploy.sh` 会自动：
-1. 从 macOS Keychain 读取凭证
+1. 从 macOS Keychain（Mac）或 WEBDAV_PASS 环境变量（Windows）读取凭证
 2. 配置 rclone WebDAV 连接（自动创建 remote）
 3. 内网 IP 优先 → 外网 Tailscale Funnel fallback
 4. `rclone sync` 同步所有文件（权限自动保留）
 5. 发送 Pushover 部署完成通知
 
-### Windows 部署
+### GAS 后端部署
+
+```sh
+# Mac（家庭网络，直连）
+sh deploy/deploy_gas.sh
+```
 
 ```powershell
-# NAS 部署（需先设置 WEBDAV_PASS 环境变量）
-.\deploy\run_deploy.bat
-
-# GAS 部署（公司网络需通过代理，已内置）
+# Windows（公司网络，通过代理）
 .\deploy\run_gas_deploy.bat
+```
+
+### Windows NAS 部署
+
+```powershell
+# 需先设置 WEBDAV_PASS 环境变量
+.\deploy\run_deploy.bat
 ```
 
 ## 技术栈

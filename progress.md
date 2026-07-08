@@ -77,12 +77,12 @@
 git clone https://github.com/animeidea-debug/emma-focus.git
 cd emma-focus
 
-# 2. GAS 部署（如果需要改动后端）
+# 2. GAS 部署（家庭网络，直连）
 npm install -g @google/clasp
-clasp login            # 浏览器授权
-clasp push             # 上传代码
+clasp login                    # 浏览器授权
+sh deploy/deploy_gas.sh        # 推送 + 自动版本
 
-# 3. NAS 部署（如果需要同步到 NAS）
+# 3. NAS 部署（需要同步到 NAS）
 # 密码从 macOS Keychain 读取（需先存入）：
 #   security add-generic-password -s "emma-webdav" -a "garychen" -w "密码"
 sh deploy/deploy.sh
