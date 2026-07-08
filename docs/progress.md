@@ -52,9 +52,10 @@
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
-| 2026-07-08 | `f4d8e0c` | 🆕 客厅改 H.265 + 产品型号文档 | `livingroom_auto_merge.sh`, `README.md` |
-| 2026-07-08 | `0cbf425` | 🐛 修复结果 JSON 读写路径 + 设备改名 | `auto_merge.sh`, `yingshi_auto_merge.sh`, `livingroom_auto_merge.sh`, `run_all.sh`, `README.md` |
-| 2026-07-08 | `ca2d601` | 🗂️ 仓库重构：gas/, docs/, deploy_gas.sh | 11 文件移动/新增 |
+| 2026-07-08 | `53ca470` | 🧪 PoC 路由修复 + nginx 配置 | `nginx.conf` |
+| 2026-07-08 | `dc89232` | 🧪 PoC rewrite rule + 测试页面路径 | `nginx.conf`, `poc/index_poc.html` |
+| 2026-07-08 | `8140870` | 🧪 PoC fastapi+SQLite 后端 | `poc/main.py`, `poc/index_poc.html`, `nginx.conf`, `docker-compose.yml` |
+| 2026-07-08 | `dd55181` | 🎨 头像拖拽缩放裁剪 | `index.html` |
 | 2026-07-07 | `c1b4b83` | 🔧 deploy.sh --exclude .env | `deploy.sh` |
 | 2026-07-07 | `bf48b13` | 🧪 test_merge.sh 快速检测模式 | `test_merge.sh` |
 | 2026-07-07 | `166048e` | 🆕 客厅 4K 脚本 | `livingroom_auto_merge.sh`, `docker-compose.yml`, `run_all.sh` |
