@@ -106,7 +106,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
             ffmpeg -y -loglevel warning -nostats -fflags +genpts+discardcorrupt -f concat -safe 0 -i /tmp/lr_list.txt \
                 -vf "scale=${SCALE},format=nv12,setpts=0.033333*PTS" \
-                -an -c:v h264_qsv -preset veryfast \
+                -an -c:v hevc_qsv -preset veryfast \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 
             FFMPEG_STATUS=$?
