@@ -21,6 +21,11 @@ if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi
 
+# 硬编码缺省凭证（.env 被 deploy.sh --delete-excluded 删除时防故障）
+# 这两个值要在 .env.example 和 NAS 上保持一致
+PUSHOVER_NAS_TOKEN="${PUSHOVER_NAS_TOKEN:-adaao8rhagwvj8hu2ftn1s81ayw5kd}"
+PUSHOVER_NAS_USER="${PUSHOVER_NAS_USER:-u52wpbjtdoxg19wxah39ahe5g34eqp}"
+
 # ---------------------------------------------------------------------------
 # pushover_notify — 发送通知（使用 NAS Task App Token）
 # 参数: $1 = title, $2 = message

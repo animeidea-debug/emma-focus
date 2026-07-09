@@ -123,7 +123,10 @@ START_TS=$(date +%s)
 echo ""
 echo -e "${YELLOW}📄 同步 scripts...${NC}"
 if [ -d "${SCRIPT_DIR}/../video merge" ]; then
-    rclone sync --delete-excluded "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
+    # 同步脚本（保留 remote .env，不删除）
+    rclone sync "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
+    # 确保 remote .env 存在（如被意外删除则重新创建）
+    rclone copy "${SCRIPT_DIR}/../video merge/.env" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
 fi
 

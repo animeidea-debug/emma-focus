@@ -24,21 +24,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # NAS 数据根目录
 NAS_DATA="/tmp/zfsv3/nvme14/13918962622/data"
 
-# ----- 自检：检查 .env 是否存在 -----
+# ----- 自检：检查 .env 是否存在（仅警告，notify.sh 内置缺省凭证）-----
 if [ ! -f "${SCRIPT_DIR}/.env" ]; then
-    echo "[WARN] .env 文件缺失，通知服务不可用！" >&2
-    # 尝试通过 docker 内的路径读取
-    docker exec tdarr_node sh -c 'test -f /app/scripts/.env' 2>/dev/null || {
-        echo "[ERROR] 容器内 .env 也不存在，需要手动恢复："
-        echo "  请通过 WebDAV 上传 .env 到 scripts/ 目录"
-        # 尝试发一条紧急通知（硬编码）
-        curl -s -X POST https://api.pushover.net/1/messages.json \
-            --data-urlencode "token=adaao8rhagwvj8hu2ftn1s81ayw5kd" \
-            --data-urlencode "user=u52wpbjtdoxg19wxah39ahe5g34eqp" \
-            --data-urlencode "title=Video Merge" \
-            --data-urlencode "message=⚠️ .env 文件缺失，通知服务不可用！\\n请通过 ssh 重新上传 .env 到 scripts/" \
-            > /dev/null 2>&1
-    }
+    echo "[WARN] .env 文件缺失，将使用 notify.sh 内置缺省凭证（与 .env.example 相同）" >&2
 fi
 
 START_TS=$(date +%s)
