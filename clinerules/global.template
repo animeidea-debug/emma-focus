@@ -22,3 +22,31 @@ MCP 服务器路径：/Users/你的用户名/scripts/mcp-pushover-server.js
 ## 自动部署
 每次完成代码修改后执行：
 1. `cd deploy && sh deploy.sh`  # NAS 部署
+
+## 多项目共享 nginx 规则
+重要：不要覆盖 Emma Focus 的首页！
+
+1. **每个项目使用独立子目录**：
+   ```
+   infra/web/html/
+   ├── index.html              # Emma Focus (根路径，保留)
+   ├── admin.html              # Emma Focus (根路径，保留)
+   └── your-project-name/      # 新项目放这里
+       └── index.html
+   ```
+
+2. **每个项目添加独立的 nginx location 块**：
+   ```nginx
+   # 在 infra/web/nginx.conf 中添加
+   location /your-project-name/ {
+       alias /usr/share/nginx/html/your-project-name/;
+       try_files $uri $uri/ /your-project-name/index.html;
+   }
+   ```
+
+3. **不要修改根 location / 块**（Emma Focus 保留）
+
+4. **部署时只同步你的项目目录**：
+   ```sh
+   rclone copy ./infra/web/html/your-project-name/ remote:/docker/html/your-project-name/
+   ```

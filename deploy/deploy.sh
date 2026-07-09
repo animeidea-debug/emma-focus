@@ -140,6 +140,10 @@ done
 # ----- 6. 同步 infra -----
 echo ""
 echo -e "${YELLOW}📄 同步 infra...${NC}"
+if [ -f "${SCRIPT_DIR}/../infra/web/nginx.conf" ]; then
+    rclone copy "${SCRIPT_DIR}/../infra/web/nginx.conf" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ web/nginx.conf"
+fi
 if [ -f "${SCRIPT_DIR}/../infra/web/docker-compose.yml" ]; then
     rclone copy "${SCRIPT_DIR}/../infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ web/docker-compose.yml"

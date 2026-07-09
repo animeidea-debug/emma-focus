@@ -20,10 +20,10 @@
 | 组件 | 版本 | 状态 | 最后部署 | 部署方式 |
 |------|------|------|---------|----------|
 | **GAS 后端** | `gas/emma_focus_api.gs` | ✅ 运行中 | 2026-07-08 | `sh deploy/deploy_gas.sh` |
-| **前端看板** | `index.html` | ✅ 运行中 | 2026-07-08 | `sh deploy/deploy.sh` |
-| **书房主机位（小米）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-08 | `sh deploy/deploy.sh` |
-| **书房辅机位（萤石）** | `yingshi_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-08 | `sh deploy/deploy.sh` |
-| **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-08 | `sh deploy/deploy.sh` |
+| **前端看板** | `index.html` | ✅ 运行中 | 2026-07-09 | `sh deploy/deploy.sh` |
+| **书房主机位（小米）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` |
+| **书房辅机位（萤石）** | `yingshi_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` |
+| **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` (hevc_qsv) |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 配置完成 | — | Keychain + `.env` |
 
 ## 摄像头配置
@@ -49,12 +49,14 @@
 | 2026-07-08 | 结果 JSON 写入共享卷 | 修复容器 `/tmp` 与宿主机隔离导致的计数=0 |
 | 2026-07-09 | 🔧 fix: deploy.sh `../../` → `../` | 路径错误导致 Mac 7/8 部署未生效，所有 infra 和 scripts 未真正同步到 NAS |
 | 2026-07-09 | 📁 新增 `infra/webdav/` | 将 WebDAV 容器配置（`rclone/rclone:latest`）纳入版本管理 |
+| 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目复用 infra/web 导致首页被覆盖 |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
-| 2026-07-09 | *(待 commit)* | 🔧 fix: deploy.sh 路径错误（../../ → ../）+ infra/webdav 入库 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
+| 2026-07-09 | `f144d28` | 🔧 fix: deploy.sh 路径错误（../../ → ../）+ infra/webdav 入库 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
+| 2026-07-09 | *(待 commit)* | 🔧 nginx 多项目隔离 + 首页恢复 | `nginx.conf`, `clinerules/global.template` |
 | 2026-07-08 | `53ca470` | 🧪 PoC 路由修复 + nginx 配置 | `nginx.conf` |
 | 2026-07-08 | `dc89232` | 🧪 PoC rewrite rule + 测试页面路径 | `nginx.conf`, `poc/index_poc.html` |
 | 2026-07-08 | `8140870` | 🧪 PoC fastapi+SQLite 后端 | `poc/main.py`, `poc/index_poc.html`, `nginx.conf`, `docker-compose.yml` |
@@ -119,6 +121,23 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 
 ## 已知问题 / 事故记录
 
+### 2026-07-09：Family Time Flow 项目覆盖 Emma Focus 首页
+- **原因**：Family Time Flow 项目复用 `infra/web/` 模板，部署时将 `index.html` 同步到 `/docker/html/`，覆盖了 Emma Focus 的首页。
+- **影响**：`http://192.168.6.108:8888` 显示 Family Time Flow 页面而非 Emma Focus。
+- **修复**：
+  1. `infra/web/nginx.conf` 添加 `location /family-time-flow/` 子路径路由 ✅
+  2. `clinerules/global.template` 新增多项目共享 nginx 规则 ✅
+  3. 重新部署 Emma Focus 首页 ✅
+- **教训**：每个项目必须使用独立子目录 + 独立 location 块，根 `location /` 保留给 Emma Focus
+
+### 2026-07-09：deploy.sh 路径错误导致部署未生效
+- **原因**：`deploy/deploy.sh` 中脚本路径使用 `../../`（从 `deploy/` 目录上两级），实际应为 `../`（上一级）。此错误导致所有 `if [ -d ... ]` 检查静默失败，文件从未被 rclone 同步。
+- **影响**：Mac 7/8 提交的 `hevc_qsv` 编码变更（以及任何文件修改）未真正部署到 NAS。WebDAV 容器显示的是旧文件。
+- **修复**：
+  1. 所有 `../../` 改为 `../` ✅
+  2. 已验证：rclone 同步后文件大小从 6333 → 6477 bytes ✅
+- **教训**：部署脚本应输出更详细的同步状态，或使用 `set -e` 在目录不存在时报错
+
 ### 2026-07-08：`.env` 文件被 rclone sync 意外删除
 - **原因**：`rclone sync` 同步脚本目录时，远程 `.env` 文件在本地不存在，被 `--delete-excluded` 删除
 - **影响**：通知静默失败，当晚所有 Pushover 通知未发送
@@ -140,6 +159,7 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 
 | 日期 | 测试内容 | 结果 |
 |------|---------|------|
+| 2026-07-09 16:34 | 部署脚本路径修复 | ✅ `livingroom_auto_merge.sh` 成功同步（6333→6477 bytes） |
 | 2026-07-07 22:54 | 3 摄像头全量运行（修复前） | 数据正确生成，但通知计数=0 |
 | 2026-07-07 22:54 | 3 摄像头全量运行（重试） | ✅ 成功（书房主机位 1天/208MB，书房辅机位 1天/221MB，客厅 8天） |
 | 2026-07-07 22:39 | test_merge.sh 快速模式 | ✅ 小米通过，萤石(temp文件)通过，客厅(export文件)通过 |
@@ -174,8 +194,8 @@ Windows:    git pull → 修改 → git commit → git push
 
 | 指标 | 数值 |
 |------|------|
-| 总文件数 | 27 |
-| 总代码行数 | ~5,353 |
+| 总文件数 | 28 |
+| 总代码行数 | ~5,400 |
 | 最大文件 | `index.html` (1,756行) |
 | Shell 脚本 | 7 个，~900 行 |
 | GAS 后端 | 1,144 行 |
