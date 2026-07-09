@@ -23,6 +23,39 @@ MCP 服务器路径：/Users/你的用户名/scripts/mcp-pushover-server.js
 每次完成代码修改后执行：
 1. `cd deploy && sh deploy.sh`  # NAS 部署
 
+## WebDAV 容器管理（infra/webdav/）
+⚠️ `rclone/rclone:latest` 镜像的 ENTRYPOINT 是 `rclone`，不是 shell！
+docker-compose.yml 中**不能用** `command: sh -c "..."`，必须用 JSON 数组格式：
+
+```yaml
+command:
+  - serve
+  - webdav
+  - /data
+  - --user
+  - "${WEBDAV_USER}"
+  - --pass
+  - "${WEBDAV_PASS}"
+```
+
+密码通过同目录 `.env` 文件（已 gitignored）提供：
+```
+WEBDAV_PASS=你的密码
+WEBDAV_USER=your_user
+```
+
+## 脚本权限问题
+WebDAV `rclone sync` 不保留 +x 权限，所有 .sh 文件部署后为 644。
+修改脚本后必须执行 `docker exec tdarr_node chmod +x /app/scripts/*.sh`
+或通过 `deploy.sh` 自动修复（SSH docker exec）。
+crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
+
+## git push 后自动文档更新
+每次 commit + push 后，自动更新：
+1. `docs/progress.md` — 最近提交表格 + 事故记录
+2. `clinerules/global.template` — 新增的技术要點
+3. `README.md` — 如果项目结构或部署方式变化
+
 ## 多项目共享 nginx 规则
 重要：不要覆盖 Emma Focus 的首页！
 

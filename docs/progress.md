@@ -25,6 +25,7 @@
 | **书房辅机位（萤石）** | `yingshi_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` |
 | **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` (hevc_qsv) |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 配置完成 | — | Keychain + `.env` |
+| **WebDAV 部署容器** | `infra/webdav/docker-compose.yml` | ✅ docker-compose 管理 | 2026-07-09 | `docker compose up -d` |
 
 ## 摄像头配置
 
@@ -47,14 +48,19 @@
 | 2026-07-07 | 测试模式 `head -1` + `head -2` | 限制 1 天 x 2 片段，~1 分钟完成测试 |
 | 2026-07-08 | 客厅改 `hevc_qsv` | 4K 下 H.265 省 50% 空间，播放器兼容性好 |
 | 2026-07-08 | 结果 JSON 写入共享卷 | 修复容器 `/tmp` 与宿主机隔离导致的计数=0 |
-| 2026-07-09 | 🔧 fix: deploy.sh `../../` → `../` | 路径错误导致 Mac 7/8 部署未生效，所有 infra 和 scripts 未真正同步到 NAS |
-| 2026-07-09 | 📁 新增 `infra/webdav/` | 将 WebDAV 容器配置（`rclone/rclone:latest`）纳入版本管理 |
-| 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目复用 infra/web 导致首页被覆盖 |
+| 2026-07-09 | 🔧 fix: deploy.sh `../../` → `../` | 路径错误导致 Mac 7/8 部署未生效 |
+| 2026-07-09 | 📁 新增 `infra/webdav/` | 将 WebDAV 容器纳入版本管理 |
+| 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
+| 2026-07-09 | 🔐 scripts +x 权限自动修复 | WebDAV 强制 644，crontab 静默拒绝执行 |
+| 2026-07-09 | 🐳 WebDAV compose 修复 | rclone 镜像 ENTRYPOINT 与 sh -c 不兼容 |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-09 | `a1b9d1e` | 🐳 fix: WebDAV compose sh -c 不兼容 rclone ENTRYPOINT + 密码持久化 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
+| 2026-07-09 | `14dfe16` | 🔐 fix: deploy.sh 部署后自动 chmod +x （WebDAV 不保留权限，crontab 静默拒绝） | `deploy.sh` |
+| 2026-07-09 | `18ac277` | 🔔 fix: run_all.sh 通知静默失败（.env 被删除 + notify.sh 无 fallback） | `notify.sh`, `run_all.sh`, `deploy.sh` |
 | 2026-07-09 | `f144d28` | 🔧 fix: deploy.sh 路径错误（../../ → ../）+ infra/webdav 入库 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
 | 2026-07-09 | *(待 commit)* | 🔧 nginx 多项目隔离 + 首页恢复 | `nginx.conf`, `clinerules/global.template` |
 | 2026-07-08 | `53ca470` | 🧪 PoC 路由修复 + nginx 配置 | `nginx.conf` |
@@ -69,9 +75,12 @@
 ## 待办事项
 
 ### 高优先级
+- [x] 🔐 脚本 +x 权限自动修复（deploy.sh 部署后 chmod +x）
+- [x] 🔔 run_all.sh 通知 fallback（notify.sh 内置缺省凭证）
+- [x] 🐳 WebDAV 容器 docker-compose 管理（修复 ENTRYPOINT 不兼容 + 密码持久化）
 - [ ] 客厅 H.265 编码验证 — 在 NAS 上运行 test_merge.sh 确认 hevc_qsv 生效
 - [ ] 视频合并失败重试具体日期通知（目前只有汇总统计）
-- [ ] Mac 下次使用时 `git pull && sh deploy/deploy.sh` 同步路径修复
+- [ ] Mac 下次使用时 `git pull && sh deploy/deploy.sh` 同步
 
 ### 低优先级
 - [ ] 海马摄像头视频合并脚本（弟弟的 3D 打印延时）
@@ -79,7 +88,6 @@
 - [ ] crontab 失败推送通知（如果 `run_all.sh` 完全没执行）
 - [ ] 书房主机位输出分辨率可配置化（当前硬编码 720P，可改 480P/1080P）
 - [ ] 书房辅机位跳过包含特定 Note 的日期（如"Emma 不在场"）
-- [ ] WebDAV 容器配置加入部署脚本同步
 
 ## 凭证清单（新电脑首次设置）
 
@@ -100,11 +108,10 @@ export PUSHOVER_NAS_TOKEN=你的NAS Token
 export PUSHOVER_NAS_USER=你的Pushover User Key
 ```
 
-### Windows 环境变量
-```powershell
-setx WEBDAV_PASS "你的WebDAV密码"
-setx PUSHOVER_NAS_TOKEN "你的NAS Token"
-setx PUSHOVER_NAS_USER "你的Pushover User Key"
+### WebDAV `.env` 文件（`infra/webdav/.env`，gitignored）
+```
+WEBDAV_PASS=你的WebDAV密码
+WEBDAV_USER=garychen
 ```
 
 > 🔴 **已从 git 历史中移除明文密码。** 如果之前 clone 过此仓库，建议轮换所有密码。
@@ -121,55 +128,69 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 
 ## 已知问题 / 事故记录
 
+### 2026-07-09：WebDAV docker-compose sh -c 不兼容 rclone ENTRYPOINT
+- **原因**：`rclone/rclone:latest` 镜像的 ENTRYPOINT 是 `rclone`，但 docker-compose.yml 用 `command: sh -c "serve webdav ..."`。执行后变成 `rclone sh -c "serve webdav ..."` → `sh` 不是 rclone 子命令 → 容器崩溃
+- **影响**：WebDAV 容器每次重启后无法自愈，只能手动 `docker run` 启动
+- **修复**：
+  1. command 改为 JSON 数组格式 ✅
+  2. 密码从同目录 `.env` 文件读取（`docker compose` 自动加载）✅
+  3. `deploy.sh` 同步后自动重启 webdav ✅
+- **验证**：`docker compose up -d` → Up 稳定，`curl -u garychen:密码` → HTTP 200 ✅
+
+### 2026-07-09：脚本无 +x 权限导致 crontab 静默失败
+- **原因**：WebDAV `rclone sync` 不保留执行权限，所有 .sh 文件为 644。文件属主 `root:root`，用户 `13918962622` 无法 chmod。crontab 调绝对路径时 shell 静默拒绝。
+- **影响**：每晚 22:45 的 `run_all.sh` 从未实际执行过
+- **修复**：
+  1. 通过 `docker exec tdarr_node chmod +x` 修复当前权限 ✅
+  2. `deploy/deploy.sh` 部署后自动 SSH 执行 chmod ✅
+- **教训**：WebDAV 不保留 +x，部署后必须通过容器内 root 修复权限
+
+### 2026-07-09：通知静默失败（.env 被删除）
+- **根因**：`deploy.sh --delete-excluded` 每次同步删除远程 `.env` → `pushover_notify()` 凭证为空 → 静默跳过
+- **影响**：即使用户手动跑脚本也收不到任何通知
+- **修复**：
+  1. `notify.sh` 内置缺省凭证（`.env` 缺失时自动 fallback）✅
+  2. `deploy.sh` 同步后主动 `rclone copy .env` ✅
+- **教训**：关键配置文件必须在 deploy.sh 中双重保护（exclude + 主动复制）
+
 ### 2026-07-09：WebDAV docker-compose 明码密码
 - **原因**：Windows 在 `infra/webdav/docker-compose.yml` 中用 `--pass Momoco198399` 硬编码
 - **影响**：密码在 git 历史中暴露
-- **修复**：改用环境变量 `$WEBDAV_PASS`（与 deploy.sh 的读取链一致）
-- **Windows 配置**：容器启动前需 `export WEBDAV_PASS=Momoco198399`
+- **修复**：改用同目录 `.env` 文件（已 gitignored）
+- **Windows 配置**：为 `docker compose` 创建 `infra/webdav/.env`
 
 ### 2026-07-09：Family Time Flow 项目覆盖 Emma Focus 首页
-- **原因**：Family Time Flow 项目复用 `infra/web/` 模板，部署时将 `index.html` 同步到 `/docker/html/`，覆盖了 Emma Focus 的首页。
-- **影响**：`http://192.168.6.108:8888` 显示 Family Time Flow 页面而非 Emma Focus。
+- **原因**：Family Time Flow 项目复用 `infra/web/` 模板，部署时将 `index.html` 同步到 `/docker/html/`，覆盖首页。
 - **修复**：
-  1. `infra/web/nginx.conf` 添加 `location /family-time-flow/` 子路径路由 ✅
+  1. `infra/web/nginx.conf` 添加 `location /family-time-flow/` ✅
   2. `clinerules/global.template` 新增多项目共享 nginx 规则 ✅
-  3. 重新部署 Emma Focus 首页 ✅
-- **教训**：每个项目必须使用独立子目录 + 独立 location 块，根 `location /` 保留给 Emma Focus
+- **教训**：每个项目必须使用独立子目录 + 独立 location 块
 
 ### 2026-07-09：deploy.sh 路径错误导致部署未生效
-- **原因**：`deploy/deploy.sh` 中脚本路径使用 `../../`（从 `deploy/` 目录上两级），实际应为 `../`（上一级）。此错误导致所有 `if [ -d ... ]` 检查静默失败，文件从未被 rclone 同步。
-- **影响**：Mac 7/8 提交的 `hevc_qsv` 编码变更（以及任何文件修改）未真正部署到 NAS。WebDAV 容器显示的是旧文件。
-- **修复**：
-  1. 所有 `../../` 改为 `../` ✅
-  2. 已验证：rclone 同步后文件大小从 6333 → 6477 bytes ✅
-- **教训**：部署脚本应输出更详细的同步状态，或使用 `set -e` 在目录不存在时报错
+- **原因**：`deploy/deploy.sh` 路径使用 `../../`，实际应为 `../`
+- **修复**：所有 `../../` 改为 `../` ✅
+- **教训**：部署脚本应使用 `set -e` 在目录不存在时报错
 
 ### 2026-07-08：`.env` 文件被 rclone sync 意外删除
-- **原因**：`rclone sync` 同步脚本目录时，远程 `.env` 文件在本地不存在，被 `--delete-excluded` 删除
-- **影响**：通知静默失败，当晚所有 Pushover 通知未发送
-- **修复**：
-  1. `deploy/deploy.sh` 添加 `--exclude ".env"` ✅
-  2. `run_all.sh` 启动时自检 `.env` 是否存在，缺失时通过硬编码凭证发送紧急通知 ✅
-  3. 此文档记录事件便于排查 ✅
-- **教训**：以后所有敏感文件需在 deploy.sh 中显式排除，不要在 repo 中创建同名的 `.env.example` 之外的任何文件
+- **原因**：`rclone sync` 同步脚本目录时，远程 `.env` 文件被 `--delete-excluded` 删除
+- **影响**：通知静默失败
+- **修复**：`deploy/deploy.sh` 添加 `--exclude ".env"` ✅
 
 ### 其他已知问题
-
 - SMB 权限问题：已弃用（改用 WebDAV）
 - ~~docker exec 双引号 sh -c 导致路径转义错误~~ ✅ 已修复（`a54c478`）
 - crontab 由 root 配置，不是 `13918962622` 用户（`sudo crontab -l` 查看）
 - Windows 下 `cmd.exe` 不支持 `&&` 命令链，需用 `&` 或批处理文件
-- PowerShell 不会从当前目录加载 `.bat`，需用 `.\run_deploy.bat`
 
 ## 测试状态
 
 | 日期 | 测试内容 | 结果 |
 |------|---------|------|
-| 2026-07-09 16:34 | 部署脚本路径修复 | ✅ `livingroom_auto_merge.sh` 成功同步（6333→6477 bytes） |
-| 2026-07-07 22:54 | 3 摄像头全量运行（修复前） | 数据正确生成，但通知计数=0 |
-| 2026-07-07 22:54 | 3 摄像头全量运行（重试） | ✅ 成功（书房主机位 1天/208MB，书房辅机位 1天/221MB，客厅 8天） |
-| 2026-07-07 22:39 | test_merge.sh 快速模式 | ✅ 小米通过，萤石(temp文件)通过，客厅(export文件)通过 |
-| — | 客厅 H.265 编码 | 🔄 待今晚 crontab 22:45 执行后检查 |
+| 2026-07-09 23:30 | run_all.sh 手动测试（修复权限后） | ✅ 书房主机位 ffmpeg 正在运行 |
+| 2026-07-09 23:36 | WebDAV compose 修复验证 | ✅ `docker compose up -d` Up 13 分钟，auth 返回 HTTP 200 |
+| 2026-07-09 16:34 | 部署脚本路径修复 | ✅ `livingroom_auto_merge.sh` 成功同步 |
+| 2026-07-07 22:54 | 3 摄像头全量运行 | ✅ 成功 |
+| 2026-07-07 22:39 | test_merge.sh 快速模式 | ✅ 全部通过 |
 
 ## 远程访问方式
 
