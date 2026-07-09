@@ -166,6 +166,17 @@ fi
 if [ -f "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" ]; then
     rclone copy "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ webdav/docker-compose.yml"
+    # 同步 webdav .env（密码由同目录 .env 文件提供）
+    rclone copy "${SCRIPT_DIR}/../infra/webdav/.env" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ webdav/.env"
+    # 重启 webdav 容器使新配置生效
+    if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
+        ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+            -p 10000 13918962622@192.168.6.108 \
+            "docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml down 2>/dev/null; docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml up -d 2>&1" 2>/dev/null && \
+        echo -e "${GREEN}✅ webdav 容器已重启${NC}" || \
+        echo -e "${YELLOW}⚠️  无法重启 webdav 容器（需手动 docker compose up -d）${NC}"
+    fi
 fi
 
 # ----- 7. 完成 -----

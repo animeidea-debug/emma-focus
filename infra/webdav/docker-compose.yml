@@ -12,8 +12,17 @@ services:
       - /tmp/zfsv3/nvme14/13918962622/data/docker:/data/docker
       - /tmp/zfsv3/nvme14/13918962622/data/tdarr:/data/tdarr
       - /tmp/zfsv3/nvme14/13918962622/data/webdav:/data/webdav
-    environment:
-      - WEBDAV_USER=${WEBDAV_USER:-garychen}
-      - WEBDAV_PASS=${WEBDAV_PASS}
-    command: >
-      sh -c "serve webdav /data --addr :8080 --user $$WEBDAV_USER --pass $$WEBDAV_PASS --vfs-cache-mode writes"
+    # ⚠️ rclone 镜像的 ENTRYPOINT 是 rclone，不能用 sh -c 包装
+    # 直接用 --user/--pass 参数（密码从同目录 .env 文件读取）
+    command:
+      - serve
+      - webdav
+      - /data
+      - --addr
+      - ":8080"
+      - --user
+      - "${WEBDAV_USER}"
+      - --pass
+      - "${WEBDAV_PASS}"
+      - --vfs-cache-mode
+      - writes
