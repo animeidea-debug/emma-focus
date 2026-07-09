@@ -47,11 +47,14 @@
 | 2026-07-07 | 测试模式 `head -1` + `head -2` | 限制 1 天 x 2 片段，~1 分钟完成测试 |
 | 2026-07-08 | 客厅改 `hevc_qsv` | 4K 下 H.265 省 50% 空间，播放器兼容性好 |
 | 2026-07-08 | 结果 JSON 写入共享卷 | 修复容器 `/tmp` 与宿主机隔离导致的计数=0 |
+| 2026-07-09 | 🔧 fix: deploy.sh `../../` → `../` | 路径错误导致 Mac 7/8 部署未生效，所有 infra 和 scripts 未真正同步到 NAS |
+| 2026-07-09 | 📁 新增 `infra/webdav/` | 将 WebDAV 容器配置（`rclone/rclone:latest`）纳入版本管理 |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-09 | *(待 commit)* | 🔧 fix: deploy.sh 路径错误（../../ → ../）+ infra/webdav 入库 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
 | 2026-07-08 | `53ca470` | 🧪 PoC 路由修复 + nginx 配置 | `nginx.conf` |
 | 2026-07-08 | `dc89232` | 🧪 PoC rewrite rule + 测试页面路径 | `nginx.conf`, `poc/index_poc.html` |
 | 2026-07-08 | `8140870` | 🧪 PoC fastapi+SQLite 后端 | `poc/main.py`, `poc/index_poc.html`, `nginx.conf`, `docker-compose.yml` |
@@ -64,8 +67,9 @@
 ## 待办事项
 
 ### 高优先级
+- [ ] 客厅 H.265 编码验证 — 在 NAS 上运行 test_merge.sh 确认 hevc_qsv 生效
 - [ ] 视频合并失败重试具体日期通知（目前只有汇总统计）
-- [ ] 客厅 H.265 编码验证（7/8 切换，7/9 检查输出质量 + 文件大小）
+- [ ] Mac 下次使用时 `git pull && sh deploy/deploy.sh` 同步路径修复
 
 ### 低优先级
 - [ ] 海马摄像头视频合并脚本（弟弟的 3D 打印延时）
@@ -73,6 +77,7 @@
 - [ ] crontab 失败推送通知（如果 `run_all.sh` 完全没执行）
 - [ ] 书房主机位输出分辨率可配置化（当前硬编码 720P，可改 480P/1080P）
 - [ ] 书房辅机位跳过包含特定 Note 的日期（如"Emma 不在场"）
+- [ ] WebDAV 容器配置加入部署脚本同步
 
 ## 凭证清单（新电脑首次设置）
 
@@ -139,6 +144,23 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 | 2026-07-07 22:54 | 3 摄像头全量运行（重试） | ✅ 成功（书房主机位 1天/208MB，书房辅机位 1天/221MB，客厅 8天） |
 | 2026-07-07 22:39 | test_merge.sh 快速模式 | ✅ 小米通过，萤石(temp文件)通过，客厅(export文件)通过 |
 | — | 客厅 H.265 编码 | 🔄 待今晚 crontab 22:45 执行后检查 |
+
+## 远程访问方式
+
+### Web SSH Console（推荐，无需安装软件）
+- **URL**: https://tailscale-ssh-console-animeidea-outlook-com-7t9bk783ge.tail1a5bb9.ts.net
+- **访问方式**: 通过 Tailscale 网络，浏览器直接打开
+- **权限**: root（无需密码）
+- **用途**: 查看日志、编辑文件、重启服务、运行命令
+
+### 本地 SSH（回家后使用）
+```powershell
+ssh -p 10000 13918962622@192.168.6.108
+```
+
+### WebDAV Funnel（文件操作）
+- 用于部署脚本和文件同步
+- URL: https://z4pro-xxel.tail1a5bb9.ts.net/
 
 ## 跨机器协作流程
 

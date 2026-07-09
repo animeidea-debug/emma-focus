@@ -6,11 +6,12 @@
 # 使用 rclone + WebDAV 协议，内网 IP 优先，外网 Tailscale Funnel fallback。
 # 脚本由 `sh xxx.sh` 调用，644 权限不影响运行。
 #
-# 目标路径（WebDAV 容器 clinedeploy-webdav）：
-#   video merge/*      → /scripts/          (脚本)
-#   index.html/admin   → /docker/html/      (nginx 静态页)
-#   infra/web/*        → /docker/           (nginx + fastapi docker-compose)
-#   infra/tdarr/*      → /tdarr/            (tdarr docker-compose)
+# 目标路径（WebDAV 容器 clinedeploy-rclone-webdav, serve webdav /data）：
+#   video merge/*      → /scripts/          → host scripts/
+#   index.html/admin   → /docker/html/      → host docker/html
+#   infra/web/*        → /docker/           → host docker/
+#   infra/tdarr/*      → /tdarr/            → host tdarr/
+#   infra/webdav/*     → /webdav/           → host webdav/
 #
 # 用法：
 #   sh deploy.sh
@@ -121,8 +122,8 @@ START_TS=$(date +%s)
 # ----- 4. 同步 scripts -----
 echo ""
 echo -e "${YELLOW}📄 同步 scripts...${NC}"
-if [ -d "${SCRIPT_DIR}/../../video merge" ]; then
-    rclone sync --delete-excluded "${SCRIPT_DIR}/../../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
+if [ -d "${SCRIPT_DIR}/../video merge" ]; then
+    rclone sync --delete-excluded "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
 fi
 
@@ -139,13 +140,17 @@ done
 # ----- 6. 同步 infra -----
 echo ""
 echo -e "${YELLOW}📄 同步 infra...${NC}"
-if [ -f "${SCRIPT_DIR}/../../infra/web/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../../infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../infra/web/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ web/docker-compose.yml"
 fi
-if [ -f "${SCRIPT_DIR}/../../infra/tdarr/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../../infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../infra/tdarr/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ tdarr/docker-compose.yml"
+fi
+if [ -f "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ webdav/docker-compose.yml"
 fi
 
 # ----- 7. 完成 -----
@@ -160,8 +165,8 @@ echo "   耗时: ${ELAPSED}s"
 echo "============================================="
 
 # Pushover
-if command -v curl >/dev/null 2>&1 && [ -f "${SCRIPT_DIR}/../../video merge/notify.sh" ]; then
-    . "${SCRIPT_DIR}/../../video merge/notify.sh"
+if command -v curl >/dev/null 2>&1 && [ -f "${SCRIPT_DIR}/../video merge/notify.sh" ]; then
+    . "${SCRIPT_DIR}/../video merge/notify.sh"
     COMMIT_MSG=$(cd "$SCRIPT_DIR/.." && git log -1 --oneline 2>/dev/null || echo "")
     pushover_notify "Emma Focus" "✅ NAS 部署完成 (${REMOTE})
 ${COMMIT_MSG}
