@@ -128,6 +128,14 @@ if [ -d "${SCRIPT_DIR}/../video merge" ]; then
     # 确保 remote .env 存在（如被意外删除则重新创建）
     rclone copy "${SCRIPT_DIR}/../video merge/.env" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
+    # ⚠️ WebDAV 同步不保留 +x 权限（强制 644），通过 tdarr_node 容器（root）执行 chmod
+    if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
+        ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+            -p 10000 13918962622@192.168.6.108 \
+            "docker exec tdarr_node chmod +x /app/scripts/*.sh" 2>/dev/null && \
+        echo -e "${GREEN}✅ scripts 执行权限已设置（docker exec tdarr_node）${NC}" || \
+        echo -e "${YELLOW}⚠️  无法通过 SSH 设置执行权限（忽略，可手动执行）${NC}"
+    fi
 fi
 
 # ----- 5. 同步 HTML -----
