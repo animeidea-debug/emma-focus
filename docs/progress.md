@@ -53,6 +53,7 @@
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🔐 scripts +x 权限自动修复 | WebDAV 强制 644，crontab 静默拒绝执行 |
 | 2026-07-09 | 🐳 WebDAV compose 修复 | rclone 镜像 ENTRYPOINT 与 sh -c 不兼容 |
+| 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则，各项目通过 `## [shared]` + `## [project]` 分割 |
 
 ## 最近提交
 
@@ -62,6 +63,7 @@
 | 2026-07-09 | `14dfe16` | 🔐 fix: deploy.sh 部署后自动 chmod +x （WebDAV 不保留权限，crontab 静默拒绝） | `deploy.sh` |
 | 2026-07-09 | `18ac277` | 🔔 fix: run_all.sh 通知静默失败（.env 被删除 + notify.sh 无 fallback） | `notify.sh`, `run_all.sh`, `deploy.sh` |
 | 2026-07-09 | `f144d28` | 🔧 fix: deploy.sh 路径错误（../../ → ../）+ infra/webdav 入库 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
+| 2026-07-09 | `09b38c2` | 🏗️ clinerules 迁移到 infra-template 仓库（单一真源） | `infra-template`, `.clinerules`, `clinerules/*` |
 | 2026-07-09 | *(待 commit)* | 🔧 nginx 多项目隔离 + 首页恢复 | `nginx.conf`, `clinerules/global.template` |
 | 2026-07-08 | `53ca470` | 🧪 PoC 路由修复 + nginx 配置 | `nginx.conf` |
 | 2026-07-08 | `dc89232` | 🧪 PoC rewrite rule + 测试页面路径 | `nginx.conf`, `poc/index_poc.html` |
@@ -71,23 +73,6 @@
 | 2026-07-07 | `bf48b13` | 🧪 test_merge.sh 快速检测模式 | `test_merge.sh` |
 | 2026-07-07 | `166048e` | 🆕 客厅 4K 脚本 | `livingroom_auto_merge.sh`, `docker-compose.yml`, `run_all.sh` |
 | 2026-07-07 | `034f0a9` | 🔐 移除 git 中 Pushover 明文 token | `notify.sh`, `.env.example`, `.gitignore` |
-
-## 待办事项
-
-### 高优先级
-- [x] 🔐 脚本 +x 权限自动修复（deploy.sh 部署后 chmod +x）
-- [x] 🔔 run_all.sh 通知 fallback（notify.sh 内置缺省凭证）
-- [x] 🐳 WebDAV 容器 docker-compose 管理（修复 ENTRYPOINT 不兼容 + 密码持久化）
-- [ ] 客厅 H.265 编码验证 — 在 NAS 上运行 test_merge.sh 确认 hevc_qsv 生效
-- [ ] 视频合并失败重试具体日期通知（目前只有汇总统计）
-- [ ] Mac 下次使用时 `git pull && sh deploy/deploy.sh` 同步
-
-### 低优先级
-- [ ] 海马摄像头视频合并脚本（弟弟的 3D 打印延时）
-- [ ] H.264 旧文件清理脚本（自动检测编码格式并删除旧版）
-- [ ] crontab 失败推送通知（如果 `run_all.sh` 完全没执行）
-- [ ] 书房主机位输出分辨率可配置化（当前硬编码 720P，可改 480P/1080P）
-- [ ] 书房辅机位跳过包含特定 Note 的日期（如"Emma 不在场"）
 
 ## 凭证清单（新电脑首次设置）
 
@@ -181,6 +166,25 @@ WEBDAV_USER=garychen
 - ~~docker exec 双引号 sh -c 导致路径转义错误~~ ✅ 已修复（`a54c478`）
 - crontab 由 root 配置，不是 `13918962622` 用户（`sudo crontab -l` 查看）
 - Windows 下 `cmd.exe` 不支持 `&&` 命令链，需用 `&` 或批处理文件
+
+## 待办事项
+
+### 已修复
+- [x] 🐛 yingshi_auto_merge.sh 双引号 sh -c 导致宿主机 $ 变量预展开
+- [x] 🔑 result JSON 权限问题 — 三个脚本均添加 `chmod 644`，确保 run_all.sh 可删除
+- [x] 🔒 tdarr node 源目录统一 `:ro` 只读保护原始视频
+- [x] 🗑️ .clinerules 移除已弃用的 SMB 凭证行
+- [x] ⏭️ 三个脚本新增"最新日期跳过不完整日期"逻辑（仅下午有录像才处理最新日期）
+- [x] 🐛 yingshi_auto_merge.sh `sed` 引号冲突修复（单引号块内 sed 嵌套单引号导致 Syntax error）
+- [x]  deploy.sh 连接策略重写（指数退避重试 + LAN 独立路径不跳 Tailscale）
+
+### 待办
+- [ ] crontab 在极空间 `/zspace/crontabs/root` 中配置，如丢失需重新设置
+- [ ] 整体运行耗时过长（串行22:00启动→小米2h→萤石数小时→客厅更久），观察后决定是否优化
+- [ ] 今晚观察 run_all 是否正常 crontab 触发 + 串行跑完
+- [ ] 取消暂挂的 tmux / background 手动 `run_all.sh` 进程（如有）
+- [ ] 部署后清理历史残留的 root 权限 result JSON
+- [ ] 其他项目（如 family-time-flow）的 `.clinerules` 同步更新为 `## [shared]` + `## [project]` 格式
 
 ## 测试状态
 
