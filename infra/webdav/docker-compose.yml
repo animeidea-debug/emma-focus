@@ -6,15 +6,14 @@ services:
     container_name: clinedeploy-rclone-webdav
     restart: always
     ports:
-      - "8889:8080"
+      - "${WEBDAV_PORT:-8889}:8080"
     volumes:
       - /tmp/zfsv3/nvme14/13918962622/data/scripts:/data/scripts
       - /tmp/zfsv3/nvme14/13918962622/data/docker:/data/docker
       - /tmp/zfsv3/nvme14/13918962622/data/tdarr:/data/tdarr
       - /tmp/zfsv3/nvme14/13918962622/data/webdav:/data/webdav
+    environment:
+      - WEBDAV_USER=${WEBDAV_USER:-garychen}
+      - WEBDAV_PASS=${WEBDAV_PASS}
     command: >
-      serve webdav /data
-      --addr :8080
-      --user garychen
-      --pass Momoco198399
-      --vfs-cache-mode writes
+      sh -c "serve webdav /data --addr :8080 --user $$WEBDAV_USER --pass $$WEBDAV_PASS --vfs-cache-mode writes"

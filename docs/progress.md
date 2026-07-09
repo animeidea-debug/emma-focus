@@ -121,6 +121,12 @@ setx PUSHOVER_NAS_USER "你的Pushover User Key"
 
 ## 已知问题 / 事故记录
 
+### 2026-07-09：WebDAV docker-compose 明码密码
+- **原因**：Windows 在 `infra/webdav/docker-compose.yml` 中用 `--pass Momoco198399` 硬编码
+- **影响**：密码在 git 历史中暴露
+- **修复**：改用环境变量 `$WEBDAV_PASS`（与 deploy.sh 的读取链一致）
+- **Windows 配置**：容器启动前需 `export WEBDAV_PASS=Momoco198399`
+
 ### 2026-07-09：Family Time Flow 项目覆盖 Emma Focus 首页
 - **原因**：Family Time Flow 项目复用 `infra/web/` 模板，部署时将 `index.html` 同步到 `/docker/html/`，覆盖了 Emma Focus 的首页。
 - **影响**：`http://192.168.6.108:8888` 显示 Family Time Flow 页面而非 Emma Focus。
