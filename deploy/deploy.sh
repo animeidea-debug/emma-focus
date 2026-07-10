@@ -3,8 +3,15 @@
 # 🚀 Emma Focus — NAS 一键部署脚本 (WebDAV)
 #
 # 将本地 repo 中的脚本、HTML 和基础设施文件部署到极空间 NAS。
-# 使用 rclone + WebDAV 协议，内网 IP 优先，外网 Tailscale Funnel fallback。
-# 脚本由 `sh xxx.sh` 调用，644 权限不影响运行。
+# 使用 rclone + WebDAV 协议，内网 IP 优先，外网 Tailscale Funnel 降级。
+#
+# 连接策略：
+#   📍 内网环境（检测到 192.168.x.x）:
+#      → 4 次重试 LAN WebDAV (指数退避 2s/4s/8s/16s)
+#      → 不尝试 Tailscale（在家不需要）
+#   🌐 外网环境:
+#      → 3 次重试 Tailscale Funnel (指数退避 5s/10s/20s)
+#      → 全部失败则报错退出
 #
 # 目标路径（WebDAV 容器 clinedeploy-rclone-webdav, serve webdav /data）：
 #   video merge/*      → /scripts/          → host scripts/
@@ -67,59 +74,93 @@ fi
 # Strip trailing newline/carriage return (Windows env var issue)
 PASSWORD=$(echo "$PASSWORD" | tr -d '\r\n')
 
-# ----- 2. 检测网络环境（LAN vs 外网）-----
+# ----- 2. 配置 rclone remote（只创建一次）-----
+OBSCURED=$(rclone obscure "$PASSWORD")
+
+# 检查 remote 是否已存在，不存在再创建
+if ! rclone lsd emma-focus-webdav: --timeout 2s > /dev/null 2>&1; then
+    rclone config delete emma-focus-webdav 2>/dev/null || true
+    rclone config create emma-focus-webdav webdav \
+        url "http://${NAS_IP}:${NAS_PORT}" \
+        vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+fi
+
+# Tailscale remote（独立，不共用）
+if ! rclone lsd emma-focus-tailscale: --timeout 2s > /dev/null 2>&1; then
+    rclone config delete emma-focus-tailscale 2>/dev/null || true
+    rclone config create emma-focus-tailscale webdav \
+        url "$NAS_TAILSCALE" \
+        vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+fi
+
+unset OBSCURED
+
+# ----- 3. 重试辅助函数 -----
+# 用法：retry_with_backoff <max_attempts> <initial_sleep> <command...>
+# 返回：0=成功，1=全部失败
+retry_with_backoff() {
+    max_attempts=$1
+    shift
+    sleep_base=$1
+    shift
+
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if "$@" 2>/dev/null; then
+            return 0
+        fi
+        if [ $attempt -lt $max_attempts ]; then
+            sleep_delay=$(( sleep_base * (1 << (attempt - 1)) ))
+            [ $attempt -gt 1 ] && echo -e "${YELLOW}  ⏱  等待 ${sleep_delay}s 后重试（第 $((attempt+1))/${max_attempts} 次）...${NC}"
+            sleep $sleep_delay
+        fi
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+# ----- 4. 检测网络环境并连接 -----
+echo ""
+echo -e "${YELLOW}⏳ 检测网络环境...${NC}"
+
 IS_LAN=false
 if ip addr 2>/dev/null | grep -q "inet 192\.168\." || \
    ifconfig 2>/dev/null | grep -q "inet 192\.168\." || \
    hostname -I 2>/dev/null | grep -q "192\.168\."; then
     IS_LAN=true
+    echo -e "${GREEN}✅ 内网环境${NC}"
+else
+    echo -e "${YELLOW}🌐 外网环境${NC}"
 fi
 
-# ----- 3. 配置 rclone remotes -----
-OBSCURED=$(rclone obscure "$PASSWORD")
-rclone config delete emma-focus-ip 2>/dev/null || true
-rclone config delete emma-focus-ts 2>/dev/null || true
-
-rclone config create emma-focus-ip webdav \
-    url "http://${NAS_IP}:${NAS_PORT}" \
-    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
-
-rclone config create emma-focus-ts webdav \
-    url "$NAS_TAILSCALE" \
-    vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
-
-unset OBSCURED
-
-# ----- 4. 确定可用 remote（LAN > Tailscale）-----
 REMOTE=""
 if [ "$IS_LAN" = true ]; then
-    echo -e "${YELLOW}⏳ 检测到内网环境，测试 LAN: http://${NAS_IP}:${NAS_PORT}...${NC}"
-    if rclone lsd emma-focus-ip: --timeout 3s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
-        REMOTE="emma-focus-ip"
+    echo -e "${YELLOW}⏳ 连接 LAN WebDAV: http://${NAS_IP}:${NAS_PORT}...${NC}"
+    if retry_with_backoff 4 2 sh -c "rclone lsd emma-focus-webdav: --timeout 5s 2>/dev/null | grep -q 'scripts\|docker\|tdarr'"; then
+        REMOTE="emma-focus-webdav"
         echo -e "${GREEN}✅ 内网连接成功${NC}"
     else
-        echo -e "${YELLOW}⚠️  LAN 不通，尝试 Tailscale Funnel...${NC}"
+        echo -e "${RED}❌ LAN WebDAV 连接失败（重试 4 次后放弃）${NC}"
+        echo -e "${RED}   提示: 检查 NAS 是否开机、WebDAV 容器是否运行、网络是否正常${NC}"
+        exit 1
     fi
-fi
-
-if [ -z "$REMOTE" ]; then
-    echo -e "${YELLOW}⏳ 测试 Tailscale Funnel: ${NAS_TAILSCALE}...${NC}"
-    if rclone lsd emma-focus-ts: --timeout 15s 2>/dev/null | grep -q "scripts\|docker\|tdarr"; then
-        REMOTE="emma-focus-ts"
+else
+    # 外网：重试 Tailscale Funnel
+    echo -e "${YELLOW}⏳ 连接 Tailscale Funnel: ${NAS_TAILSCALE}...${NC}"
+    if retry_with_backoff 3 5 sh -c "rclone lsd emma-focus-tailscale: --timeout 15s 2>/dev/null | grep -q 'scripts\|docker\|tdarr'"; then
+        REMOTE="emma-focus-tailscale"
         echo -e "${GREEN}✅ Tailscale Funnel 连接成功${NC}"
+    else
+        echo -e "${RED}❌ 所有连接均失败。${NC}"
+        exit 1
     fi
-fi
-
-if [ -z "$REMOTE" ]; then
-    echo -e "${RED}❌ 所有连接均失败（LAN + Tailscale）。${NC}"
-    exit 1
 fi
 
 unset PASSWORD
 
 START_TS=$(date +%s)
 
-# ----- 4. 同步 scripts -----
+# ----- 5. 同步 scripts -----
 echo ""
 echo -e "${YELLOW}📄 同步 scripts...${NC}"
 if [ -d "${SCRIPT_DIR}/../video merge" ]; then
@@ -130,7 +171,7 @@ if [ -d "${SCRIPT_DIR}/../video merge" ]; then
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
     # ⚠️ WebDAV 同步不保留 +x 权限（强制 644），通过 tdarr_node 容器（root）执行 chmod
     if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
-        ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+        retry_with_backoff 3 2 ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
             -p 10000 13918962622@192.168.6.108 \
             "docker exec tdarr_node chmod +x /app/scripts/*.sh" 2>/dev/null && \
         echo -e "${GREEN}✅ scripts 执行权限已设置（docker exec tdarr_node）${NC}" || \
@@ -138,7 +179,7 @@ if [ -d "${SCRIPT_DIR}/../video merge" ]; then
     fi
 fi
 
-# ----- 5. 同步 HTML -----
+# ----- 6. 同步 HTML -----
 echo ""
 echo -e "${YELLOW}📄 同步 HTML...${NC}"
 for f in index.html admin.html; do
@@ -148,7 +189,7 @@ for f in index.html admin.html; do
     fi
 done
 
-# ----- 6. 同步 infra -----
+# ----- 7. 同步 infra -----
 echo ""
 echo -e "${YELLOW}📄 同步 infra...${NC}"
 if [ -f "${SCRIPT_DIR}/../infra/web/nginx.conf" ]; then
@@ -171,7 +212,7 @@ if [ -f "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" ]; then
     echo "  ✅ webdav/.env"
     # 重启 webdav 容器使新配置生效
     if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
-        ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+        retry_with_backoff 3 2 ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
             -p 10000 13918962622@192.168.6.108 \
             "docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml down 2>/dev/null; docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml up -d 2>&1" 2>/dev/null && \
         echo -e "${GREEN}✅ webdav 容器已重启${NC}" || \
@@ -179,7 +220,7 @@ if [ -f "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" ]; then
     fi
 fi
 
-# ----- 7. 完成 -----
+# ----- 8. 完成 -----
 END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 
