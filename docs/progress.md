@@ -21,8 +21,11 @@
 |------|------|------|---------|----------|
 | **GAS 后端** | `gas/emma_focus_api.gs` | ✅ 运行中 | 2026-07-08 | `sh deploy/deploy_gas.sh` |
 | **前端看板** | `index.html` | ✅ 运行中 | 2026-07-09 | `sh deploy/deploy.sh` |
-| **书房主机位（小米）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-10 | `sh deploy/deploy.sh` |
+| **书房主机位（小米旧款）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-10 | `sh deploy/deploy.sh` |
 | **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-10 | `sh deploy/deploy.sh` (hevc_qsv) |
+| **V2 通用脚本（新款摄像头）** | `merge_v2.sh` | 🆕 待验证 | 2026-07-10 | `CAMERA=... SOURCE=... sh merge_v2.sh` |
+| **V2 总控** | `run_v2.sh` | 🆕 待验证 | 2026-07-10 | 手动运行，cron 待设 |
+| **V2 测试** | `test_v2.sh` | 🆕 待验证 | 2026-07-10 | `TEST_MODE=true sh test_v2.sh` |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 配置完成 | — | Keychain + `.env` |
 | **WebDAV 部署容器** | `infra/webdav/docker-compose.yml` | ✅ docker-compose 管理 | 2026-07-09 | `docker compose up -d` |
 
@@ -55,11 +58,13 @@
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则，各项目通过 `## [shared]` + `## [project]` 分割 |
 | 2026-07-10 | 🐛 fix: yingshi 过滤 bug | find 把 d_path 自身匹配到 [0-9][0-9] 导致全天遍历 |
 | 2026-07-10 | 🔄 简化: 去掉萤石摄像头 + 优化 run_all | 容器重启杀 ffmpeg 导致客厅 0 字节文件，livingroom 0字节检测修复 |
+| 2026-07-10 | ✨ 新增 V2 统一脚本（merge_v2/run_v2/test_v2） | 参数化设计，兼容新旧文件名格式，统一输出到 export_videos |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-10 | `096534a` | ✨ 新增 V2 统一脚本系列 | `merge_v2.sh`, `run_v2.sh`, `test_v2.sh` |
 | 2026-07-09 | `a1b9d1e` | 🐳 fix: WebDAV compose sh -c 不兼容 rclone ENTRYPOINT + 密码持久化 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
 | 2026-07-09 | `14dfe16` | 🔐 fix: deploy.sh 部署后自动 chmod +x （WebDAV 不保留权限，crontab 静默拒绝） | `deploy.sh` |
 | 2026-07-09 | `18ac277` | 🔔 fix: run_all.sh 通知静默失败（.env 被删除 + notify.sh 无 fallback） | `notify.sh`, `run_all.sh`, `deploy.sh` |
@@ -184,6 +189,8 @@ WEBDAV_USER=garychen
 - [ ] 观察今晚 crontab 22:45 书房主机位 + 客厅是否正常串行跑完
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
 - [ ] docker-compose.yml 更新后重启 tdarr_node 容器
+- [ ] 安装新款书房摄像头后：更新 docker-compose volumes + 验证 merge_v2.sh
+- [ ] V2 脚本验证通过后：设置 cron 22:00 `run_v2.sh`
 - [ ] 其他项目（如 family-time-flow）的 `.clinerules` 同步更新为 `## [shared]` + `## [project]` 格式
 
 ## 测试状态
