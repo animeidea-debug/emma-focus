@@ -29,6 +29,22 @@ if [ ! -f "${SCRIPT_DIR}/.env" ]; then
     echo "[WARN] .env 文件缺失，将使用 notify.sh 内置缺省凭证（与 .env.example 相同）" >&2
 fi
 
+# ========== 容器重启 + 临时文件清理 ==========
+echo ""
+echo "⏳ 重启 tdarr_node 容器（清除残留进程 + temp_workspace）..."
+docker restart tdarr_node 2>&1
+if [ $? -eq 0 ]; then
+    echo "✅ 容器重启成功"
+else
+    echo "⚠️ 容器重启失败，继续执行..."
+fi
+sleep 10
+
+echo "⏳ 清理容器临时文件..."
+docker exec tdarr_node sh -c 'rm -rf /tmp/* 2>/dev/null; mkdir -p /tmp' 2>&1
+echo "✅ 临时文件已清理"
+echo ""
+
 START_TS=$(date +%s)
 TODAY=$(date +%Y%m%d)
 
