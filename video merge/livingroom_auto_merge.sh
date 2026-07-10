@@ -53,9 +53,13 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     LR_SUCCESS=0
     LR_FAIL=0
 
+    # 提取最新日期（用于跳过未录完的不完整日期）
+    LATEST_DATE_LR=$(tail -1 /tmp/lr_all_dates.txt)
+
     while read -r d; do
         OUTPUT_FILE="$EXPORT_DIR/LivingRoom_4K_${d}.mp4"
-        if [ -f "$OUTPUT_FILE" ]; then
+        # 0字节文件视为无效，重新生成
+        if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
             echo "[skip] $d 成品已存在，跳过。" >> "$LOG_FILE"
             continue
         fi
@@ -63,6 +67,14 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
         echo "[$(date)] 🚀 开始处理日期: $d (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
 
         grep "${d}" /tmp/lr_all_files.txt > /tmp/lr_temp_list.txt
+
+        # ⏭️ 如果是最新日期且尚无下午录像（13:00-22:59），跳过等待明天补全
+        if [ "$d" = "$LATEST_DATE_LR" ] && [ "$TEST_MODE" != "true" ]; then
+            if ! grep -qE "_2026${d}(1[3-9]|2[0-2])[0-9]{4}_" /tmp/lr_temp_list.txt; then
+                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-22:59），跳过（待明日补全）。" >> "$LOG_FILE"
+                continue
+            fi
+        fi
         if [ ! -s /tmp/lr_temp_list.txt ]; then
             echo "ℹ️ 日期 ${d} 无录像，跳过。" >> "$LOG_FILE"
             continue
@@ -140,6 +152,8 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     TOTAL=$((LR_SUCCESS + LR_FAIL))
     echo "=== [客厅] 全部处理完毕！成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天 ===" >> "$LOG_FILE"
     echo "{\"success\":$LR_SUCCESS,\"fail\":$LR_FAIL,\"total\":$TOTAL,\"name\":\"客厅\"}" > "$RESULT_FILE"
+    # 确保 run_all.sh 可以删除 result JSON
+    chmod 644 "$RESULT_FILE"
 '
 LR_EXIT=$?
 exit $LR_EXIT

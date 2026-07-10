@@ -21,9 +21,8 @@
 |------|------|------|---------|----------|
 | **GAS 后端** | `gas/emma_focus_api.gs` | ✅ 运行中 | 2026-07-08 | `sh deploy/deploy_gas.sh` |
 | **前端看板** | `index.html` | ✅ 运行中 | 2026-07-09 | `sh deploy/deploy.sh` |
-| **书房主机位（小米）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` |
-| **书房辅机位（萤石）** | `yingshi_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` |
-| **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-09 | `sh deploy/deploy.sh` (hevc_qsv) |
+| **书房主机位（小米）** | `auto_merge.sh` | ✅ 22:45 crontab | 2026-07-10 | `sh deploy/deploy.sh` |
+| **客厅** | `livingroom_auto_merge.sh` | ✅ 22:45 crontab | 2026-07-10 | `sh deploy/deploy.sh` (hevc_qsv) |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 配置完成 | — | Keychain + `.env` |
 | **WebDAV 部署容器** | `infra/webdav/docker-compose.yml` | ✅ docker-compose 管理 | 2026-07-09 | `docker compose up -d` |
 
@@ -54,6 +53,8 @@
 | 2026-07-09 | 🔐 scripts +x 权限自动修复 | WebDAV 强制 644，crontab 静默拒绝执行 |
 | 2026-07-09 | 🐳 WebDAV compose 修复 | rclone 镜像 ENTRYPOINT 与 sh -c 不兼容 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则，各项目通过 `## [shared]` + `## [project]` 分割 |
+| 2026-07-10 | 🐛 fix: yingshi 过滤 bug | find 把 d_path 自身匹配到 [0-9][0-9] 导致全天遍历 |
+| 2026-07-10 | 🔄 简化: 去掉萤石摄像头 + 优化 run_all | 容器重启杀 ffmpeg 导致客厅 0 字节文件，livingroom 0字节检测修复 |
 
 ## 最近提交
 
@@ -180,10 +181,9 @@ WEBDAV_USER=garychen
 
 ### 待办
 - [ ] crontab 在极空间 `/zspace/crontabs/root` 中配置，如丢失需重新设置
-- [ ] 整体运行耗时过长（串行22:00启动→小米2h→萤石数小时→客厅更久），观察后决定是否优化
-- [ ] 今晚观察 run_all 是否正常 crontab 触发 + 串行跑完
-- [ ] 取消暂挂的 tmux / background 手动 `run_all.sh` 进程（如有）
-- [ ] 部署后清理历史残留的 root 权限 result JSON
+- [ ] 观察今晚 crontab 22:45 书房主机位 + 客厅是否正常串行跑完
+- [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
+- [ ] docker-compose.yml 更新后重启 tdarr_node 容器
 - [ ] 其他项目（如 family-time-flow）的 `.clinerules` 同步更新为 `## [shared]` + `## [project]` 格式
 
 ## 测试状态
