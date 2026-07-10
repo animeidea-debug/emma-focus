@@ -43,7 +43,8 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
     echo "配置: 分辨率=${RESOLUTION}p | 日志轮转阈值=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
     find "$SOURCE_BASE" -maxdepth 1 -type f -name "*.mp4" | sort > /tmp/lr_all_files.txt
-    grep -oE "2026[0-9]{4}" /tmp/lr_all_files.txt | sort -u > /tmp/lr_all_dates.txt
+    # 只提取文件名中第一个日期（起始时间戳），避免跨日期视频被误分到两个日期
+    sed 's/^[^_]*_//; s/_.*//' /tmp/lr_all_files.txt | grep -oE "2026[0-9]{4}" | sort -u > /tmp/lr_all_dates.txt
 
     if [ "$TEST_MODE" = "true" ]; then
         head -1 /tmp/lr_all_dates.txt > /tmp/lr_dates_tmp.txt && mv /tmp/lr_dates_tmp.txt /tmp/lr_all_dates.txt
