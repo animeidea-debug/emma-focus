@@ -108,7 +108,7 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
 
             ffmpeg -y -loglevel warning -nostats -fflags +genpts+discardcorrupt -f concat -safe 0 -i /tmp/list.txt \
                 -vf "scale=${SCALE},format=nv12,setpts=0.033333*PTS" \
-                -an -c:v h264_qsv -preset veryfast -r 20 \
+                -an -c:v hevc_qsv -preset veryfast -r 20 \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 
             FFMPEG_STATUS=$?
