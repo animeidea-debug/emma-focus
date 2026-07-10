@@ -117,8 +117,9 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
                 echo "🔁 第 ${ATTEMPT} 次重试..." >> "$LOG_FILE"
             fi
 
-            ffmpeg -y -loglevel warning -nostats -fflags +genpts+discardcorrupt -f concat -safe 0 -i /tmp/lr_list.txt \
-                -vf "scale=${SCALE},format=nv12,setpts=0.033333*PTS" \
+            ffmpeg -y -hwaccel qsv -hwaccel_output_format qsv -loglevel warning -nostats -fflags +genpts+discardcorrupt \
+                -f concat -safe 0 -i /tmp/lr_list.txt \
+                -vf "vpp_qsv=w=3840:h=2160,setpts=0.033333*PTS" \
                 -an -c:v hevc_qsv -preset veryfast -r 20 \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 

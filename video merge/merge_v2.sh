@@ -47,7 +47,11 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
         fi
     fi
 
-    SCALE="-2:${RESOLUTION}"
+    # vpp_qsv 需要显式宽高，根据分辨率计算 16:9 宽度
+    VPP_H="${RESOLUTION}"
+    VPP_W=$(( ${RESOLUTION} * 16 / 9 ))
+    echo "VPP尺寸: ${VPP_W}x${VPP_H}" >> "$LOG_FILE"
+
     echo "=== [${CAMERA}] ${RESOLUTION}P-30x-流水线启动: $(date) ===" >> "$LOG_FILE"
     echo "配置: 源=${SOURCE_DIR} 分辨率=${RESOLUTION}p 编码=${CODEC} 日志轮转=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
@@ -163,9 +167,10 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
                 echo "🔁 第 ${ATTEMPT} 次重试..." >> "$LOG_FILE"
             fi
 
-            ffmpeg -y -loglevel warning -nostats -fflags +genpts+discardcorrupt -f concat -safe 0 \
+            ffmpeg -y -hwaccel qsv -hwaccel_output_format qsv -loglevel warning -nostats -fflags +genpts+discardcorrupt \
+                -f concat -safe 0 \
                 -i "/tmp/v2_list_${CAMERA}_${d}.txt" \
-                -vf "scale=${SCALE},format=nv12,setpts=0.033333*PTS" \
+                -vf "vpp_qsv=w=${VPP_W}:h=${VPP_H},setpts=0.033333*PTS" \
                 -an -c:v "${CODEC}" -preset veryfast -r 20 \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 
