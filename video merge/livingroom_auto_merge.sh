@@ -71,7 +71,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
         # ⏭️ 如果是最新日期且尚无下午录像（13:00-22:59），跳过等待明天补全
         if [ "$d" = "$LATEST_DATE_LR" ] && [ "$TEST_MODE" != "true" ]; then
-            if ! grep -qE "_2026${d}(1[3-9]|2[0-2])[0-9]{4}_" /tmp/lr_temp_list.txt; then
+            if ! grep -qE "${d}(1[3-9]|2[0-2])" /tmp/lr_temp_list.txt; then
                 echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-22:59），跳过（待明日补全）。" >> "$LOG_FILE"
                 continue
             fi
