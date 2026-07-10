@@ -51,6 +51,9 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     XIAOMI_SUCCESS=0
     XIAOMI_FAIL=0
 
+    # 提取最新日期（用于跳过未录完的不完整日期）
+    LATEST_DATE_XM=$(tail -1 /tmp/all_dates.txt)
+
     while read -r d; do
         OUTPUT_FILE="$EXPORT_DIR/Xiaomi_Camera_${d}.mp4"
         if [ -f "$OUTPUT_FILE" ]; then
@@ -61,6 +64,15 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
         echo "[$(date)] 🚀 开始处理日期: $d (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
         
         grep "$d" /tmp/all_files.txt > /tmp/temp_list_all.txt
+
+        # ⏭️ 如果是最新日期且尚无下午录像（13:00-22:59），跳过等待明天补全
+        if [ "$d" = "$LATEST_DATE_XM" ] && [ "$TEST_MODE" != "true" ]; then
+            if ! grep -qE "${d}(1[3-9]|2[0-2])" /tmp/temp_list_all.txt; then
+                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-22:59），跳过（待明日补全）。" >> "$LOG_FILE"
+                continue
+            fi
+        fi
+
         grep -E "${d}(09|10|11|12|13|14|15|16|17|18|19|20|21|22)" /tmp/temp_list_all.txt > /tmp/temp_list.txt
 
         if [ ! -s /tmp/temp_list.txt ]; then
@@ -96,7 +108,7 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
 
             ffmpeg -y -loglevel warning -nostats -fflags +genpts+discardcorrupt -f concat -safe 0 -i /tmp/list.txt \
                 -vf "scale=${SCALE},format=nv12,setpts=0.033333*PTS" \
-                -an -c:v h264_qsv -preset veryfast \
+                -an -c:v h264_qsv -preset veryfast -r 20 \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 
             FFMPEG_STATUS=$?
@@ -130,6 +142,8 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
     TOTAL=$((XIAOMI_SUCCESS + XIAOMI_FAIL))
     echo "=== [书房主机位] 全部处理完毕！成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天 ===" >> "$LOG_FILE"
     echo "{\"success\":$XIAOMI_SUCCESS,\"fail\":$XIAOMI_FAIL,\"total\":$TOTAL,\"name\":\"书房主机位\"}" > "$RESULT_FILE"
+    # 确保 run_all.sh 可以删除 result JSON
+    chmod 644 "$RESULT_FILE"
 '
 XIAOMI_EXIT=$?
 exit $XIAOMI_EXIT
