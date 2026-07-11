@@ -50,6 +50,42 @@ echo "================================================="
 echo " 🚀 开始执行监控视频自动合并任务 | $(date)"
 echo "================================================="
 
+# ----- 辅助函数：读取进度文件并发送通知 -----
+read_progress_and_notify() {
+    CAMERA_NAME="$1"
+    PROGRESS_FILE="$2"
+    EXIT_CODE="$3"
+    PREFIX="$4"  # 1/2 or 2/2
+
+    TOTAL=0; DONE=0; SUCCESS=0; FAIL=0; CURRENT=""
+    if [ -f "$PROGRESS_FILE" ]; then
+        eval "$(cat "$PROGRESS_FILE" 2>/dev/null | sed 's/^/export /')"
+        rm -f "$PROGRESS_FILE"
+    fi
+    # 也读 result JSON
+    if [ "$CAMERA_NAME" = "书房主机位" ] && [ -f "${NAS_DATA}/export_videos/result_xiaomi.json" ]; then
+        eval "$(cat ${NAS_DATA}/export_videos/result_xiaomi.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") XS=a[2]; if(a[1]=="fail") XF=a[2]}} END {print "SUCCESS="XS"; FAIL="XF}')"
+        rm -f "${NAS_DATA}/export_videos/result_xiaomi.json"
+    fi
+    if [ "$CAMERA_NAME" = "客厅" ] && [ -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json" ]; then
+        eval "$(cat ${NAS_DATA}/export_videos_livingroom/result_livingroom.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") LS=a[2]; if(a[1]=="fail") LF=a[2]}} END {print "SUCCESS="LS"; FAIL="LF}')"
+        rm -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json"
+    fi
+
+    if [ $EXIT_CODE -ne 0 ]; then
+        pushover_notify "Video Merge" "⚠️ [${PREFIX}] ${CAMERA_NAME} 异常 | ${TODAY}
+成功: ${SUCCESS:-0} 天 ✅ | 失败: ${FAIL:-0} 天 ❌"
+    elif [ "${TOTAL:-0}" -eq 0 ]; then
+        pushover_notify "Video Merge" "✅ [${PREFIX}] ${CAMERA_NAME} 完成 | ${TODAY}
+无需处理（全部已有成品）"
+    else
+        pushover_notify "Video Merge" "✅ [${PREFIX}] ${CAMERA_NAME} 完成 | ${TODAY}
+成功: ${SUCCESS:-0}/${TOTAL} 天 ✅
+失败: ${FAIL:-0} 天 ❌
+最后处理: ${CURRENT:-}"
+    fi
+}
+
 pushover_notify "Video Merge" "🚀 监控视频合并开始 | ${TODAY}
 设备: 书房主机位(${XIAOMI_RES:-720}P) + 客厅(${LIVINGROOM_RES:-2160}P)"
 
@@ -59,19 +95,9 @@ echo "▶️ [1/2] 正在启动【书房主机位】合并任务..."
 sh "$SCRIPT_DIR/auto_merge.sh"
 XIAOMI_EXIT=$?
 
-XIAOMI_SUCCESS=0; XIAOMI_FAIL=0
-if [ -f "${NAS_DATA}/export_videos/result_xiaomi.json" ]; then
-    eval "$(cat ${NAS_DATA}/export_videos/result_xiaomi.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") XS=a[2]; if(a[1]=="fail") XF=a[2]}} END {print "XIAOMI_SUCCESS="XS"; XIAOMI_FAIL="XF}')"
-    rm -f "${NAS_DATA}/export_videos/result_xiaomi.json"
-fi
-
-if [ $XIAOMI_EXIT -ne 0 ]; then
-    pushover_notify "Video Merge" "⚠️ 书房主机位合并异常 | ${TODAY}
-成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天"
-else
-    pushover_notify "Video Merge" "✅ 书房主机位合并完成 | ${TODAY}
-成功: ${XIAOMI_SUCCESS} 天 | 失败: ${XIAOMI_FAIL} 天"
-fi
+# 从容器中读取进度文件
+docker exec tdarr_node sh -c 'cat /mnt/export_videos/progress_xiaomi.txt' > /tmp/progress_xiaomi_read.txt 2>/dev/null || true
+read_progress_and_notify "书房主机位" "/tmp/progress_xiaomi_read.txt" "$XIAOMI_EXIT" "1/2"
 
 # ========== [2/2] 客厅 4K ==========
 echo ""
@@ -79,19 +105,8 @@ echo "▶️ [2/2] 正在启动【客厅】合并任务..."
 sh "$SCRIPT_DIR/livingroom_auto_merge.sh"
 LIVINGROOM_EXIT=$?
 
-LR_SUCCESS=0; LR_FAIL=0
-if [ -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json" ]; then
-    eval "$(cat ${NAS_DATA}/export_videos_livingroom/result_livingroom.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") LS=a[2]; if(a[1]=="fail") LF=a[2]}} END {print "LR_SUCCESS="LS"; LR_FAIL="LF}')"
-    rm -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json"
-fi
-
-if [ $LIVINGROOM_EXIT -ne 0 ]; then
-    pushover_notify "Video Merge" "⚠️ 客厅4K合并异常 | ${TODAY}
-成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天"
-else
-    pushover_notify "Video Merge" "✅ 客厅4K合并完成 | ${TODAY}
-成功: ${LR_SUCCESS} 天 | 失败: ${LR_FAIL} 天"
-fi
+docker exec tdarr_node sh -c 'cat /mnt/export_videos_livingroom/progress_livingroom.txt' > /tmp/progress_livingroom_read.txt 2>/dev/null || true
+read_progress_and_notify "客厅" "/tmp/progress_livingroom_read.txt" "$LIVINGROOM_EXIT" "2/2"
 
 # ========== 总计 ==========
 END_TS=$(date +%s)

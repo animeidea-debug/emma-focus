@@ -48,8 +48,19 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
         echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
     fi
 
+    # 总日期数（用于进度通知）
+    TOTAL_DATES=$(wc -l < /tmp/all_dates.txt)
     XIAOMI_SUCCESS=0
     XIAOMI_FAIL=0
+    PROGRESS_FILE="/tmp/progress_xiaomi.txt"
+
+    # 写入初始进度
+    echo "total=${TOTAL_DATES}" > "$PROGRESS_FILE"
+    echo "done=0" >> "$PROGRESS_FILE"
+    echo "success=0" >> "$PROGRESS_FILE"
+    echo "fail=0" >> "$PROGRESS_FILE"
+    echo "current=" >> "$PROGRESS_FILE"
+    echo "start_ts=$(date +%s)" >> "$PROGRESS_FILE"
 
     # 提取最新日期（用于跳过未录完的不完整日期）
     LATEST_DATE_XM=$(tail -1 /tmp/all_dates.txt)
@@ -62,6 +73,8 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
         fi
 
         echo "[$(date)] 🚀 开始处理日期: $d (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
+        # 更新进度：当前处理日期
+        echo "current=${d}" > "$PROGRESS_FILE"
         
         grep "$d" /tmp/all_files.txt > /tmp/temp_list_all.txt
 
@@ -135,6 +148,13 @@ docker exec -e XIAOMI_RES="$XIAOMI_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_
             echo "❌ 日期 $d 触发中断。尝试次数: $((ATTEMPT-1)) | 耗时: ${ELAPSED}s" >> "$LOG_FILE"
             XIAOMI_FAIL=$((XIAOMI_FAIL + 1))
         fi
+
+        # 更新进度（每处理完一个日期）
+        echo "done=$(( $(grep -c "✅ 日期\|❌ 日期" "$LOG_FILE" 2>/dev/null || echo 0) ))" > "$PROGRESS_FILE"
+        echo "success=${XIAOMI_SUCCESS}" >> "$PROGRESS_FILE"
+        echo "fail=${XIAOMI_FAIL}" >> "$PROGRESS_FILE"
+        echo "current=${d}" >> "$PROGRESS_FILE"
+
         echo "--------------------------------------------------------" >> "$LOG_FILE"
     done < /tmp/all_dates.txt
 

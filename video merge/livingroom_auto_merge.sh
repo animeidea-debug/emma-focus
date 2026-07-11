@@ -51,8 +51,19 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
         echo "🧪 测试模式: 仅处理 1 个日期" >> "$LOG_FILE"
     fi
 
+    # 总日期数（用于进度通知）
+    TOTAL_DATES_LR=$(wc -l < /tmp/lr_all_dates.txt)
     LR_SUCCESS=0
     LR_FAIL=0
+    PROGRESS_FILE_LR="/tmp/progress_livingroom.txt"
+
+    # 写入初始进度
+    echo "total=${TOTAL_DATES_LR}" > "$PROGRESS_FILE_LR"
+    echo "done=0" >> "$PROGRESS_FILE_LR"
+    echo "success=0" >> "$PROGRESS_FILE_LR"
+    echo "fail=0" >> "$PROGRESS_FILE_LR"
+    echo "current=" >> "$PROGRESS_FILE_LR"
+    echo "start_ts=$(date +%s)" >> "$PROGRESS_FILE_LR"
 
     # 提取最新日期（用于跳过未录完的不完整日期）
     LATEST_DATE_LR=$(tail -1 /tmp/lr_all_dates.txt)
@@ -66,6 +77,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
         fi
 
         echo "[$(date)] 🚀 开始处理日期: $d (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
+        echo "current=${d}" > "$PROGRESS_FILE_LR"
 
         grep "${d}" /tmp/lr_all_files.txt > /tmp/lr_temp_list.txt
 
@@ -146,6 +158,13 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
             echo "❌ 日期 $d 触发中断。尝试次数: $((ATTEMPT-1)) | 耗时: ${ELAPSED}s" >> "$LOG_FILE"
             LR_FAIL=$((LR_FAIL + 1))
         fi
+
+        # 更新进度（计算已处理的日期数）
+        echo "done=$(grep -c "顺利出片\|触发中断" "$LOG_FILE" 2>/dev/null || echo 0)" > "$PROGRESS_FILE_LR"
+        echo "success=${LR_SUCCESS}" >> "$PROGRESS_FILE_LR"
+        echo "fail=${LR_FAIL}" >> "$PROGRESS_FILE_LR"
+        echo "current=${d}" >> "$PROGRESS_FILE_LR"
+
         echo "--------------------------------------------------------" >> "$LOG_FILE"
     done < /tmp/lr_all_dates.txt
 
