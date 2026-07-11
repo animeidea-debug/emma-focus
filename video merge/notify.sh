@@ -2,17 +2,18 @@
 # ==============================================================================
 # Pushover 通知辅助脚本 — 无明文密码版本
 #
-# 被 run_all.sh / auto_merge.sh / yingshi_auto_merge.sh source 使用
+# 被 run_all.sh / auto_merge.sh / merge_v2.sh 等脚本 source 使用
 #
 # 凭证来源（优先级从高到低）：
 #   1. .env 文件（与 notify.sh 同目录，不在 git 中）
 #   2. 环境变量 PUSHOVER_NAS_TOKEN / PUSHOVER_NAS_USER
 #
-# .env 文件格式：
-#   export PUSHOVER_NAS_TOKEN=adaao8rhagwvj8hu2ftn1s81ayw5kd
-#   export PUSHOVER_NAS_USER=u52wpbjtdoxg19wxah39ahe5g34eqp
+# .env 文件格式（复制自 .env.example 并填入实际值）：
+#   export PUSHOVER_NAS_TOKEN=your_token_here
+#   export PUSHOVER_NAS_USER=your_user_key_here
 #
-# 另一台电脑首次使用前，需在 NAS 上创建 .env 文件。
+# ⚠️ Token 仅存于 NAS 上的 .env 文件（已 gitignored），不进 git。
+#    其他机器首次使用前，需在 NAS 上创建 .env 文件或设置环境变量。
 # ==============================================================================
 
 # 读取 .env 文件（如果存在，覆盖环境变量）
@@ -21,10 +22,9 @@ if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi
 
-# 硬编码缺省凭证（.env 被 deploy.sh --delete-excluded 删除时防故障）
-# 这两个值要在 .env.example 和 NAS 上保持一致
-PUSHOVER_NAS_TOKEN="${PUSHOVER_NAS_TOKEN:-adaao8rhagwvj8hu2ftn1s81ayw5kd}"
-PUSHOVER_NAS_USER="${PUSHOVER_NAS_USER:-u52wpbjtdoxg19wxah39ahe5g34eqp}"
+# 如果 .env 和环境变量都未设置，pushover_notify() 会检测到空值并跳过通知
+PUSHOVER_NAS_TOKEN="${PUSHOVER_NAS_TOKEN:-}"
+PUSHOVER_NAS_USER="${PUSHOVER_NAS_USER:-}"
 
 # ---------------------------------------------------------------------------
 # pushover_notify — 发送通知（使用 NAS Task App Token）
