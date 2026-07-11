@@ -94,19 +94,44 @@ echo ""
 echo "▶️ [1/2] 正在启动【书房主机位】合并任务..."
 sh "$SCRIPT_DIR/auto_merge.sh"
 XIAOMI_EXIT=$?
+XIAOMI_SUCCESS=0; XIAOMI_FAIL=0
 
 # 从容器中读取进度文件
 docker exec tdarr_node sh -c 'cat /mnt/export_videos/progress_xiaomi.txt' > /tmp/progress_xiaomi_read.txt 2>/dev/null || true
 read_progress_and_notify "书房主机位" "/tmp/progress_xiaomi_read.txt" "$XIAOMI_EXIT" "1/2"
+# 从进度文件中提取具体数字给汇总用
+if [ -f "/tmp/progress_xiaomi_read.txt" ]; then
+    eval "$(cat /tmp/progress_xiaomi_read.txt 2>/dev/null | awk -F= '{print "XIAOMI_SUCCESS="$2}' | head -3)"
+    rm -f /tmp/progress_xiaomi_read.txt
+fi
 
 # ========== [2/2] 客厅 4K ==========
 echo ""
 echo "▶️ [2/2] 正在启动【客厅】合并任务..."
 sh "$SCRIPT_DIR/livingroom_auto_merge.sh"
 LIVINGROOM_EXIT=$?
+LR_SUCCESS=0; LR_FAIL=0
 
 docker exec tdarr_node sh -c 'cat /mnt/export_videos_livingroom/progress_livingroom.txt' > /tmp/progress_livingroom_read.txt 2>/dev/null || true
 read_progress_and_notify "客厅" "/tmp/progress_livingroom_read.txt" "$LIVINGROOM_EXIT" "2/2"
+if [ -f "/tmp/progress_livingroom_read.txt" ]; then
+    eval "$(cat /tmp/progress_livingroom_read.txt 2>/dev/null | awk -F= '{print "LR_SUCCESS="$2}' | head -3)"
+    rm -f /tmp/progress_livingroom_read.txt
+fi
+
+# 后备：从 result JSON 读取（进度文件不存在时）
+if [ $XIAOMI_SUCCESS -eq 0 ] && [ $XIAOMI_FAIL -eq 0 ]; then
+    if [ -f "${NAS_DATA}/export_videos/result_xiaomi.json" ]; then
+        eval "$(cat ${NAS_DATA}/export_videos/result_xiaomi.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") XS=a[2]; if(a[1]=="fail") XF=a[2]}} END {print "XIAOMI_SUCCESS="XS"; XIAOMI_FAIL="XF}')"
+        rm -f "${NAS_DATA}/export_videos/result_xiaomi.json"
+    fi
+fi
+if [ $LR_SUCCESS -eq 0 ] && [ $LR_FAIL -eq 0 ]; then
+    if [ -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json" ]; then
+        eval "$(cat ${NAS_DATA}/export_videos_livingroom/result_livingroom.json | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") LS=a[2]; if(a[1]=="fail") LF=a[2]}} END {print "LR_SUCCESS="LS"; LR_FAIL="LF}')"
+        rm -f "${NAS_DATA}/export_videos_livingroom/result_livingroom.json"
+    fi
+fi
 
 # ========== 总计 ==========
 END_TS=$(date +%s)
