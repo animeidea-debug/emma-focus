@@ -59,11 +59,19 @@
 | 2026-07-10 | 🐛 fix: yingshi 过滤 bug | find 把 d_path 自身匹配到 [0-9][0-9] 导致全天遍历 |
 | 2026-07-10 | 🔄 简化: 去掉萤石摄像头 + 优化 run_all | 容器重启杀 ffmpeg 导致客厅 0 字节文件，livingroom 0字节检测修复 |
 | 2026-07-10 | ✨ 新增 V2 统一脚本（merge_v2/run_v2/test_v2） | 参数化设计，兼容新旧文件名格式，统一输出到 export_videos |
+| 2026-07-11 | 🔥 vpp_qsv 全硬件加速 5x | intel-gpu-top 证实 GPU Video 引擎从 0.16%→可用 |
+| 2026-07-11 | 🆕 书房新摄像头 Study 就绪 | SATA13 → /mnt/source_study，720P HEVC |
+| 2026-07-11 | 📐 统一输出目录 | 所有文件输出到 export_videos/，命名规范 {Camera}_{YYYYMMDD}.mp4 |
+| 2026-07-11 | 🔗 合并旧书房+新书房 7/11 全天数据 | Xiaomi(上午23M) + Study(下午81M) → Study_20260711.mp4(104MB) |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-11 | *(待 commit)* | 📝 更新文档 + 推送 | `docs/progress.md` |
+| 2026-07-11 | `e776886` | 🐛 fix: Pushover 通知汇总变量 | `run_all.sh` |
+| 2026-07-11 | `ba6cb6b` | 🐛 fix: site-backend volume 路径 | `infra/web/docker-compose.yml` |
+| 2026-07-11 | `dee2142` | 🆕 书房新摄像头验证通过 720P | `run_v2.sh` |
 | 2026-07-10 | `096534a` | ✨ 新增 V2 统一脚本系列 | `merge_v2.sh`, `run_v2.sh`, `test_v2.sh` |
 | 2026-07-09 | `a1b9d1e` | 🐳 fix: WebDAV compose sh -c 不兼容 rclone ENTRYPOINT + 密码持久化 | `deploy.sh`, `infra/webdav/docker-compose.yml` |
 | 2026-07-09 | `14dfe16` | 🔐 fix: deploy.sh 部署后自动 chmod +x （WebDAV 不保留权限，crontab 静默拒绝） | `deploy.sh` |
@@ -185,12 +193,9 @@ WEBDAV_USER=garychen
 - [x]  deploy.sh 连接策略重写（指数退避重试 + LAN 独立路径不跳 Tailscale）
 
 ### 待办
-- [ ] crontab 在极空间 `/zspace/crontabs/root` 中配置，如丢失需重新设置
-- [ ] 观察今晚 crontab 22:45 书房主机位 + 客厅是否正常串行跑完
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
-- [ ] docker-compose.yml 更新后重启 tdarr_node 容器
-- [ ] 安装新款书房摄像头后：更新 docker-compose volumes + 验证 merge_v2.sh
-- [ ] V2 脚本验证通过后：设置 cron 22:00 `run_v2.sh`
+- [ ] 将 docker-compose.yml 的 Study volume 写入 NAS 上的文件（防止重启丢失）
+- [ ] 清理旧 `run_all.sh` crontab 条目（22:00 已改为 run_v2.sh）
 - [ ] 其他项目（如 family-time-flow）的 `.clinerules` 同步更新为 `## [shared]` + `## [project]` 格式
 
 ## 测试状态
