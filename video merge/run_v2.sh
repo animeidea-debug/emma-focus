@@ -37,8 +37,7 @@ pushover_notify "Video Merge V2" "🚀 V2 合并开始 | ${TODAY}"
 
 # ----- 定义摄像头列表 -----
 # 格式：CAMERA_NAME:SOURCE_DIR:RES:CODEC
-# 书房新摄像头（安装后启用）
-# CAMERAS="Study:/mnt/source_study:2160:hevc_qsv"
+CAMERAS="Study:/mnt/source_study:2160:hevc_qsv"
 
 for camera_config in $CAMERAS; do
     CAMERA=$(echo "$camera_config" | cut -d: -f1)

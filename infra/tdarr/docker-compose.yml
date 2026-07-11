@@ -49,5 +49,7 @@ services:
       # 🆕 客厅 Xiaomi 4K 摄像头（低优先级，SATA13 盘）
       - /tmp/zfsv3/sata13/13918962622/data/XiaomiCamera_00_B888808E0906:/mnt/source_videos_livingroom:ro
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos_livingroom:/mnt/export_videos_livingroom
+      # 🆕 书房新 Xiaomi 4K 摄像头（SATA13 盘）
+      - /tmp/zfsv3/sata13/13918962622/data/XiaomiCamera_01_B88880D304D1:/mnt/source_study:ro
       # 🧪 测试输出目录（TEST_MODE=true 时使用，不影响生产数据）
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos_test:/mnt/export_videos_test
