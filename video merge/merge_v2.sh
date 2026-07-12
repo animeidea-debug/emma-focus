@@ -21,12 +21,13 @@ SOURCE_DIR="${SOURCE:?必须设置 SOURCE 环境变量}"
 RESOLUTION="${RES:-2160}"
 CODEC="${CODEC:-hevc_qsv}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"
+MAX_HOUR="${MAX_HOUR:-21}"  # 白昼截止小时（Study=21, LivingRoom=23）
 
 # ---------- 引入通知 ----------
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/notify.sh"
 
-docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
+docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e MAX_HOUR="$MAX_HOUR" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
     OUTPUT_BASE="/mnt/export_videos"
     LOG_FILE="${OUTPUT_BASE}/merge_v2_${CAMERA}.log"
     RESULT_FILE="${OUTPUT_BASE}/result_v2_${CAMERA}.json"
@@ -143,7 +144,7 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
                 hour_part=$(echo "$fname" | grep -oE "^2026[0-9]{4}([0-9]{2})" | sed "s/^2026[0-9]\{4\}//")
             fi
             H=$(echo "$hour_part" | sed "s/^0*//")
-            if [ -n "$H" ] && [ "$H" -ge 9 ] && [ "$H" -le 21 ]; then
+            if [ -n "$H" ] && [ "$H" -ge 9 ] && [ "$H" -le "${MAX_HOUR}" ]; then
                 echo "$fpath" >> "/tmp/v2_daytime_${CAMERA}_${d}.txt"
             fi
         done < "/tmp/v2_day_${CAMERA}_${d}.txt"
