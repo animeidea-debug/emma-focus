@@ -13,7 +13,7 @@
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_BASE="/tmp/zfsv3/nvme14/13918962622/data/backups/emma_data"
+BACKUP_BASE="/mnt/backups/emma_data"
 mkdir -p "$BACKUP_BASE"
 
 TODAY=$(date +%Y%m%d)
@@ -34,8 +34,8 @@ GAS_URL="https://script.google.com/macros/s/${GAS_DEPLOY_ID}/exec"
 echo "[backup] 🚀 开始备份 ${TODAY}"
 echo "[backup] 请求 URL: ${GAS_URL}?action=exportAll&token=..."
 
-# 调用 GAS API 导出全部数据
-HTTP_CODE=$(curl -s -o "$OUTPUT_FILE" -w "%{http_code}" \
+# 调用 GAS API 导出全部数据（-L 跟随 GAS 重定向）
+HTTP_CODE=$(curl -sL -o "$OUTPUT_FILE" -w "%{http_code}" \
     --connect-timeout 15 --max-time 60 \
     "${GAS_URL}?action=exportAll&token=${API_TOKEN}" 2>&1)
 
