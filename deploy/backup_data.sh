@@ -20,14 +20,12 @@ TODAY=$(date +%Y%m%d)
 OUTPUT_FILE="${BACKUP_BASE}/emma_data_${TODAY}.json"
 API_TOKEN="emma2026_secure"
 
-# GAS 部署 ID（从 clasp 读取）
-GAS_DEPLOY_ID=""
-if [ -f "${SCRIPT_DIR}/../gas/.clasp.json" ]; then
-    GAS_DEPLOY_ID=$(cat "${SCRIPT_DIR}/../gas/.clasp.json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('scriptId',''))" 2>/dev/null)
-fi
+# GAS 部署 ID（固定为 latest deployment @28）
+# 更新 deploy 后需同步此值：clasp deployments | grep @(最新版本号)
+GAS_DEPLOY_ID="AKfycbwdRAkRUJpNDD94-yf5tfPgM5j9LlIMiRfqUjamj7M1peDq7awf7d7XADfnkeFZ8F2E-w"
 
 if [ -z "$GAS_DEPLOY_ID" ]; then
-    echo "[backup] ⚠️ 无法获取 GAS Script ID" >&2
+    echo "[backup] ⚠️ 无法获取 GAS Deployment ID" >&2
     exit 1
 fi
 
