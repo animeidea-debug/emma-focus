@@ -151,8 +151,19 @@ function doGet(e) {
     return jsonOut(getExchangeRateData(ss));
   }
 
+  // ▶ 新增：NAS 备份导出（全部数据表）
+  if (action === "exportAll") {
+    const tables = ["Timeline", "Evaluations", "Activity_Logs", "Transactions", "RedeemItems", "AppConfig"];
+    const result = {};
+    tables.forEach(name => {
+      const sheet = ss.getSheetByName(name);
+      result[name] = sheet ? getSheetDataAsObjects(sheet) : [];
+    });
+    return jsonOut({ timestamp: new Date().toISOString(), data: result });
+  }
+
   // ⚠️ 旧 action（getStats / 默认 raw）已被 getDashboard 取代；明确返回错误避免误用
-  return jsonOut({ error: "Unknown action. Use getDashboard, getCharts, or getLogs." });
+  return jsonOut({ error: "Unknown action. Use getDashboard, getCharts, getLogs, or exportAll." });
 }
 
 // ==========================================
