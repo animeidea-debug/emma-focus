@@ -63,11 +63,16 @@
 | 2026-07-11 | 🆕 书房新摄像头 Study 就绪 | SATA13 → /mnt/source_study，720P HEVC |
 | 2026-07-11 | 📐 统一输出目录 | 所有文件输出到 export_videos/，命名规范 {Camera}_{YYYYMMDD}.mp4 |
 | 2026-07-11 | 🔗 合并旧书房+新书房 7/11 全天数据 | Xiaomi(上午23M) + Study(下午81M) → Study_20260711.mp4(104MB) |
+| 2026-07-12 | 🐛 fix: 白昼时段 09-21 时 + 日期提取只取起始时间戳 | merge_v2.sh: `-le 22`→`-le 21`，grep 只匹配起始日期 |
+| 2026-07-12 | 💾 GAS 数据备份系统 | exportAll action + backup_data.sh → CSV → NAS |
+| 2026-07-12 | 🎯 docker-compose volumes 持久化 | Study + backup 通过 WebDAV 同步 + compose 重启 |
 
 ## 最近提交
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-12 | `c7c576c` | 💾 数据备份: CSV 输出 + volume mapping | `docker-compose.yml`, `backup_data.sh` |
+| 2026-07-12 | `7a2b40a` | 🐛 fix: 白昼时段 21 时 + 起始日期 grep | `merge_v2.sh`, `livingroom_auto_merge.sh` |
 | 2026-07-11 | *(待 commit)* | 📝 更新文档 + 推送 | `docs/progress.md` |
 | 2026-07-11 | `e776886` | 🐛 fix: Pushover 通知汇总变量 | `run_all.sh` |
 | 2026-07-11 | `ba6cb6b` | 🐛 fix: site-backend volume 路径 | `infra/web/docker-compose.yml` |
@@ -194,8 +199,8 @@ WEBDAV_USER=garychen
 
 ### 待办
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
-- [ ] 将 docker-compose.yml 的 Study volume 写入 NAS 上的文件（防止重启丢失）
-- [ ] 清理旧 `run_all.sh` crontab 条目（22:00 已改为 run_v2.sh）
+- [ ] 在 root crontab 添加备份脚本: `0 8 * * * /tmp/.../scripts/backup_data.sh`
+- [ ] 清理 `crontab -e` 中残留的旧条目（/zspace/crontabs/root 才是有效的）
 - [ ] 其他项目（如 family-time-flow）的 `.clinerules` 同步更新为 `## [shared]` + `## [project]` 格式
 
 ## 测试状态
