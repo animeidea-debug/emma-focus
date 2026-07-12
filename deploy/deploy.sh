@@ -29,7 +29,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 加载 ~/.nas-env 本地共享配置（如果存在），不提交 git，所有项目共享
 [ -f ~/.nas-env ] && . ~/.nas-env
 
-NAS_USER="${NAS_USER:-garychen}"
+# WebDAV 用户: 用 WEBDAV_USER（来自 ~/.nas-env），不是 NAS_USER
+#   NAS_USER = NAS 系统账号 (13918962622) — 用于 SSH
+#   WEBDAV_USER = WebDAV 认证账号 (garychen) — 用于 rclone
+WEBDAV_USER="${WEBDAV_USER:-garychen}"
 NAS_IP="${NAS_IP:-192.168.6.108}"
 NAS_PORT="${NAS_WEBDAV_PORT:-8889}"
 NAS_TAILSCALE="${TAILSCALE_FUNNEL:-https://z4pro-xxel.tail1a5bb9.ts.net/}"
@@ -82,7 +85,7 @@ if ! rclone lsd emma-focus-webdav: --timeout 2s > /dev/null 2>&1; then
     rclone config delete emma-focus-webdav 2>/dev/null || true
     rclone config create emma-focus-webdav webdav \
         url "http://${NAS_IP}:${NAS_PORT}" \
-        vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+        vendor other user "$WEBDAV_USER" pass "$OBSCURED" > /dev/null 2>&1
 fi
 
 # Tailscale remote（独立，不共用）
@@ -90,7 +93,7 @@ if ! rclone lsd emma-focus-tailscale: --timeout 2s > /dev/null 2>&1; then
     rclone config delete emma-focus-tailscale 2>/dev/null || true
     rclone config create emma-focus-tailscale webdav \
         url "$NAS_TAILSCALE" \
-        vendor other user "$NAS_USER" pass "$OBSCURED" > /dev/null 2>&1
+        vendor other user "$WEBDAV_USER" pass "$OBSCURED" > /dev/null 2>&1
 fi
 
 unset OBSCURED
