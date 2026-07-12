@@ -96,15 +96,31 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
 
         echo "[$(date)] 🚀 开始处理 ${CAMERA} 日期 ${d} (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
 
-        # 提取该日期的所有文件
-        grep "$d" "$ALL_FILES_TMP" > "/tmp/v2_day_${CAMERA}_${d}.txt"
+        # 提取该日期的所有文件（只匹配文件名中的起始时间戳，避免跨日期视频被误分）
+        > "/tmp/v2_day_${CAMERA}_${d}.txt"
+        while IFS= read -r fpath; do
+            fname=$(basename "$fpath")
+            # 取起始时间戳中的日期（新款格式第二个字段，旧款直接取开头）
+            start_date=$(echo "$fname" | cut -d_ -f2 | grep -oE "^2026[0-9]{4}" | cut -c1-8)
+            [ -z "$start_date" ] && start_date=$(echo "$fname" | grep -oE "^2026[0-9]{4}" | head -1 | cut -c1-8)
+            [ "$start_date" = "$d" ] && echo "$fpath" >> "/tmp/v2_day_${CAMERA}_${d}.txt"
+        done < "$ALL_FILES_TMP"
 
-        # ⏭️ 最新日期跳过不完整的
+        # ⏭️ 最新日期跳过不完整的（只检查起始时间戳中下午13-21时）
         if [ "$d" = "$LATEST_DATE" ] && [ "$TEST_MODE" != "true" ]; then
-            # 检查是否有下午录像（文件名第2段中的小时13-22）
-            if ! grep -qE "(1[3-9]|2[0-2])[0-9]{4}_" "/tmp/v2_day_${CAMERA}_${d}.txt" 2>/dev/null && \
-               ! grep -qE "${d}(1[3-9]|2[0-2])" "/tmp/v2_day_${CAMERA}_${d}.txt" 2>/dev/null; then
-                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-22:59），跳过（待明日补全）。" >> "$LOG_FILE"
+            HAS_AFTERNOON=false
+            while IFS= read -r fpath; do
+                fname=$(basename "$fpath")
+                hour=$(echo "$fname" | cut -d_ -f2 | grep -oE "^2026[0-9]{4}([0-9]{2})" | sed "s/^2026[0-9]\{4\}//")
+                [ -z "$hour" ] && hour=$(echo "$fname" | grep -oE "^${d}([0-9]{2})" | sed "s/^${d}//")
+                H=$(echo "$hour" | sed "s/^0*//")
+                if [ -n "$H" ] && [ "$H" -ge 13 ] && [ "$H" -le 21 ]; then
+                    HAS_AFTERNOON=true
+                    break
+                fi
+            done < "/tmp/v2_day_${CAMERA}_${d}.txt"
+            if [ "$HAS_AFTERNOON" = false ]; then
+                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-21:59），跳过（待明日补全）。" >> "$LOG_FILE"
                 rm -f "/tmp/v2_day_${CAMERA}_${d}.txt"
                 continue
             fi
@@ -127,7 +143,7 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
                 hour_part=$(echo "$fname" | grep -oE "^2026[0-9]{4}([0-9]{2})" | sed "s/^2026[0-9]\{4\}//")
             fi
             H=$(echo "$hour_part" | sed "s/^0*//")
-            if [ -n "$H" ] && [ "$H" -ge 9 ] && [ "$H" -le 22 ]; then
+            if [ -n "$H" ] && [ "$H" -ge 9 ] && [ "$H" -le 21 ]; then
                 echo "$fpath" >> "/tmp/v2_daytime_${CAMERA}_${d}.txt"
             fi
         done < "/tmp/v2_day_${CAMERA}_${d}.txt"

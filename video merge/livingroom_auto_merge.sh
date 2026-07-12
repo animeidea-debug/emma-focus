@@ -83,8 +83,8 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
         # ⏭️ 如果是最新日期且尚无下午录像（13:00-22:59），跳过等待明天补全
         if [ "$d" = "$LATEST_DATE_LR" ] && [ "$TEST_MODE" != "true" ]; then
-            if ! grep -qE "${d}(1[3-9]|2[0-2])" /tmp/lr_temp_list.txt; then
-                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-22:59），跳过（待明日补全）。" >> "$LOG_FILE"
+            if ! grep -qE "${d}(1[3-9]|2[0-1])" /tmp/lr_temp_list.txt; then
+                echo "ℹ️ 最新日期 ${d} 尚无下午录像（13:00-21:59），跳过（待明日补全）。" >> "$LOG_FILE"
                 continue
             fi
         fi
@@ -95,7 +95,7 @@ docker exec -e LIVINGROOM_RES="$LIVINGROOM_RES" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" 
 
         > /tmp/lr_daytime_list.txt
         while read -r file; do
-            basename "$file" | grep -qE "^[0-9]+_2026[0-9]{4}(0[9-9]|1[0-9]|2[0-2])[0-9]{4}_" && echo "$file" >> /tmp/lr_daytime_list.txt
+            basename "$file" | grep -qE "^[0-9]+_2026[0-9]{4}(0[9-9]|1[0-9]|2[0-1])[0-9]{4}_" && echo "$file" >> /tmp/lr_daytime_list.txt
         done < /tmp/lr_temp_list.txt
 
         if [ ! -s /tmp/lr_daytime_list.txt ]; then
