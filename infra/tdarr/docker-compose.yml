@@ -53,3 +53,5 @@ services:
       - /tmp/zfsv3/sata13/13918962622/data/XiaomiCamera_01_B88880D304D1:/mnt/source_study:ro
       # 🧪 测试输出目录（TEST_MODE=true 时使用，不影响生产数据）
       - /tmp/zfsv3/nvme14/13918962622/data/export_videos_test:/mnt/export_videos_test
+      # 💾 数据备份目录（GAS Sheet 每日备份）
+      - /tmp/zfsv3/nvme14/13918962622/data/backups:/mnt/backups
