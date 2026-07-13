@@ -22,12 +22,16 @@ RESOLUTION="${RES:-2160}"
 CODEC="${CODEC:-hevc_qsv}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"
 MAX_HOUR="${MAX_HOUR:-21}"  # 白昼截止小时（Study=21, LivingRoom=23）
+SPEED="${SPEED:-30}"        # 倍速（Study=30, LivingRoom=15）
 
 # ---------- 引入通知 ----------
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/notify.sh"
 
-docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e MAX_HOUR="$MAX_HOUR" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
+# 在宿主机计算 setpts（容器内可能没有 bc）
+SETPTS=$(echo "scale=6; 1 / ${SPEED}" | bc 2>/dev/null || echo "0.033333")
+
+docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e MAX_HOUR="$MAX_HOUR" -e SPEED="$SPEED" -e SETPTS="$SETPTS" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
     OUTPUT_BASE="/mnt/export_videos"
     LOG_FILE="${OUTPUT_BASE}/merge_v2_${CAMERA}.log"
     RESULT_FILE="${OUTPUT_BASE}/result_v2_${CAMERA}.json"
@@ -53,8 +57,8 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
     VPP_W=$(( ${RESOLUTION} * 16 / 9 ))
     echo "VPP尺寸: ${VPP_W}x${VPP_H}" >> "$LOG_FILE"
 
-    echo "=== [${CAMERA}] ${RESOLUTION}P-30x-流水线启动: $(date) ===" >> "$LOG_FILE"
-    echo "配置: 源=${SOURCE_DIR} 分辨率=${RESOLUTION}p 编码=${CODEC} 日志轮转=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
+    echo "=== [${CAMERA}] ${RESOLUTION}P-${SPEED}x-流水线启动: $(date) ===" >> "$LOG_FILE"
+    echo "配置: 源=${SOURCE_DIR} 分辨率=${RESOLUTION}p 编码=${CODEC} 倍速=${SPEED}x 日志轮转=${MAX_LOG_SIZE}B" >> "$LOG_FILE"
 
     # ----- 扫描源文件 -----
     ALL_FILES_TMP="/tmp/v2_all_${CAMERA}.txt"
@@ -187,7 +191,7 @@ docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESO
             ffmpeg -y -hwaccel qsv -hwaccel_output_format qsv -loglevel warning -nostats -fflags +genpts+discardcorrupt \
                 -f concat -safe 0 \
                 -i "/tmp/v2_list_${CAMERA}_${d}.txt" \
-                -vf "vpp_qsv=w=${VPP_W}:h=${VPP_H},setpts=0.033333*PTS" \
+                -vf "vpp_qsv=w=${VPP_W}:h=${VPP_H},setpts=${SETPTS}*PTS" \
                 -an -c:v "${CODEC}" -preset veryfast -r 20 \
                 "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
 
