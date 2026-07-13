@@ -1,8 +1,8 @@
 #!/bin/sh
 # ==============================================================================
-# 💾 Emma Focus — Google Sheets 数据备份脚本 (CSV 格式)
+# 💾 Emma Focus — 本地 SQLite 数据备份脚本 (CSV 格式)
 #
-# 每天 08:00 执行，将 Google Spreadsheet 所有数据表导出为 CSV 文件。
+# 迁移后直接备份容器内的 SQLite 数据库，不再调用 GAS API。
 #
 # cron: 0 8 * * * /tmp/zfsv3/nvme14/13918962622/data/scripts/backup_data.sh
 #
@@ -16,50 +16,25 @@ TODAY=$(date +%Y%m%d)
 OUTPUT_DIR="${BACKUP_BASE}/${TODAY}"
 mkdir -p "$OUTPUT_DIR"
 
-API_TOKEN="emma2026_secure"
-
-# GAS 部署 ID（@28，含 exportAll action）
-GAS_DEPLOY_ID="AKfycbwdRAkRUJpNDD94-yf5tfPgM5j9LlIMiRfqUjamj7M1peDq7awf7d7XADfnkeFZ8F2E-w"
-GAS_URL="https://script.google.com/macros/s/${GAS_DEPLOY_ID}/exec"
-
 echo "[backup] 🚀 开始备份 ${TODAY}"
 
-# 获取 JSON 数据
-JSON_FILE="/tmp/emma_backup_${TODAY}.json"
-HTTP_CODE=$(curl -sL -o "$JSON_FILE" -w "%{http_code}" \
-    --connect-timeout 15 --max-time 60 \
-    "${GAS_URL}?action=exportAll&token=${API_TOKEN}" 2>&1)
+# 从容器内 SQLite 导出所有表为 CSV
+DOCKER_CMD="/usr/bin/docker exec site_backend"
+SQLITE_CMD="sqlite3 /app/data/poc.db"
 
-if [ "$HTTP_CODE" != "200" ] || [ ! -s "$JSON_FILE" ]; then
-    echo "[backup] ❌ GAS API 返回 HTTP ${HTTP_CODE}" >&2
-    rm -f "$JSON_FILE"
-    exit 1
-fi
+# 需要导出的表
+TABLES="evaluations activity_logs token_transactions redeem_items app_config"
 
-# 验证 JSON 并生成 CSV
-python3 -c "
-import json, csv, os
-
-with open('${JSON_FILE}') as f:
-    raw = json.load(f)
-
-data = raw.get('data', raw)
-output_dir = '${OUTPUT_DIR}'
-
-for table_name, rows in data.items():
-    if not rows or not isinstance(rows, list):
-        continue
-    headers = list(rows[0].keys())
-    csv_path = os.path.join(output_dir, f'{table_name}.csv')
-    with open(csv_path, 'w', newline='', encoding='utf-8') as out:
-        w = csv.writer(out)
-        w.writerow(headers)
-        for row in rows:
-            w.writerow([str(row.get(h, '')).replace('\n', ' ') for h in headers])
-    print(f'  ✅ {table_name}.csv ({len(rows)} rows)')
-" 2>&1
-
-rm -f "$JSON_FILE"
+for table in $TABLES; do
+    $DOCKER_CMD sh -c "$SQLITE_CMD -header -csv \"SELECT * FROM $table;\"" > "${OUTPUT_DIR}/${table}.csv" 2>/dev/null
+    if [ $? -eq 0 ] && [ -s "${OUTPUT_DIR}/${table}.csv" ]; then
+        rows=$(wc -l < "${OUTPUT_DIR}/${table}.csv")
+        echo "  ✅ ${table}.csv ($((rows - 1)) rows)"
+    else
+        echo "  ⚠️  ${table}.csv 为空或导出失败"
+        echo "Date,Day_Type,Time_Start,Time_End,Focus_Blocks,Distractions,Eye_Rest_Minutes,Note,Absent" > "${OUTPUT_DIR}/${table}.csv"
+    fi
+done
 
 # 统计
 TOTAL_FILES=$(ls "$OUTPUT_DIR"/*.csv 2>/dev/null | wc -l)

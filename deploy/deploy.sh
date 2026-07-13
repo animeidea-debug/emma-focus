@@ -197,6 +197,15 @@ if [ -d "${SCRIPT_DIR}/../infra/web/html/poc" ]; then
     echo "  ✅ poc/"
 fi
 
+# ----- 6b. 同步后端 Python 文件 -----
+echo ""
+echo -e "${YELLOW}📄 同步后端...${NC}"
+if [ -d "${SCRIPT_DIR}/../infra/web/backend" ]; then
+    rclone sync "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/" \
+        --exclude "*.pyc" --exclude "__pycache__" --exclude ".gitkeep" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ backend/"
+fi
+
 # ----- 7. 完成 -----
 END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
