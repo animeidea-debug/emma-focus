@@ -12,7 +12,9 @@
 
 ## 自动部署
 每次完成代码修改后自动执行（无需询问）：
-1. `sh deploy/deploy.sh`  # NAS 部署（WebDAV）
+1. `cd gas && clasp push`   # GAS 后端部署
+2. `sh deploy/deploy.sh`    # NAS 部署（脚本 + HTML，不涉及 docker compose）
+3. **Docker Compose 文件**由 `NAS` 项目的 `deploy/deploy.sh` 管理
 
 ⚠️ `deploy.sh` 连接策略（含指数退避重试）：
    - **内网环境**（检测到 192.168.x.x）→ 4 次重试 LAN WebDAV（2s/4s/8s/16s），不尝试 Tailscale
@@ -64,15 +66,25 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
 # [project] — Emma Focus 项目特定规则
 # ==============================================================================
 
+## 🔗 依赖的外部项目
+
+| 项目 | 用途 | 说明 |
+|:----|:-----|:------|
+| `NAS` (animeidea-debug/nas-infra) | 基础设施管理 | 所有 docker-compose.yml、nginx.conf 由 NAS 项目统一部署 |
+| `infra-template` (animeidea-debug/infra-template) | 共享模板 | clinerules 单一真源 |
+
+**⚠️ 修改任何 docker-compose.yml 或 nginx.conf 后，需到 NAS 项目执行其 deploy.sh 才能生效。**
+
 ## Mac 启动流程
 每次使用 Mac 时，首先执行同步：
 1. `git pull`                # 拉取最新代码
-2. `sh deploy/deploy.sh`     # NAS 同步
+2. `sh deploy/deploy.sh`     # NAS 同步（脚本 + HTML）
 
 ## 部署流程
 每次修改 HTML/脚本后，自动执行（无需询问）：
 1. `cd gas && clasp push`   # GAS 后端部署
-2. `sh deploy/deploy.sh`    # NAS 同步
+2. `sh deploy/deploy.sh`    # NAS 同步（脚本 + HTML）
+3. 如修改了 docker-compose：切换到 `~/Desktop/NAS` → `sh deploy/deploy.sh`
 
 ## 凭证管理（Emma Focus 特定）
 - WebDAV（emma-webdav/garychen）已写入 Keychain

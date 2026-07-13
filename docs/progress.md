@@ -27,7 +27,8 @@
 | **V2 总控** | `run_v2.sh` | 🆕 待验证 | 2026-07-10 | 手动运行，cron 待设 |
 | **V2 测试** | `test_v2.sh` | 🆕 待验证 | 2026-07-10 | `TEST_MODE=true sh test_v2.sh` |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 配置完成 | — | Keychain + `.env` |
-| **WebDAV 部署容器** | `infra/webdav/docker-compose.yml` | ✅ docker-compose 管理 | 2026-07-09 | `docker compose up -d` |
+| **基础设施 (Docker Compose)** | `(由 NAS 项目管理)` | ✅ NAS 项目 | 2026-07-13 | `../NAS/deploy/deploy.sh` |
+| **WebDAV 部署容器** | `infra/webdav/docker-compose.yml` | ✅ 保留引用 | 2026-07-09 | `docker compose up -d` |
 
 ## 摄像头配置
 
@@ -66,6 +67,10 @@
 | 2026-07-12 | 🐛 fix: 白昼时段 09-21 时 + 日期提取只取起始时间戳 | merge_v2.sh: `-le 22`→`-le 21`，grep 只匹配起始日期 |
 | 2026-07-12 | 💾 GAS 数据备份系统 | exportAll action + backup_data.sh → CSV → NAS |
 | 2026-07-12 | 🎯 docker-compose volumes 持久化 | Study + backup 通过 WebDAV 同步 + compose 重启 |
+| 2026-07-13 | 🗂️ 输出按中文目录分类（书房/客厅） | merge_v2.sh + run_v2.sh + NAS 文件迁移 |
+| 2026-07-13 | ⚡ LivingRoom 15x 倍速 | SPEED 参数化，Study=30x, LR=15x |
+| 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步，由独立仓库管理 |
+| 2026-07-13 | 🧪 测试通过（30x + 15x） | Study 4.4MB/140s + LivingRoom 95MB/78s |
 
 ## 最近提交
 
@@ -73,7 +78,11 @@
 |------|--------|------|---------|
 | 2026-07-12 | `c7c576c` | 💾 数据备份: CSV 输出 + volume mapping | `docker-compose.yml`, `backup_data.sh` |
 | 2026-07-12 | `7a2b40a` | 🐛 fix: 白昼时段 21 时 + 起始日期 grep | `merge_v2.sh`, `livingroom_auto_merge.sh` |
-| 2026-07-11 | *(待 commit)* | 📝 更新文档 + 推送 | `docs/progress.md` |
+| 2026-07-13 | `70f4d77` | 🔄 deploy.sh 移除 docker compose，由 NAS 项目接管 | `deploy.sh` |
+| 2026-07-13 | `486cc1c` | 🔄 deploy.sh infra 路径引用 ../NAS/infra/ | `deploy.sh` |
+| 2026-07-13 | `9f72f54` | 📁 输出按中文目录分类（书房/客厅） | `merge_v2.sh`, `run_v2.sh` |
+| 2026-07-13 | `c45fd6e` | ⚡ LivingRoom 15x 倍速 + SPEED 参数化 | `merge_v2.sh`, `run_v2.sh` |
+| 2026-07-12 | *(待 commit)* | 📝 更新文档 + 推送 | `docs/progress.md` |
 | 2026-07-11 | `e776886` | 🐛 fix: Pushover 通知汇总变量 | `run_all.sh` |
 | 2026-07-11 | `ba6cb6b` | 🐛 fix: site-backend volume 路径 | `infra/web/docker-compose.yml` |
 | 2026-07-11 | `dee2142` | 🆕 书房新摄像头验证通过 720P | `run_v2.sh` |
