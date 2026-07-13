@@ -13,6 +13,81 @@ from datetime import datetime
 
 DB_PATH = sys.argv[2] if len(sys.argv) > 2 else "/app/data/poc.db"
 
+def ensure_tables(conn):
+    """Create tables if they don't exist (mirrors poc_main.py init_db)."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS evaluations (
+            date TEXT PRIMARY KEY,
+            day_type TEXT DEFAULT '',
+            start_time TEXT DEFAULT '',
+            end_time TEXT DEFAULT '',
+            focus_blocks INTEGER DEFAULT 0,
+            distractions INTEGER DEFAULT 0,
+            eye_rest_minutes INTEGER DEFAULT 0,
+            rating TEXT DEFAULT '',
+            summary TEXT DEFAULT '',
+            note TEXT DEFAULT '',
+            absent INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'gray',
+            tokens_net INTEGER DEFAULT 0,
+            bucket_focus INTEGER DEFAULT 0,
+            bucket_coaching INTEGER DEFAULT 0,
+            bucket_screen INTEGER DEFAULT 0,
+            bucket_activity INTEGER DEFAULT 0,
+            bucket_eyerest INTEGER DEFAULT 0,
+            bucket_distraction INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            stage_name TEXT DEFAULT '',
+            category TEXT DEFAULT '',
+            duration INTEGER DEFAULT 0,
+            start_time TEXT DEFAULT '',
+            end_time TEXT DEFAULT '',
+            note TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS tokens (
+            silver_balance INTEGER DEFAULT 0,
+            gold_balance INTEGER DEFAULT 0,
+            exchange_rate INTEGER DEFAULT 5
+        );
+        CREATE TABLE IF NOT EXISTS token_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            silver_delta INTEGER DEFAULT 0,
+            gold_delta INTEGER DEFAULT 0,
+            silver_balance INTEGER DEFAULT 0,
+            gold_balance INTEGER DEFAULT 0,
+            note TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS redeem_items (
+            item_id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            coin_type TEXT NOT NULL,
+            cost INTEGER NOT NULL,
+            active INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS api_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            action TEXT NOT NULL,
+            ip TEXT DEFAULT '',
+            payload TEXT DEFAULT ''
+        );
+        INSERT OR IGNORE INTO tokens (silver_balance, gold_balance, exchange_rate) VALUES (0, 0, 5);
+        INSERT OR IGNORE INTO app_config (key, value) VALUES ('exchange_rate', '5');
+    """)
+    conn.commit()
+
 def load_json(path):
     with open(path) as f:
         raw = json.load(f)
@@ -202,6 +277,7 @@ def main():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
 
+    ensure_tables(conn)
     clear_db(conn)
     import_data(conn, data)
     verify(conn)

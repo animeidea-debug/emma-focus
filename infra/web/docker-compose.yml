@@ -25,7 +25,7 @@ services:
     networks:
       - site_network
 
-  # ===== Emma Focus 后端（含 PoC）=====
+  # ===== Emma Focus 后端 =====
   site-backend:
     image: python:3.10-alpine
     container_name: site_backend
@@ -33,12 +33,10 @@ services:
       - "${EMMA_PORT:-5000}:80"
     volumes:
       - ./backend:/app
+      - ./backend/data:/app/data
     working_dir: /app
     command: >
-      sh -c "pip install fastapi uvicorn -q &&
-             python3 -m uvicorn main:app --host 0.0.0.0 --port 80 &
-             python3 -m uvicorn poc_main:app --host 0.0.0.0 --port 81 &
-             wait"
+      sh -c "pip install fastapi uvicorn python-multipart -q && nohup python3 -m uvicorn poc_main:app --host 0.0.0.0 --port 81 > /tmp/poc.log 2>&1 & nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 80 > /tmp/main.log 2>&1 & wait"
     restart: always
     networks:
       - site_network
