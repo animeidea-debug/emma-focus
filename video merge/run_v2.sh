@@ -36,8 +36,8 @@ ALL_FAIL=0
 pushover_notify "Video Merge V2" "🚀 V2 合并开始 | ${TODAY}"
 
 # ----- 定义摄像头列表 -----
-# 格式：CAMERA_NAME:SOURCE_DIR:RES:CODEC:MAX_HOUR:SPEED
-CAMERAS="Study:/mnt/source_study:720:hevc_qsv:21:30 LivingRoom:/mnt/source_videos_livingroom:2160:hevc_qsv:23:15"
+# 格式：CAMERA_NAME:SOURCE_DIR:RES:CODEC:MAX_HOUR:SPEED:LABEL
+CAMERAS="Study:/mnt/source_study:720:hevc_qsv:21:30:书房 LivingRoom:/mnt/source_videos_livingroom:2160:hevc_qsv:23:15:客厅"
 
 for camera_config in $CAMERAS; do
     CAMERA=$(echo "$camera_config" | cut -d: -f1)
@@ -46,10 +46,11 @@ for camera_config in $CAMERAS; do
     CODEC=$(echo "$camera_config" | cut -d: -f4)
     MAX_HOUR=$(echo "$camera_config" | cut -d: -f5)
     SPEED=$(echo "$camera_config" | cut -d: -f6)
+    LABEL=$(echo "$camera_config" | cut -d: -f7)
 
     echo ""
-    echo "▶️ 正在处理【${CAMERA}】(${SPEED}x 白昼 09-${MAX_HOUR}时)..."
-    CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" sh "$SCRIPT_DIR/merge_v2.sh"
+    echo "▶️ 正在处理【${LABEL}】(${SPEED}x 白昼 09-${MAX_HOUR}时)..."
+    CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" CAMERA_LABEL="$LABEL" sh "$SCRIPT_DIR/merge_v2.sh"
     EXIT_CODE=$?
 
     RESULT_FILE="${NAS_DATA}/export_videos/result_v2_${CAMERA}.json"

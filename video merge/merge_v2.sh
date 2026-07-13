@@ -23,6 +23,7 @@ CODEC="${CODEC:-hevc_qsv}"
 MAX_LOG_SIZE="${MAX_LOG_SIZE:-10485760}"
 MAX_HOUR="${MAX_HOUR:-21}"  # 白昼截止小时（Study=21, LivingRoom=23）
 SPEED="${SPEED:-30}"        # 倍速（Study=30, LivingRoom=15）
+CAMERA_LABEL="${CAMERA_LABEL:-$CAMERA}"  # 输出子目录（书房/客厅）
 
 # ---------- 引入通知 ----------
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -31,10 +32,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # 在宿主机计算 setpts（容器内可能没有 bc）
 SETPTS=$(echo "scale=6; 1 / ${SPEED}" | bc 2>/dev/null || echo "0.033333")
 
-docker exec -e CAMERA="$CAMERA" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e MAX_HOUR="$MAX_HOUR" -e SPEED="$SPEED" -e SETPTS="$SETPTS" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
-    OUTPUT_BASE="/mnt/export_videos"
-    LOG_FILE="${OUTPUT_BASE}/merge_v2_${CAMERA}.log"
-    RESULT_FILE="${OUTPUT_BASE}/result_v2_${CAMERA}.json"
+docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$SOURCE_DIR" -e RESOLUTION="$RESOLUTION" -e CODEC="$CODEC" -e MAX_LOG_SIZE="$MAX_LOG_SIZE" -e MAX_HOUR="$MAX_HOUR" -e SPEED="$SPEED" -e SETPTS="$SETPTS" -e TEST_MODE="$TEST_MODE" tdarr_node sh -c '
+    OUTPUT_BASE="/mnt/export_videos/${CAMERA_LABEL}"
+    mkdir -p "$OUTPUT_BASE"
+    LOG_FILE="/mnt/export_videos/merge_v2_${CAMERA}.log"
+    RESULT_FILE="/mnt/export_videos/result_v2_${CAMERA}.json"
 
     if [ "$TEST_MODE" = "true" ]; then
         OUTPUT_BASE="/mnt/export_videos_test/${CAMERA}"
