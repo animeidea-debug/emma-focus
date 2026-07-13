@@ -13,6 +13,7 @@ services:
       - /tmp/zfsv3/nvme14/13918962622/data/tdarr:/data/tdarr
       - /tmp/zfsv3/nvme14/13918962622/data/webdav:/data/webdav
       - /tmp/zfsv3/nvme14/13918962622/data/watchtower:/data/watchtower
+      - /tmp/zfsv3/nvme14/13918962622/data/tailscale:/data/tailscale
       - /tmp/zfsv3/sata11/13918962622/data/06_Docker/Immich:/data/immich
     # ⚠️ rclone 镜像的 ENTRYPOINT 是 rclone，不能用 sh -c 包装
     # 直接用 --user/--pass 参数（密码从同目录 .env 文件读取）

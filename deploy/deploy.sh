@@ -16,10 +16,8 @@
 # 目标路径（WebDAV 容器 clinedeploy-rclone-webdav, serve webdav /data）：
 #   video merge/*      → /scripts/          → host scripts/
 #   index.html/admin   → /docker/html/      → host docker/html
-#   infra (来自 ../NAS/infra/):
-#     web/*             → /docker/           → host docker/
-#   infra/tdarr/*      → /tdarr/            → host tdarr/
-#   infra/webdav/*     → /webdav/           → host webdav/
+#   ⚠️ Docker Compose 文件由 NAS 项目的 deploy/deploy.sh 管理
+#      本脚本不涉及任何 docker-compose.yml 的同步
 #
 # 用法：
 #   sh deploy.sh
@@ -193,38 +191,7 @@ for f in index.html admin.html; do
     fi
 done
 
-# ----- 7. 同步 infra -----
-echo ""
-echo -e "${YELLOW}📄 同步 infra...${NC}"
-if [ -f "${SCRIPT_DIR}/../NAS/infra/web/nginx.conf" ]; then
-    rclone copy "${SCRIPT_DIR}/../NAS/infra/web/nginx.conf" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ web/nginx.conf"
-fi
-if [ -f "${SCRIPT_DIR}/../NAS/infra/web/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../NAS/infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ web/docker-compose.yml"
-fi
-if [ -f "${SCRIPT_DIR}/../NAS/infra/tdarr/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../NAS/infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ tdarr/docker-compose.yml"
-fi
-if [ -f "${SCRIPT_DIR}/../NAS/infra/webdav/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../NAS/infra/webdav/docker-compose.yml" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ webdav/docker-compose.yml"
-    # 同步 webdav .env（密码由同目录 .env 文件提供）
-    rclone copy "${SCRIPT_DIR}/../NAS/infra/webdav/.env" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ webdav/.env"
-    # 重启 webdav 容器使新配置生效
-    if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
-        retry_with_backoff 3 2 ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
-            -p 10000 13918962622@192.168.6.108 \
-            "docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml down 2>/dev/null; docker compose -f /tmp/zfsv3/nvme14/13918962622/data/webdav/docker-compose.yml up -d 2>&1" 2>/dev/null && \
-        echo -e "${GREEN}✅ webdav 容器已重启${NC}" || \
-        echo -e "${YELLOW}⚠️  无法重启 webdav 容器（需手动 docker compose up -d）${NC}"
-    fi
-fi
-
-# ----- 8. 完成 -----
+# ----- 7. 完成 -----
 END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 
