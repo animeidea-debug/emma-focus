@@ -12,9 +12,11 @@
 
 ## 自动部署
 每次完成代码修改后自动执行（无需询问）：
-1. `cd gas && clasp push`   # GAS 后端部署
-2. `sh deploy/deploy.sh`    # NAS 部署（脚本 + HTML，不涉及 docker compose）
-3. **Docker Compose 文件**由 `NAS` 项目的 `deploy/deploy.sh` 管理
+1. `sh deploy/deploy.sh`    # NAS 部署（同步 scripts + HTML + 后端 .py）
+2. **Docker Compose / nginx** 由 `NAS` 项目管理
+   - 修改 `NAS/infra/web/docker-compose.yml` 或 `NAS/infra/web/nginx.conf` 后
+   - 需执行 `cd ~/Desktop/NAS && sh deploy/deploy.sh web` 才能生效
+3. **GAS 已退役**（2026-07-14），不再执行 `clasp push`
 
 ⚠️ `deploy.sh` 连接策略（含指数退避重试）：
    - **内网环境**（检测到 192.168.x.x）→ 4 次重试 LAN WebDAV（2s/4s/8s/16s），不尝试 Tailscale
@@ -81,10 +83,11 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
 2. `sh deploy/deploy.sh`     # NAS 同步（脚本 + HTML）
 
 ## 部署流程
-每次修改 HTML/脚本后，自动执行（无需询问）：
-1. `cd gas && clasp push`   # GAS 后端部署
-2. `sh deploy/deploy.sh`    # NAS 同步（脚本 + HTML）
-3. 如修改了 docker-compose：切换到 `~/Desktop/NAS` → `sh deploy/deploy.sh`
+每次修改 HTML/脚本/后端代码后，自动执行（无需询问）：
+1. `sh deploy/deploy.sh`    # NAS 同步（脚本 + HTML + 后端 .py）
+2. 如修改了 docker-compose 或 nginx.conf：
+   切换到 `~/Desktop/NAS` → `git pull && sh deploy/deploy.sh web`
+3. GAS 已退役（2026-07-14），不再需要 `clasp push`
 
 ## 凭证管理（Emma Focus 特定）
 - WebDAV（emma-webdav/garychen）已写入 Keychain
@@ -92,7 +95,8 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
 
 ## 跨机器协作
 - 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
-- 这边改动后自动 `cd gas && clasp push + sh deploy/deploy.sh`
+- 这边改动后自动 `sh deploy/deploy.sh`
+- 如果改了 compose/nginx，还需 `cd ~/Desktop/NAS && git pull && sh deploy/deploy.sh web`
 - 项目状态见 `docs/progress.md`
 
 ## Windows 首次设置
