@@ -134,7 +134,7 @@
         let currentData = {};
         let isBatchMode = false;
         let validationError = null;
-        const API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
+        const API_URL = window.location.origin + '/api/poc';
         const API_TOKEN = "emma2026_secure";
 
         // Gemini Prompt 复制功能
@@ -280,17 +280,19 @@
             }
             let payload;
             if (isBatchMode) {
-                payload = { token: API_TOKEN, batch: currentData.batch };
+                payload = { action: 'batch', batch: currentData.batch };
             } else {
                 payload = {
-                    token: API_TOKEN,
+                    action: 'evaluate',
                     date: currentData.evaluations.Date,
-                    ...currentData
+                    ...currentData,
+                    token: undefined
                 };
             }
 
-            const res = await fetch(API_URL, {
+            const res = await fetch(API_URL + '/generic', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             const result = await res.json();
@@ -336,7 +338,7 @@
             const box = document.getElementById('redeemItemsList');
             box.innerHTML = '<div class="text-slate-500 italic">加载中…</div>';
             try {
-                const res = await fetch(`${API_URL}?token=${API_TOKEN}&action=getRedeemItems`);
+                const res = await fetch(`${API_URL}/redeem-items`);
                 const data = await res.json();
                 // 服务端错误（如 Unauthorized）会以 {error: "..."} 返回，而不是数组
                 if (data && data.error) {
@@ -411,9 +413,10 @@
             const invalid = items.find(i => !i.itemId);
             if (invalid) { alert('所有 ItemId 不能为空'); return; }
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
-                    body: JSON.stringify({ token: API_TOKEN, action: 'upsertRedeemItems', items })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'upsertRedeemItems', items })
                 });
                 const r = await res.json();
                 if (r.error) { alert('保存失败：' + r.error); return; }
@@ -439,9 +442,10 @@
                 { itemId: 'outing', label: '🏞️ 周末外出活动', description: '公园 / 商场 / 朋友家', coinType: 'gold', cost: 1, sort: 120, active: true }
             ];
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
-                    body: JSON.stringify({ token: API_TOKEN, action: 'upsertRedeemItems', items: defaults })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'upsertRedeemItems', items: defaults })
                 });
                 const r = await res.json();
                 if (r.error) { alert('失败：' + r.error); return; }
@@ -484,9 +488,10 @@
             statusBox.innerText = '提交中…';
             statusBox.classList.remove('hidden');
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
-                    body: JSON.stringify({ token: API_TOKEN, action: 'markAbsent', date })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'markAbsent', date })
                 });
                 const result = await res.json();
                 if (result.error) {
@@ -507,7 +512,7 @@
         // ============================================================
         async function loadExchangeRate() {
             try {
-                const res = await fetch(`${API_URL}?token=${API_TOKEN}&action=getExchangeRate`);
+                const res = await fetch(`${API_URL}/exchange-rate`);
                 const data = await res.json();
                 if (data && data.rate) {
                     document.getElementById('exchangeRateInput').value = data.rate;
@@ -531,9 +536,10 @@
             statusBox.innerText = '保存中…';
             statusBox.classList.remove('hidden');
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
-                    body: JSON.stringify({ token: API_TOKEN, action: 'setExchangeRate', rate })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'setExchangeRate', rate })
                 });
                 const result = await res.json();
                 if (result.error) {

@@ -191,6 +191,12 @@ for f in index.html admin.html; do
     fi
 done
 
+# PoC 测试页面
+if [ -d "${SCRIPT_DIR}/../infra/web/html/poc" ]; then
+    rclone sync "${SCRIPT_DIR}/../infra/web/html/poc/" "${REMOTE}:/docker/html/poc/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ poc/"
+fi
+
 # ----- 7. 完成 -----
 END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))

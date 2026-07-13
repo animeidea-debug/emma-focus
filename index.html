@@ -569,8 +569,7 @@
         // ==========================================
         // 云端配置区
         // ==========================================
-        const GOOGLE_API_URL = "https://script.google.com/macros/s/AKfycbwgll7iC0nSzK3IKXR0zlYu6Hh-5uChrj96gcHBmqvEp0dWOUsvizZmrzJmub0V7aDf1Q/exec";
-        const API_TOKEN = "emma2026_secure";
+        const GOOGLE_API_URL = window.location.origin + '/api/poc';
         const LOG_CACHE = new Map();
 
         let currentYear = null;
@@ -786,7 +785,7 @@
             }
             try {
                 const data = await fetch(
-                    `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard&ym=${ym}`
+                    `${GOOGLE_API_URL}/dashboard?ym=${ym}`
                 ).then(r => r.json());
                 if (data && !data.error) {
                     MONTH_DATA_CACHE[ym] = data;
@@ -798,7 +797,7 @@
 
         async function loadData(ym) {
             try {
-                const url = `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard` + (ym ? `&ym=${ym}` : "");
+                const url = `${GOOGLE_API_URL}/dashboard` + (ym ? `?ym=${ym}` : "");
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.error || !data.days) {
@@ -820,7 +819,7 @@
             const next = deltaYM(ym, 1);
             [prev, next].forEach(targetYM => {
                 if (!MONTH_DATA_CACHE[targetYM] && !lsGet(targetYM)) {
-                    fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getDashboard&ym=${targetYM}`)
+                    fetch(`${GOOGLE_API_URL}/dashboard?ym=${targetYM}`)
                         .then(r => r.json())
                         .then(data => {
                             if (data && !data.error) {
@@ -835,7 +834,7 @@
 
         async function loadCharts() {
             try {
-                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getCharts`);
+                const res = await fetch(`${GOOGLE_API_URL}/charts`);
                 CHART_DATA = await res.json();
                 if (CHART_DATA && CHART_DATA.error) {
                     CHART_DATA = null;
@@ -881,7 +880,7 @@
 
         async function loadTokens() {
             try {
-                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getTokens`);
+                const res = await fetch(`${GOOGLE_API_URL}/tokens`);
                 const data = await res.json();
                 if (data && !data.error) TOKEN_DATA = data;
                 else { TOKEN_DATA = { silverBalance: 0, goldBalance: 0, transactions: [] }; }
@@ -892,7 +891,7 @@
 
         async function loadRedeemItems() {
             try {
-                const res = await fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getRedeemItems`);
+                const res = await fetch(`${GOOGLE_API_URL}/redeem-items`);
                 const data = await res.json();
                 REDEEM_ITEMS = Array.isArray(data) ? data : [];
             } catch (err) {
@@ -1031,9 +1030,10 @@
             // No button ID available for withLoading, so manually disable all redeem buttons
             document.querySelectorAll('.redeem-btn').forEach(b => b.disabled = true);
             try {
-                const res = await fetch(GOOGLE_API_URL, {
+                const res = await fetch(GOOGLE_API_URL + '/generic', {
                     method: 'POST',
-                    body: JSON.stringify({ token: API_TOKEN, action: 'redeem', itemId })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'redeem', itemId })
                 });
                 const result = await res.json();
                 if (result.error) { alert("兑换失败：" + result.error); return; }
@@ -1110,9 +1110,10 @@
                 if (!pin) { errBox.innerText = '请输入密码'; errBox.classList.remove('hidden'); return; }
                 if (amount < 1) { errBox.innerText = '数量必须 ≥ 1'; errBox.classList.remove('hidden'); return; }
                 try {
-                    const res = await fetch(GOOGLE_API_URL, {
+                    const res = await fetch(GOOGLE_API_URL + '/generic', {
                         method: 'POST',
-                        body: JSON.stringify({ token: API_TOKEN, action: 'bonus', pin, coinType, amount, reason })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'bonus', pin, coinType, amount, reason })
                     });
                     const result = await res.json();
                     if (result.error) {
@@ -1227,8 +1228,8 @@
                 // 同时拉取汇率和余额
                 try {
                     const [rateRes, tokenRes] = await Promise.all([
-                        fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getExchangeRate`),
-                        fetch(`${GOOGLE_API_URL}?token=${API_TOKEN}&action=getTokens`)
+                        fetch(`${GOOGLE_API_URL}/exchange-rate`),
+                        fetch(`${GOOGLE_API_URL}/tokens`)
                     ]);
                     const rateData = await rateRes.json();
                     const tokenData = await tokenRes.json();
@@ -1263,9 +1264,10 @@
                 const amt = Number(amountSelect.value) || 0;
                 if (!amt) { errBox.innerText = '请选择交换数量'; errBox.classList.remove('hidden'); return; }
                 try {
-                    const res = await fetch(GOOGLE_API_URL, {
+                    const res = await fetch(GOOGLE_API_URL + '/generic', {
                         method: 'POST',
-                        body: JSON.stringify({ token: API_TOKEN, action: 'exchange', direction: dir, amount: amt })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'exchange', direction: dir, amount: amt })
                     });
                     const result = await res.json();
                     if (result.error) {
@@ -1913,7 +1915,7 @@
                 return;
             }
             try {
-                const url = `${GOOGLE_API_URL}?token=${API_TOKEN}&action=getLogs&date=${dateStr}`;
+                const url = `${GOOGLE_API_URL}/logs?date=${dateStr}`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error("Network error");
                 const logs = await response.json();
