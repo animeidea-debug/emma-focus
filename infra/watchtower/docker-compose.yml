@@ -8,7 +8,8 @@ services:
     environment:
       - WATCHTOWER_NOTIFICATIONS=shoutrrr
       - WATCHTOWER_NOTIFICATION_URL=pushover://shoutrrr:ah3j24se726qrbq8q2xrag8kqxiobe@u52wpbjtdoxg19wxah39ahe5g34eqp
-      - WATCHTOWER_NOTIFICATION_ONLY=true
+      - WATCHTOWER_MONITOR_ONLY=true
       - WATCHTOWER_SCHEDULE=0 0 2 * * *
       - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_NOTIFICATION_REPORT=always
       - TZ=Asia/Shanghai
