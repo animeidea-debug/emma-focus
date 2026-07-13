@@ -11,5 +11,4 @@ services:
       - WATCHTOWER_MONITOR_ONLY=true
       - WATCHTOWER_SCHEDULE=0 0 2 * * *
       - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_NOTIFICATION_REPORT=always
       - TZ=Asia/Shanghai

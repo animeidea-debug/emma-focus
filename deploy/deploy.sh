@@ -16,7 +16,8 @@
 # 目标路径（WebDAV 容器 clinedeploy-rclone-webdav, serve webdav /data）：
 #   video merge/*      → /scripts/          → host scripts/
 #   index.html/admin   → /docker/html/      → host docker/html
-#   infra/web/*        → /docker/           → host docker/
+#   infra (来自 ../NAS/infra/):
+#     web/*             → /docker/           → host docker/
 #   infra/tdarr/*      → /tdarr/            → host tdarr/
 #   infra/webdav/*     → /webdav/           → host webdav/
 #
@@ -195,23 +196,23 @@ done
 # ----- 7. 同步 infra -----
 echo ""
 echo -e "${YELLOW}📄 同步 infra...${NC}"
-if [ -f "${SCRIPT_DIR}/../infra/web/nginx.conf" ]; then
-    rclone copy "${SCRIPT_DIR}/../infra/web/nginx.conf" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../NAS/infra/web/nginx.conf" ]; then
+    rclone copy "${SCRIPT_DIR}/../NAS/infra/web/nginx.conf" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ web/nginx.conf"
 fi
-if [ -f "${SCRIPT_DIR}/../infra/web/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../NAS/infra/web/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../NAS/infra/web/docker-compose.yml" "${REMOTE}:/docker/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ web/docker-compose.yml"
 fi
-if [ -f "${SCRIPT_DIR}/../infra/tdarr/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../NAS/infra/tdarr/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../NAS/infra/tdarr/docker-compose.yml" "${REMOTE}:/tdarr/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ tdarr/docker-compose.yml"
 fi
-if [ -f "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" ]; then
-    rclone copy "${SCRIPT_DIR}/../infra/webdav/docker-compose.yml" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+if [ -f "${SCRIPT_DIR}/../NAS/infra/webdav/docker-compose.yml" ]; then
+    rclone copy "${SCRIPT_DIR}/../NAS/infra/webdav/docker-compose.yml" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ webdav/docker-compose.yml"
     # 同步 webdav .env（密码由同目录 .env 文件提供）
-    rclone copy "${SCRIPT_DIR}/../infra/webdav/.env" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    rclone copy "${SCRIPT_DIR}/../NAS/infra/webdav/.env" "${REMOTE}:/webdav/" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ webdav/.env"
     # 重启 webdav 容器使新配置生效
     if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
