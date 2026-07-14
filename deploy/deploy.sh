@@ -202,8 +202,9 @@ echo ""
 echo -e "${YELLOW}📄 同步后端...${NC}"
 if [ -d "${SCRIPT_DIR}/../infra/web/backend" ]; then
     rclone sync "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/" \
-        --exclude "*.pyc" --exclude "__pycache__" --exclude ".gitkeep" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ backend/"
+        --exclude "*.pyc" --exclude "__pycache__" --exclude ".gitkeep" \
+        --exclude "data/" --exclude "data/poc.db" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ backend/ (excl data/ — persistent DB)"
 fi
 
 # ----- 7. 完成 -----

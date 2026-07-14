@@ -18,3 +18,5 @@ emma_focus_api.js
 
 # Local project config (copy of env.template with real values)
 env.local
+Emma_Focus_DB.xlsx
+infra/web/backend/data/

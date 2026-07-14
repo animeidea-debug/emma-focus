@@ -351,36 +351,32 @@ def build_dashboard(conn, ym: str = ""):
             "bucketMinutes": bm
         }
 
-    # Compute summary (same logic as GAS computeSummary)
-    total_tokens = 0
-    focus = activity = coaching = screen = waste = eyerest_total = 0
-    seen_dates = set()
-    total_days = workdays = weekends = 0
+    # ── Compute month summary (ym-filtered) ──
+    month_tokens = 0
+    m_focus = m_activity = m_coaching = m_screen = m_waste = 0
+    m_seen = set()
+    m_days = m_workdays = m_weekends = 0
 
     for r in timeline_rows:
         d = r["date"]
         if ym and d[:7] != ym:
             continue
-        if not d or d in seen_dates:
+        if not d or d in m_seen:
             continue
-        seen_dates.add(d)
-
+        m_seen.add(d)
         absent = bool(r["absent"])
         if not absent:
             parsed = parse_date_safe(d)
             if parsed:
                 dow = parsed.weekday()
-                total_days += 1
+                m_days += 1
                 if dow >= 5:
-                    weekends += 1
+                    m_weekends += 1
                 else:
-                    workdays += 1
-
+                    m_workdays += 1
         if d >= TOKEN_START_DATE:
-            total_tokens += r["tokens_net"] or 0
+            month_tokens += r["tokens_net"] or 0
 
-    # Sum from activity_logs for hour buckets
-    seen_log_dates = set()
     for l in logs_rows:
         d = l["date"]
         if ym and d[:7] != ym:
@@ -390,30 +386,84 @@ def build_dashboard(conn, ym: str = ""):
         slot = BUCKET_TO_CARD.get(b)
         if slot == "study":
             if b == "focus":
-                focus += dur
+                m_focus += dur
             elif b == "activity":
-                activity += dur
+                m_activity += dur
         elif slot == "coaching":
-            coaching += dur
+            m_coaching += dur
         elif slot == "screen":
-            screen += dur
+            m_screen += dur
         elif slot == "waste":
-            waste += dur
+            m_waste += dur
 
-    summary = {
-        "totalDays": total_days,
-        "workdays": workdays,
-        "weekends": weekends,
-        "totalTokens": total_tokens,
-        "studyHours": round((focus + activity) / 60, 1),
-        "focusHours": round(focus / 60, 1),
-        "activityHours": round(activity / 60, 1),
-        "coachingHours": round(coaching / 60, 1),
-        "screenHours": round(screen / 60, 1),
-        "wasteHours": round(waste / 60, 1)
+    month_summary = {
+        "totalDays": m_days,
+        "workdays": m_workdays,
+        "weekends": m_weekends,
+        "totalTokens": month_tokens,
+        "studyHours": round((m_focus + m_activity) / 60, 1),
+        "focusHours": round(m_focus / 60, 1),
+        "activityHours": round(m_activity / 60, 1),
+        "coachingHours": round(m_coaching / 60, 1),
+        "screenHours": round(m_screen / 60, 1),
+        "wasteHours": round(m_waste / 60, 1)
     }
 
-    month_summary = summary
+    # ── Compute full summary (all time, no ym filter) ──
+    full_tokens = 0
+    f_focus = f_activity = f_coaching = f_screen = f_waste = 0
+    f_seen = set()
+    f_days = f_workdays = f_weekends = 0
+
+    for r in timeline_rows:
+        d = r["date"]
+        if not d or d in f_seen:
+            continue
+        f_seen.add(d)
+        absent = bool(r["absent"])
+        if not absent:
+            parsed = parse_date_safe(d)
+            if parsed:
+                dow = parsed.weekday()
+                f_days += 1
+                if dow >= 5:
+                    f_weekends += 1
+                else:
+                    f_workdays += 1
+        if d >= TOKEN_START_DATE:
+            full_tokens += r["tokens_net"] or 0
+
+    for l in logs_rows:
+        d = l["date"]
+        if not d:
+            continue
+        dur = l["duration"] or 0
+        b = bucket_for(l["category"])
+        slot = BUCKET_TO_CARD.get(b)
+        if slot == "study":
+            if b == "focus":
+                f_focus += dur
+            elif b == "activity":
+                f_activity += dur
+        elif slot == "coaching":
+            f_coaching += dur
+        elif slot == "screen":
+            f_screen += dur
+        elif slot == "waste":
+            f_waste += dur
+
+    full_summary = {
+        "totalDays": f_days,
+        "workdays": f_workdays,
+        "weekends": f_weekends,
+        "totalTokens": full_tokens,
+        "studyHours": round((f_focus + f_activity) / 60, 1),
+        "focusHours": round(f_focus / 60, 1),
+        "activityHours": round(f_activity / 60, 1),
+        "coachingHours": round(f_coaching / 60, 1),
+        "screenHours": round(f_screen / 60, 1),
+        "wasteHours": round(f_waste / 60, 1)
+    }
 
     # Month averages
     overall_b = wd_b = we_b = 0
@@ -453,7 +503,7 @@ def build_dashboard(conn, ym: str = ""):
     return {
         "ym": ym or (max_date[:7] if max_date else ""),
         "dataRange": data_range,
-        "summary": summary,
+        "summary": full_summary,
         "monthSummary": month_summary,
         "monthAverages": month_averages,
         "days": days
