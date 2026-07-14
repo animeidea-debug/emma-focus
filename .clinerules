@@ -109,4 +109,4 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
 4. 运行部署：
    ```powershell
    .\deploy\run_deploy.bat    # NAS 部署
-   .\deploy\run_gas_deploy.bat # GAS 部署（公司网络）
+   ```

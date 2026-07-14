@@ -17,9 +17,11 @@
 │   ├── progress.md          # 项目进度（含部署流程）
 │   └── gemini_prompt.md     # Gemini 提示词
 │
-├── infra/web/backend/       # 后端 Python 代码（参考副本）
+├── infra/web/backend/       # 后端 Python 代码（由 deploy.sh 同步）
 │   ├── main.py              # 头像服务 (port 80)
 │   └── poc_main.py          # 业务逻辑 (port 81, 替代 GAS)
+│
+├── deprecated/              # 已退役文件保留区（GAS、旧 compose 等）
 │
 └── video merge/             # 视频延时合成
     ├── run_v2.sh            # V2 总控脚本
