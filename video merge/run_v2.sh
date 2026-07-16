@@ -28,7 +28,7 @@ echo "⏳ 重启 tdarr_node 容器..."
 if ! docker restart tdarr_node 2>&1; then
     pushover_notify "Video Merge" "🚨 视频合并启动失败 | ${TODAY}
 阶段: 重启 tdarr_node
-请立即检查 Docker/NAS" 1 || true
+请立即检查 Docker/NAS" 1 siren || true
     exit 1
 fi
 sleep 10
@@ -36,7 +36,7 @@ sleep 10
 echo "⏳ 清理容器临时文件..."
 if ! docker exec tdarr_node sh -c 'rm -rf /tmp/* 2>/dev/null; mkdir -p /tmp' 2>&1; then
     pushover_notify "Video Merge" "🚨 视频合并启动失败 | ${TODAY}
-阶段: 清理 tdarr_node 临时目录" 1 || true
+阶段: 清理 tdarr_node 临时目录" 1 siren || true
     exit 1
 fi
 echo "✅ 临时文件已清理"
@@ -49,7 +49,7 @@ ALL_FAIL=0
 rm -f "${STATE_DIR}/${TODAY}.start-alerted"
 pushover_notify "Video Merge" "🚀 视频合并总任务已启动 | ${TODAY}
 计划: 书房 → 客厅
-tdarr_node 已重启并完成临时目录清理" 0 || true
+tdarr_node 已重启并完成临时目录清理" 0 pushover || true
 
 # ----- 定义摄像头列表 -----
 # 格式：CAMERA_NAME:SOURCE_DIR:RES:CODEC:MAX_HOUR:SPEED:LABEL
@@ -73,13 +73,13 @@ for camera_config in $CAMERAS; do
         ALL_FAIL=$((ALL_FAIL + 1))
         pushover_notify "Video Merge" "🚨 ${LABEL}视频未能启动 | ${TODAY}
 检查项: 源目录、MP4 输入、ffmpeg/ffprobe
-请检查摄像头挂载与 tdarr_node" 1 || true
+请检查摄像头挂载与 tdarr_node" 1 siren || true
         continue
     fi
 
     pushover_notify "Video Merge" "▶️ ${LABEL}视频合并已启动 | ${TODAY}
 源: ${CAMERA}
-参数: ${RES}p / ${SPEED}x / 截止 ${MAX_HOUR}:00" 0 || true
+参数: ${RES}p / ${SPEED}x / 截止 ${MAX_HOUR}:00" 0 pushover || true
 
     CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" CAMERA_LABEL="$LABEL" sh "$SCRIPT_DIR/merge_v2.sh"
     EXIT_CODE=$?
@@ -107,11 +107,11 @@ for camera_config in $CAMERAS; do
         pushover_notify "Video Merge" "⚠️ ${LABEL}视频合并异常 | ${TODAY}
 成功: ${S} 失败: ${F}
 耗时: ${CAMERA_ELAPSED} 分钟
-日志: merge_v2_${CAMERA}.log" 1 || true
+日志: merge_v2_${CAMERA}.log" 1 siren || true
     else
         pushover_notify "Video Merge" "✅ ${LABEL}视频合并完成 | ${TODAY}
 成功: ${S} 失败: 0
-耗时: ${CAMERA_ELAPSED} 分钟" 0 || true
+耗时: ${CAMERA_ELAPSED} 分钟" 0 magic || true
     fi
 done
 
@@ -125,12 +125,12 @@ if [ "$ALL_FAIL" -gt 0 ]; then
     pushover_notify "Video Merge" "⚠️ 视频合并部分失败 | ${TODAY}
 成功: ${ALL_SUCCESS} 失败: ${ALL_FAIL}
 总耗时: ${ELAPSED} 分钟
-请检查摄像头通知与合并日志" 1 || true
+请检查摄像头通知与合并日志" 1 siren || true
     FINAL_EXIT=1
 else
     pushover_notify "Video Merge" "🎉 视频合并全部完成 | ${TODAY}
 成功: ${ALL_SUCCESS} 失败: 0
-总耗时: ${ELAPSED} 分钟" 0 || true
+总耗时: ${ELAPSED} 分钟" 0 magic || true
     FINAL_EXIT=0
 fi
 

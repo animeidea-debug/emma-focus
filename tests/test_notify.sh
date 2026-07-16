@@ -5,7 +5,7 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NOTIFY_SCRIPT="${PROJECT_ROOT}/video merge/notify.sh"
 
 test_success() (
-    curl() { return 0; }
+    curl() { printf '{"status":1,"request":"test-request"}'; return 0; }
     export PUSHOVER_NAS_TOKEN=dummy-token
     export PUSHOVER_NAS_USER=dummy-user
     . "$NOTIFY_SCRIPT"

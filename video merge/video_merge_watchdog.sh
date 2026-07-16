@@ -24,7 +24,6 @@ fi
 if pushover_notify "Video Merge" "🚨 视频合并任务未按时启动 | ${TODAY}
 计划时间: 22:00
 检查时间: $(date '+%H:%M')
-请检查 cron、flock、Docker 与 NAS 状态" 1; then
+请检查 cron、flock、Docker 与 NAS 状态" 1 siren; then
     : > "$ALERT_MARKER"
 fi
-

@@ -96,6 +96,7 @@
 | 2026-07-14 | **🔐 数据持久化 + 三层备份策略** | P0 事故后重建，V=A volume 映射消除容器内数据，增加 SQLite 快照和 XLSX 同步 |
 | 2026-07-17 | **📦 基础设施单一真源完成** | WebDAV/Tdarr Compose 与 NAS 仓库核对；`/data/backups` 挂载迁移至 NAS，Emma Focus 重复副本删除 |
 | 2026-07-17 | **🔔 Pushover 通知闭环** | 保留总任务及分摄像头启动通知；部分失败正确告警；22:05 未启动看门狗；备份 cron 补齐成功/失败通知 |
+| 2026-07-17 | **🛡️ NAS 通知可靠性收口** | NAS 统一通知库负责超时/重试/API 回执/JSONL 日志；Heartbeat 首次失败、第三次升级与恢复去重；23:10 每日摘要；应用部署禁止覆盖通知库 |
 | 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
@@ -183,6 +184,7 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 ### 已完成
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
+- [x] 2026-07-17：Pushover 统一库、分级声音、连续失败升级、Heartbeat 恢复通知和每日摘要完成
 
 ## 项目规模
 
