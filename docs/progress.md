@@ -94,6 +94,7 @@
 | 2026-07-14 | **🔧 docker-compose 由 NAS 项目统一管理** | deploy.sh 移除 compose 操作，调用 `../NAS/deploy/deploy.sh web` |
 | 2026-07-14 | **⏱️ nginx proxy_read_timeout 120s** | 解决 ZConnect 外网首次加载 504 |
 | 2026-07-14 | **🔐 数据持久化 + 三层备份策略** | P0 事故后重建，V=A volume 映射消除容器内数据，增加 SQLite 快照和 XLSX 同步 |
+| 2026-07-17 | **📦 基础设施单一真源完成** | WebDAV/Tdarr Compose 与 NAS 仓库核对；`/data/backups` 挂载迁移至 NAS，Emma Focus 重复副本删除 |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则 |
@@ -177,6 +178,9 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 ### 待办
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
 - [ ] 在 root crontab 添加备份脚本: `0 8 * * * /tmp/.../scripts/backup_data.sh`
+
+### 已完成
+- [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 
 ## 项目规模
 
