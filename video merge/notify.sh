@@ -16,35 +16,53 @@
 #    其他机器首次使用前，需在 NAS 上创建 .env 文件或设置环境变量。
 # ==============================================================================
 
-# 读取 .env 文件（如果存在，覆盖环境变量）
+# 显式环境变量优先于 .env，便于 cron/临时运行覆盖配置。
+_EXPLICIT_PUSHOVER_TOKEN="${PUSHOVER_NAS_TOKEN:-}"
+_EXPLICIT_PUSHOVER_USER="${PUSHOVER_NAS_USER:-}"
 _ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi
 
-# 如果 .env 和环境变量都未设置，pushover_notify() 会检测到空值并跳过通知
-PUSHOVER_NAS_TOKEN="${PUSHOVER_NAS_TOKEN:-}"
-PUSHOVER_NAS_USER="${PUSHOVER_NAS_USER:-}"
+PUSHOVER_NAS_TOKEN="${_EXPLICIT_PUSHOVER_TOKEN:-${PUSHOVER_NAS_TOKEN:-}}"
+PUSHOVER_NAS_USER="${_EXPLICIT_PUSHOVER_USER:-${PUSHOVER_NAS_USER:-}}"
+unset _EXPLICIT_PUSHOVER_TOKEN _EXPLICIT_PUSHOVER_USER
 
 # ---------------------------------------------------------------------------
 # pushover_notify — 发送通知（使用 NAS Task App Token）
-# 参数: $1 = title, $2 = message
+# 参数: $1 = title, $2 = message, $3 = priority（默认 0，可用 1 表示高优先级）
 # ---------------------------------------------------------------------------
 pushover_notify() {
     title="$1"
     message="$2"
+    priority="${3:-0}"
 
     if [ -z "$PUSHOVER_NAS_TOKEN" ] || [ -z "$PUSHOVER_NAS_USER" ]; then
         echo "[notify] ⚠️ Pushover 凭证未配置，跳过通知" >&2
         return 1
     fi
 
-    curl -s -X POST https://api.pushover.net/1/messages.json \
+    response_file=$(mktemp "/tmp/pushover-response.XXXXXX") || return 1
+    if curl --silent --show-error --fail -X POST \
+        --connect-timeout 5 --max-time 15 --retry 3 --retry-delay 2 \
+        --retry-all-errors \
+        https://api.pushover.net/1/messages.json \
         --data-urlencode "token=$PUSHOVER_NAS_TOKEN" \
         --data-urlencode "user=$PUSHOVER_NAS_USER" \
         --data-urlencode "title=$title" \
         --data-urlencode "message=$message" \
-        > /dev/null 2>&1
+        --data-urlencode "priority=$priority" \
+        > "$response_file"; then
+        rm -f "$response_file"
+        echo "[notify] ✅ 已发送: $title"
+        return 0
+    else
+        status=$?
+    fi
+
+    echo "[notify] ❌ 发送失败: $title (curl=$status)" >&2
+    rm -f "$response_file"
+    return "$status"
 }
 
 # 格式化秒数为 mm:ss

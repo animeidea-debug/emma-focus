@@ -183,6 +183,8 @@ if [ -d "${SCRIPT_DIR}/../video merge" ]; then
     # 同步脚本；remote .env 由 NAS 侧独立管理，常规应用部署不得读取、覆盖或删除。
     rclone sync "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
+    # 真实备份 cron 从 /scripts/backup_data.sh 调用，显式同步包装器。
+    rclone copy "${SCRIPT_DIR}/backup_data.sh" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" || true
     # ⚠️ WebDAV 同步不保留 +x 权限（强制 644），通过 tdarr_node 容器（root）执行 chmod
     if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
         retry_with_backoff 3 2 ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \

@@ -54,11 +54,20 @@ else
     echo "❌ 备份执行异常（exit code: ${EXIT_CODE}）"
 fi
 
-# Pushover 通知
-if [ $EXIT_CODE -eq 0 ] && [ -f "${SCRIPT_DIR}/../video merge/notify.sh" ]; then
-    . "${SCRIPT_DIR}/../video merge/notify.sh"
+# Pushover 通知：本地仓库路径或 NAS /scripts 同目录均支持。
+NOTIFY_SCRIPT="${SCRIPT_DIR}/../video merge/notify.sh"
+[ -f "$NOTIFY_SCRIPT" ] || NOTIFY_SCRIPT="${SCRIPT_DIR}/notify.sh"
+if [ -f "$NOTIFY_SCRIPT" ]; then
+    . "$NOTIFY_SCRIPT"
     TODAY=$(date +%Y%m%d)
-    pushover_notify "Emma Focus" "✅ 数据备份成功 | ${TODAY}" 2>/dev/null || true
+    if [ $EXIT_CODE -eq 0 ]; then
+        pushover_notify "Emma Focus Backup" "✅ 数据备份成功 | ${TODAY}
+SQLite 快照与 CSV 已生成" 0 || true
+    else
+        pushover_notify "Emma Focus Backup" "⚠️ 数据备份失败 | ${TODAY}
+退出码: ${EXIT_CODE}
+日志: /tmp/nas-emma-backup.cron.log" 1 || true
+    fi
 fi
 
 exit $EXIT_CODE
