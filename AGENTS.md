@@ -28,8 +28,11 @@ Time-lapse camera processing is an adjacent operational capability. It supports 
 Repository boundary:
 
 - This repository owns Emma Focus product code, backend code, data migration utilities, and application deployment scripts.
-- The sibling NAS repository `animeidea-debug/nas-infra` owns production Docker Compose and nginx configuration.
+- The sibling NAS repository `animeidea-debug/NAS` owns production Docker Compose, nginx configuration, shared host mounts, and project cron.
 - Do not recreate `infra/tdarr/` or `infra/webdav/` Compose files here. They were reconciled and removed on 2026-07-17; the NAS repository is their sole source of truth.
+- Emma Focus backup code writes to `/app/backups` by default. The NAS repository must explicitly map that path and set `EMMA_BACKUP_BASE=/app/backups`; do not introduce a second production backup tree under `/app/data/Backups`.
+- Normal Emma Focus deployment must exclude `video merge/.env`. Secrets are provisioned independently on the NAS and must never be copied, replaced, or permission-reset by the application deployment script.
+- The 08:00/20:00 backup schedule is owned by the NAS repository's UID 1002 user crontab. Do not add duplicate root cron entries here.
 
 ## Data model and invariants
 

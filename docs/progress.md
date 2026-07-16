@@ -41,7 +41,7 @@
 | **本地后端** | `NAS/infra/web/backend/poc_main.py` | ✅ 运行中 | 2026-07-14 | `sh ~/Desktop/NAS/deploy/deploy.sh web` |
 | **前端看板** | `index.html` | ✅ 运行中 | 2026-07-14 | `sh deploy/deploy.sh` |
 | **管理后台** | `admin.html` | ✅ 运行中 | 2026-07-14 | `sh deploy/deploy.sh` |
-| **数据备份** | `deploy/backup_data.sh` | ✅ 本地 SQLite 备份 | 2026-07-14 | docker exec → CSV |
+| **数据备份** | `infra/web/backend/backup_data.py` | ✅ SQLite 一致性快照 + CSV | 2026-07-17 | NAS 用户 cron → docker exec |
 | **GAS 后端** | `gas/emma_focus_api.gs` | ⏹️ 已退役 | 2026-07-14 | 不再使用 |
 | **V2 通用脚本** | `merge_v2.sh` / `run_v2.sh` | ✅ 运行中 | 2026-07-14 | `sh deploy/deploy.sh` |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 运行中 | — | Keychain + `.env` |
@@ -63,8 +63,8 @@
 | 层 | 方法 | 频率 | 存储位置 | 历史 |
 |----|------|------|---------|------|
 | **L0: Volume 映射** | docker-compose volume 将容器 /app/data → NAS 宿主机 | 实时 | NAS 宿主机 `/tmp/.../data/docker/backend/data/` | 容器重启不丢失 |
-| **L0b: XLSX 同步** | `deploy.sh` 将本地 `Emma_Focus_DB.xlsx` 同步到 NAS | 每次部署 | NAS 宿主机 `.../data/docker/backend/data/backups/` | 随部署更新 |
-| **L1: SQLite 快照** | 容器内 Python SQLite Backup API 创建一致性数据库备份 | 每日 08:00 + 20:00 | 持久化 volume `backend/data/Backups/emma_data/YYYYMMDD/` | 保留 30 天 |
+| **L0b: XLSX 同步** | `deploy.sh` 将本地 `Emma_Focus_DB.xlsx` 同步到 NAS | 每次部署 | NAS 宿主机 `.../data/backups/emma_data/` | 随部署更新 |
+| **L1: SQLite 快照** | 容器内 Python SQLite Backup API 创建一致性数据库备份 | 每日 08:00 + 20:00 | 专用挂载 `/app/backups` → `.../data/backups/emma_data/YYYYMMDD/` | 保留 30 天 |
 | **L2: CSV 导出** | `backup_data.sh` 导出各表为 CSV（可读性备用） | 同上 | 同上 | 保留 30 天 |
 
 ### 灾难恢复 SOP
@@ -75,12 +75,12 @@
   → 数据库由 volume 上的文件自动重建 ✅
 
 场景 B: Volume 上的数据也被损坏
-  → 从 backend/data/Backups/emma_data/ 选择最近的 poc.db
+  → 从 /data/backups/emma_data/ 选择最近的 poc.db
   → 复制到 /tmp/.../data/docker/backend/data/
   → 重启容器 ✅
 
 场景 C: 所有数据库文件丢失，但有 XLSX
-  → 从 /data/docker/backend/data/backups/Emma_Focus_DB.xlsx
+  → 从 /data/backups/emma_data/Emma_Focus_DB.xlsx
   → 在本地执行: python3 deploy/import_xlsx_to_sqlite.py <xlsx> [db]
   → 上传到 NAS + 重启容器 ✅
 ```
@@ -95,6 +95,7 @@
 | 2026-07-14 | **⏱️ nginx proxy_read_timeout 120s** | 解决 ZConnect 外网首次加载 504 |
 | 2026-07-14 | **🔐 数据持久化 + 三层备份策略** | P0 事故后重建，V=A volume 映射消除容器内数据，增加 SQLite 快照和 XLSX 同步 |
 | 2026-07-17 | **📦 基础设施单一真源完成** | WebDAV/Tdarr Compose 与 NAS 仓库核对；`/data/backups` 挂载迁移至 NAS，Emma Focus 重复副本删除 |
+| 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则 |
@@ -127,7 +128,7 @@ sh deploy/deploy.sh web   # 上传 + 重启 site_frontend + site_backend
 
 ## 数据备份
 
-每天 08:00 和 20:00 通过 crontab 执行 `backup_data.sh`：
+每天 08:00 和 20:00 由 NAS 仓库管理的 UID 1002 用户 crontab 执行 `docker exec site_backend python3 /app/backup_data.py`：
 - **L1**: `sqlite3 .backup` 完整数据库文件快照（一致性）
 - **L2**: CSV 导出各表（可读性备用）
 - 保留最近 30 天历史
@@ -177,10 +178,10 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 
 ### 待办
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
-- [ ] 在 root crontab 添加备份脚本: `0 8 * * * /tmp/.../scripts/backup_data.sh`
 
 ### 已完成
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
+- [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
 
 ## 项目规模
 

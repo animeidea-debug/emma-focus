@@ -88,9 +88,11 @@ ssh -p 10000 13918962622@192.168.6.108 \
 
 ### 数据备份
 ```sh
-# crontab: 0 8 * * * /tmp/.../scripts/backup_data.sh
-# 直接从容器 SQLite 导出所有表为 CSV
-docker exec site_backend sqlite3 -header -csv /app/data/poc.db "SELECT * FROM evaluations;" > backup.csv
+# 由 NAS 项目的 UID 1002 用户 crontab 在每天 08:00 和 20:00 执行。
+docker exec site_backend python3 /app/backup_data.py
+
+# 容器输出：/app/backups/YYYYMMDD/
+# NAS 输出：.../data/backups/emma_data/YYYYMMDD/
 ```
 
 ## 技术栈
@@ -99,7 +101,7 @@ docker exec site_backend sqlite3 -header -csv /app/data/poc.db "SELECT * FROM ev
 - 后端：FastAPI + SQLite（Python 容器）
 - 代理：nginx（反向代理）
 - 视频处理：ffmpeg + Intel QSV 硬件加速
-- 数据备份：docker exec → sqlite3 → CSV
+- 数据备份：Python SQLite 一致性快照 + CSV 导出
 
 ## 安全配置
 

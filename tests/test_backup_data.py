@@ -1,4 +1,5 @@
 import csv
+import importlib.util
 import os
 from pathlib import Path
 import sqlite3
@@ -6,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +15,13 @@ BACKUP_SCRIPT = PROJECT_ROOT / "infra/web/backend/backup_data.py"
 
 
 class BackupDataTest(unittest.TestCase):
+    def test_default_backup_path_matches_nas_contract(self):
+        spec = importlib.util.spec_from_file_location("emma_backup_contract", BACKUP_SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(os.environ, {}, clear=True):
+            spec.loader.exec_module(module)
+        self.assertEqual(module.BACKUP_BASE, "/app/backups")
+
     def test_backup_creates_readable_snapshot_and_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

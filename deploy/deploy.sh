@@ -180,10 +180,8 @@ START_TS=$(date +%s)
 echo ""
 echo -e "${YELLOW}📄 同步 scripts...${NC}"
 if [ -d "${SCRIPT_DIR}/../video merge" ]; then
-    # 同步脚本（保留 remote .env，不删除）
+    # 同步脚本；remote .env 由 NAS 侧独立管理，常规应用部署不得读取、覆盖或删除。
     rclone sync "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" 2>&1 | grep -v "NOTICE" | tail -2 || true
-    # 确保 remote .env 存在（如被意外删除则重新创建）
-    rclone copy "${SCRIPT_DIR}/../video merge/.env" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
     # ⚠️ WebDAV 同步不保留 +x 权限（强制 644），通过 tdarr_node 容器（root）执行 chmod
     if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then

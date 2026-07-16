@@ -8,14 +8,14 @@
 # 执行流程：
 #   1. docker exec → 容器内 python3 /app/backup_data.py
 #   2. Python 脚本在容器内创建一致性 SQLite 快照 + CSV 导出
-#   3. 输出到 /app/data/Backups/emma_data/YYYYMMDD/
-#   4. 通过 volume mapping (./backend/data:/app/data) 自动同步到 NAS 宿主机
+#   3. 输出到 /app/backups/YYYYMMDD/
+#   4. 通过 NAS 项目管理的专用 volume mapping 输出到宿主机集中备份目录
 #
 # cron: 0 8 * * * docker exec site_backend python3 /app/backup_data.py
 #       0 20 * * * docker exec site_backend python3 /app/backup_data.py
 #
 # NAS 输出路径：
-#   /tmp/zfsv3/nvme14/13918962622/data/docker/backend/data/Backups/emma_data/YYYYMMDD/
+#   /tmp/zfsv3/nvme14/13918962622/data/backups/emma_data/YYYYMMDD/
 #     ├── poc.db              # 完整 SQLite 数据库文件（一致性快照）
 #     ├── evaluations.csv     # CSV 导出（可读性备用）
 #     ├── activity_logs.csv

@@ -3,8 +3,8 @@
 Emma Focus — 数据备份脚本（容器内执行版）
 
 直接在容器内运行，不需要宿主机任何工具。
-输出到 /app/data/Backups/emma_data/YYYYMMDD/。
-该目录位于 `/app/data` 持久化 volume 内，会同步到 NAS 宿主机。
+输出到 /app/backups/YYYYMMDD/。
+该目录由 NAS 项目的生产 Compose 显式映射到宿主机集中备份目录。
 
 用法（容器内）：
     python3 /app/backup_data.py
@@ -32,8 +32,8 @@ from datetime import datetime, timedelta
 
 # 数据库路径（容器内）
 DB_PATH = os.environ.get("EMMA_DB_PATH", "/app/data/poc.db")
-# 必须位于 /app/data volume 内；环境变量仅用于隔离测试和恢复演练。
-BACKUP_BASE = os.environ.get("EMMA_BACKUP_BASE", "/app/data/Backups/emma_data")
+# 生产 Compose 显式设置同一值；环境变量也用于隔离测试和恢复演练。
+BACKUP_BASE = os.environ.get("EMMA_BACKUP_BASE", "/app/backups")
 
 # 需要导出的表
 TABLES = ["evaluations", "activity_logs", "token_transactions", "redeem_items", "app_config"]
