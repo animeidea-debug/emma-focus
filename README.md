@@ -100,3 +100,22 @@ docker exec site_backend sqlite3 -header -csv /app/data/poc.db "SELECT * FROM ev
 - 代理：nginx（反向代理）
 - 视频处理：ffmpeg + Intel QSV 硬件加速
 - 数据备份：docker exec → sqlite3 → CSV
+
+## 安全配置
+
+首次部署使用一次性 `EMMA_ADMIN_INITIAL_PIN`。PIN 不得写入本仓库、HTML 或 Docker Compose 明文；应放在 NAS 项目 `infra/web/.env` 中，并由 Compose 注入后端容器：
+
+```yaml
+services:
+  site-backend:
+    environment:
+      EMMA_ADMIN_INITIAL_PIN: ${EMMA_ADMIN_INITIAL_PIN:?EMMA_ADMIN_INITIAL_PIN is required}
+```
+
+首次进入 Admin 页面后必须修改临时 PIN。正式 PIN 仅以 PBKDF2 带盐哈希保存在持久化 volume 的 `/app/data/security/admin_auth.json`；修改成功后，环境变量中的临时 PIN 永久失效。
+
+初始化完成并确认 `mustChange=false` 后，应从 NAS `.env` 和 Compose 中移除 `EMMA_ADMIN_INITIAL_PIN`。日常运行不需要保留临时 PIN；只有显式执行账户恢复时才重新配置。
+
+默认不启用跨域访问，当前 nginx 同源部署无需设置 CORS。如确有独立前端来源，可用逗号分隔的 `EMMA_CORS_ORIGINS` 显式配置允许来源。
+
+测试数据端点默认关闭。只有隔离测试环境可以设置 `EMMA_ENABLE_SEED_DUMMY=true`，生产环境禁止启用。

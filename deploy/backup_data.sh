@@ -1,51 +1,64 @@
 #!/bin/sh
 # ==============================================================================
-# 💾 Emma Focus — 本地 SQLite 数据备份脚本 (CSV 格式)
+# 💾 Emma Focus — 数据备份脚本
 #
-# 迁移后直接备份容器内的 SQLite 数据库，不再调用 GAS API。
+# 在容器内执行全量备份，通过 volume mapping 自动输出到 NAS 宿主机。
+# 不需要宿主机上的任何外部工具或 sudo 权限。
 #
-# cron: 0 8 * * * /tmp/zfsv3/nvme14/13918962622/data/scripts/backup_data.sh
+# 执行流程：
+#   1. docker exec → 容器内 python3 /app/backup_data.py
+#   2. Python 脚本在容器内创建一致性 SQLite 快照 + CSV 导出
+#   3. 输出到 /app/data/Backups/emma_data/YYYYMMDD/
+#   4. 通过 volume mapping (./backend/data:/app/data) 自动同步到 NAS 宿主机
 #
-# 输出目录（NAS 宿主机）：
-#   /tmp/zfsv3/nvme14/13918962622/data/backups/emma_data/YYYYMMDD/
+# cron: 0 8 * * * docker exec site_backend python3 /app/backup_data.py
+#       0 20 * * * docker exec site_backend python3 /app/backup_data.py
+#
+# NAS 输出路径：
+#   /tmp/zfsv3/nvme14/13918962622/data/docker/backend/data/Backups/emma_data/YYYYMMDD/
+#     ├── poc.db              # 完整 SQLite 数据库文件（一致性快照）
+#     ├── evaluations.csv     # CSV 导出（可读性备用）
+#     ├── activity_logs.csv
+#     ├── token_transactions.csv
+#     ├── redeem_items.csv
+#     └── app_config.csv
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_BASE="/mnt/backups/emma_data"
-TODAY=$(date +%Y%m%d)
-OUTPUT_DIR="${BACKUP_BASE}/${TODAY}"
-mkdir -p "$OUTPUT_DIR"
+CONTAINER="site_backend"
+EXIT_CODE=0
 
-echo "[backup] 🚀 开始备份 ${TODAY}"
+echo "============================================="
+echo " 💾 Emma Focus — 数据备份"
+echo "============================================="
+echo ""
 
-# 从容器内 SQLite 导出所有表为 CSV
-DOCKER_CMD="/usr/bin/docker exec site_backend"
-SQLITE_CMD="sqlite3 /app/data/poc.db"
+# 检查容器是否存在
+if ! /usr/bin/docker ps --filter name="${CONTAINER}" --format "{{.Names}}" | grep -q "${CONTAINER}"; then
+    echo -e "❌ 容器 ${CONTAINER} 未运行"
+    echo "   请先启动容器: docker compose -p site up -d"
+    exit 1
+fi
 
-# 需要导出的表
-TABLES="evaluations activity_logs token_transactions redeem_items app_config"
+echo "⏳ 在容器 ${CONTAINER} 内执行备份..."
+echo ""
 
-for table in $TABLES; do
-    $DOCKER_CMD sh -c "$SQLITE_CMD -header -csv \"SELECT * FROM $table;\"" > "${OUTPUT_DIR}/${table}.csv" 2>/dev/null
-    if [ $? -eq 0 ] && [ -s "${OUTPUT_DIR}/${table}.csv" ]; then
-        rows=$(wc -l < "${OUTPUT_DIR}/${table}.csv")
-        echo "  ✅ ${table}.csv ($((rows - 1)) rows)"
-    else
-        echo "  ⚠️  ${table}.csv 为空或导出失败"
-        echo "Date,Day_Type,Time_Start,Time_End,Focus_Blocks,Distractions,Eye_Rest_Minutes,Note,Absent" > "${OUTPUT_DIR}/${table}.csv"
-    fi
-done
+# 在容器内执行 Python 备份脚本
+/usr/bin/docker exec "${CONTAINER}" python3 /app/backup_data.py
+EXIT_CODE=$?
 
-# 统计
-TOTAL_FILES=$(ls "$OUTPUT_DIR"/*.csv 2>/dev/null | wc -l)
-TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" 2>/dev/null | awk '{print $1}')
-
-echo "[backup] ✅ 备份完成！目录: ${OUTPUT_DIR}"
-echo "[backup]    文件: ${TOTAL_FILES} 个 CSV | 大小: ${TOTAL_SIZE}"
+echo ""
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "✅ 备份完成！"
+else
+    echo "❌ 备份执行异常（exit code: ${EXIT_CODE}）"
+fi
 
 # Pushover 通知
-if [ -f "${SCRIPT_DIR}/../video merge/notify.sh" ]; then
+if [ $EXIT_CODE -eq 0 ] && [ -f "${SCRIPT_DIR}/../video merge/notify.sh" ]; then
     . "${SCRIPT_DIR}/../video merge/notify.sh"
-    pushover_notify "Emma Focus" "✅ 数据备份成功 | ${TODAY}
-${TOTAL_FILES} 个 CSV | ${TOTAL_SIZE}" 2>/dev/null || true
+    TODAY=$(date +%Y%m%d)
+    pushover_notify "Emma Focus" "✅ 数据备份成功 | ${TODAY}" 2>/dev/null || true
 fi
+
+exit $EXIT_CODE

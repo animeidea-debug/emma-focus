@@ -56,6 +56,35 @@
 
 > 所有脚本使用 `-2:HEIGHT` 保持宽高比，Intel N100 QSV 硬件加速。
 
+## 备份策略（三层保障）
+
+> **核心原则：数据在外，容器在内。** 所有生产数据必须从容器外持久化。
+
+| 层 | 方法 | 频率 | 存储位置 | 历史 |
+|----|------|------|---------|------|
+| **L0: Volume 映射** | docker-compose volume 将容器 /app/data → NAS 宿主机 | 实时 | NAS 宿主机 `/tmp/.../data/docker/backend/data/` | 容器重启不丢失 |
+| **L0b: XLSX 同步** | `deploy.sh` 将本地 `Emma_Focus_DB.xlsx` 同步到 NAS | 每次部署 | NAS 宿主机 `.../data/docker/backend/data/backups/` | 随部署更新 |
+| **L1: SQLite 快照** | 容器内 Python SQLite Backup API 创建一致性数据库备份 | 每日 08:00 + 20:00 | 持久化 volume `backend/data/Backups/emma_data/YYYYMMDD/` | 保留 30 天 |
+| **L2: CSV 导出** | `backup_data.sh` 导出各表为 CSV（可读性备用） | 同上 | 同上 | 保留 30 天 |
+
+### 灾难恢复 SOP
+
+```
+场景 A: 容器内数据损坏但 volume 正常
+  → 停止容器 → 删除容器内 /app/data/poc.db → 重启容器
+  → 数据库由 volume 上的文件自动重建 ✅
+
+场景 B: Volume 上的数据也被损坏
+  → 从 backend/data/Backups/emma_data/ 选择最近的 poc.db
+  → 复制到 /tmp/.../data/docker/backend/data/
+  → 重启容器 ✅
+
+场景 C: 所有数据库文件丢失，但有 XLSX
+  → 从 /data/docker/backend/data/backups/Emma_Focus_DB.xlsx
+  → 在本地执行: python3 deploy/import_xlsx_to_sqlite.py <xlsx> [db]
+  → 上传到 NAS + 重启容器 ✅
+```
+
 ## 关键决策记录
 
 | 日期 | 决策 | 原因 |
@@ -64,6 +93,7 @@
 | 2026-07-14 | **🗄️ 数据迁移 GAS→SQLite** | 52 天 + 222 日志 + 64 交易成功迁移 |
 | 2026-07-14 | **🔧 docker-compose 由 NAS 项目统一管理** | deploy.sh 移除 compose 操作，调用 `../NAS/deploy/deploy.sh web` |
 | 2026-07-14 | **⏱️ nginx proxy_read_timeout 120s** | 解决 ZConnect 外网首次加载 504 |
+| 2026-07-14 | **🔐 数据持久化 + 三层备份策略** | P0 事故后重建，V=A volume 映射消除容器内数据，增加 SQLite 快照和 XLSX 同步 |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则 |
@@ -72,8 +102,11 @@
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-14 | `8a32670` | 🧹 清理退役文件+统一基础设施管理 | `deprecated/`, `admin.html`, `README.md`, `.clinerules` |
+| 2026-07-14 | `8255704` | 🔧 docker-compose 持久化 poc.db | `docker-compose.yml`, `backend/data/` |
+| 2026-07-14 | `f24cb39` | 📝 .clinerules: GAS退役 | `.clinerules` |
+| 2026-07-14 | `2ba9f2c` | 📝 文档+备份更新: GAS→SQLite | `backup_data.sh`, `README.md`, `docs/progress.md` |
 | 2026-07-14 | `c89422e` | 🏗️ Phase 1: 本地后端迁移完成 | `poc_main.py`, `index.html`, `admin.html`, `deploy.sh` |
-| 2026-07-14 | *(待 commit)* | 🔧 数据迁移+文档+备份更新 | `backup_data.sh`, `docs/progress.md`, `README.md` |
 
 ## 部署流程（重要！）
 
@@ -91,18 +124,13 @@ git pull
 sh deploy/deploy.sh web   # 上传 + 重启 site_frontend + site_backend
 ```
 
-### GAS 后端（已退役，不再需要）
-```sh
-cd ~/Desktop/Emma\ Focus/gas
-clasp push
-```
-
 ## 数据备份
 
-每天 08:00 通过 crontab 执行 `backup_data.sh`，直接从容器 SQLite 导出 CSV：
-```sh
-docker exec site_backend sqlite3 -header -csv /app/data/poc.db "SELECT * FROM evaluations;" > backup.csv
-```
+每天 08:00 和 20:00 通过 crontab 执行 `backup_data.sh`：
+- **L1**: `sqlite3 .backup` 完整数据库文件快照（一致性）
+- **L2**: CSV 导出各表（可读性备用）
+- 保留最近 30 天历史
+- 每次部署时自动同步本地 XLSX 到 NAS 备份目录
 
 ## 已知问题 / 事故记录
 
@@ -126,6 +154,15 @@ security add-generic-password -s "emma-webdav" -a "garychen" -w "你的WebDAV密
 export PUSHOVER_NAS_TOKEN=你的NAS Token
 export PUSHOVER_NAS_USER=你的Pushover User Key
 ```
+
+### Web 后端 `.env`（NAS 项目 `infra/web/.env`）
+```
+EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
+```
+
+`NAS/infra/web/docker-compose.yml` 的 `site-backend` 必须将其注入为 `EMMA_ADMIN_INITIAL_PIN`。首次进入 Admin 页面后强制改为正式 PIN，正式 PIN 的带盐哈希持久化在 `/app/data/security/admin_auth.json`。在该配置完成前，不得部署依赖新鉴权逻辑的后端。
+
+首次修改完成且 `/api/poc/auth/status` 返回 `mustChange=false` 后，删除 NAS `.env` 中的一次性变量并移除 Compose 注入，避免长期保留初始化凭证。
 
 ## 关键端口与 URL
 

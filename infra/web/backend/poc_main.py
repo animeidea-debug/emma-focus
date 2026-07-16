@@ -20,24 +20,38 @@ Endpoints:
   POST /api/poc/upsert-redeem-item  — Admin upsert single item
   POST /api/poc/upsert-redeem-items — Admin batch upsert items
   POST /api/poc/set-exchange-rate   — Admin set exchange rate
-  POST /api/poc/seed-dummy          — PoC only: seed test data
+  POST /api/poc/seed-dummy          — Test-only seed data (disabled by default)
 
 Database: /app/data/poc.db (standalone, separate from site.db)
 """
 
-from fastapi import FastAPI, APIRouter, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
 import os
 import json
+import hmac
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+cors_origins = [origin.strip() for origin in os.environ.get("EMMA_CORS_ORIGINS", "").split(",") if origin.strip()]
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
-DB_PATH = "/app/data/poc.db"
-os.makedirs("/app/data", exist_ok=True)
+DB_PATH = os.environ.get("EMMA_DB_PATH", "/app/data/poc.db")
+os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
+ENABLE_SEED_DUMMY = os.environ.get("EMMA_ENABLE_SEED_DUMMY", "").lower() in ("1", "true", "yes")
+AUTH_FILE = os.environ.get("EMMA_AUTH_FILE", "/app/data/security/admin_auth.json")
+INITIAL_PIN = os.environ.get("EMMA_ADMIN_INITIAL_PIN", "")
+PIN_ITERATIONS = 200_000
 
 router = APIRouter(prefix="/api/poc")
 
@@ -177,6 +191,61 @@ def log_action(action: str, ip: str = "", payload: str = ""):
 
 def today_iso():
     return datetime.now().strftime("%Y-%m-%d")
+
+def hash_pin(pin: str, salt: bytes = None):
+    salt = salt or secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", pin.encode("utf-8"), salt, PIN_ITERATIONS)
+    return salt.hex(), digest.hex()
+
+def write_auth(pin: str, must_change: bool):
+    if len(pin) < 8:
+        raise ValueError("PIN 至少需要 8 位")
+    salt, digest = hash_pin(pin)
+    data = {
+        "version": 1,
+        "algorithm": "pbkdf2_sha256",
+        "iterations": PIN_ITERATIONS,
+        "salt": salt,
+        "hash": digest,
+        "must_change": bool(must_change),
+    }
+    os.makedirs(os.path.dirname(AUTH_FILE) or ".", exist_ok=True)
+    temp_path = AUTH_FILE + ".tmp"
+    with open(temp_path, "w", encoding="utf-8") as file:
+        json.dump(data, file)
+    os.chmod(temp_path, 0o600)
+    os.replace(temp_path, AUTH_FILE)
+
+def initialize_auth():
+    if not os.path.exists(AUTH_FILE) and INITIAL_PIN:
+        write_auth(INITIAL_PIN, must_change=True)
+
+def read_auth():
+    if not os.path.isfile(AUTH_FILE):
+        return None
+    with open(AUTH_FILE, encoding="utf-8") as file:
+        return json.load(file)
+
+def verify_admin_pin(pin: str):
+    auth = read_auth()
+    if not auth or not pin:
+        return False
+    salt = bytes.fromhex(auth["salt"])
+    iterations = int(auth.get("iterations", PIN_ITERATIONS))
+    actual = hashlib.pbkdf2_hmac("sha256", str(pin).encode("utf-8"), salt, iterations).hex()
+    return hmac.compare_digest(actual, auth["hash"])
+
+def require_admin(pin: str):
+    """Require the parent/admin PIN for state-changing administration actions."""
+    auth = read_auth()
+    if not auth:
+        raise ValueError("管理员 PIN 尚未初始化")
+    if not verify_admin_pin(pin):
+        raise ValueError("管理员 PIN 校验失败")
+    if auth.get("must_change"):
+        raise ValueError("首次登录必须先修改管理员 PIN")
+
+initialize_auth()
 
 def shift_date(date_str: str, delta: int) -> str:
     d = datetime.strptime(date_str, "%Y-%m-%d")
@@ -661,10 +730,10 @@ def write_evaluation(conn, payload: dict):
 def derive_transactions(conn, date_str: str):
     """Derive award/streak/eyerest transactions for a date."""
     # Delete existing derived transactions for this date
-    derived_types = ("award_silver", "award_gold", "streak_gold", "eyerest_silver")
+    derived_types = ("award_silver", "deduct_silver", "award_gold", "streak_gold", "eyerest_silver")
     conn.execute("""
         DELETE FROM token_transactions
-        WHERE date = ? AND type IN (?, ?, ?, ?)
+        WHERE date = ? AND type IN (?, ?, ?, ?, ?)
     """, (date_str, *derived_types))
 
     # Get tokens_net from evaluations
@@ -672,11 +741,26 @@ def derive_transactions(conn, date_str: str):
                       (date_str,)).fetchone()
     if ev:
         tokens_net = ev["tokens_net"] or 0
-        if tokens_net != 0:
+        if tokens_net > 0:
             conn.execute("""
                 INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
                 VALUES (?, 'award_silver', ?, ?, 0)
             """, (date_str, "专注奖励 " + date_str, tokens_net))
+        elif tokens_net < 0:
+            # 分心扣除：按每 3 次分心扣 1 银币
+            dist = ev["distractions"] or 0
+            deduct_count = dist // 3
+            if deduct_count > 0:
+                conn.execute("""
+                    INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
+                    VALUES (?, 'deduct_silver', ?, ?, 0)
+                """, (date_str, f"分心扣除（{dist} 次分心 × 每3次扣1银币）", tokens_net))
+            else:
+                # 兜底：直接记录 tokens_net 为负值（如 2026-06-25 的 -1）
+                conn.execute("""
+                    INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
+                    VALUES (?, 'deduct_silver', ?, ?, 0)
+                """, (date_str, "分心扣除 " + date_str, tokens_net))
 
         # Check excellent day → award_gold
         is_excellent = (
@@ -798,18 +882,62 @@ async def get_redeem_items():
     conn = get_db()
     try:
         items = conn.execute("SELECT * FROM redeem_items WHERE active=1 ORDER BY sort_order ASC").fetchall()
-        return [
-            {
-                "itemId": r["item_id"],
-                "label": r["label"],
-                "description": r["description"] or "",
-                "coinType": r["coin_type"],
-                "cost": r["cost"] or 0,
-                "active": bool(r["active"]),
-                "sort": r["sort_order"] or 0
-            }
-            for r in items
-        ]
+
+        # 统计每个商品被兑换的次数
+        # description 格式为 "兑换 {label}"，但 label 可能有细微差异（新旧版本）
+        # 用 substring 匹配：如果 description 中 "兑换 " 后的内容包含商品 label 中的关键词，则匹配
+        redeem_counts = conn.execute("""
+            SELECT description, COUNT(*) as cnt FROM token_transactions
+            WHERE type='redeem' GROUP BY description
+        """).fetchall()
+        count_map = {}
+        for r in redeem_counts:
+            desc = r["description"]
+            if desc.startswith("兑换 "):
+                tx_label = desc[3:].strip()
+                count_map[tx_label] = r["cnt"]
+
+        # 反向匹配：从交易记录出发，匹配到当前商品
+        # 这样旧 label（如 "🕹️ Switch 30 分钟"）能正确匹配新 label（"🕹️ Switch/PS5 30 分钟"）
+        tx_to_item = {}
+        for tx_label, cnt in count_map.items():
+            best_item = None
+            for item in items:
+                lbl = item["label"]
+                if tx_label == lbl:
+                    best_item = item
+                    break
+                # 一条在另一条之中（常见于旧版 label 在新版 label 中出现）
+                if tx_label in lbl or lbl in tx_label:
+                    best_item = item
+                    break
+                # 去掉 emoji + 特殊符号后比较纯中文/英文部分
+                def pure_text(s):
+                    return ''.join(c for c in s if c.isascii() and c.isalpha() or c == ' ' or '\u4e00' <= c <= '\u9fff').strip()
+                if pure_text(tx_label) and pure_text(tx_label) == pure_text(lbl):
+                    best_item = item
+                    break
+            if best_item:
+                key = best_item["item_id"]
+                tx_to_item[key] = tx_to_item.get(key, 0) + cnt
+
+        result = []
+        for item in items:
+            count = tx_to_item.get(item["item_id"], 0)
+            result.append({
+                "itemId": item["item_id"],
+                "label": item["label"],
+                "description": item["description"] or "",
+                "coinType": item["coin_type"],
+                "cost": item["cost"] or 0,
+                "active": bool(item["active"]),
+                "sort": item["sort_order"] or 0,
+                "redeemCount": count
+            })
+
+        # 按 redeemCount 降序排列（同 count 时保持 sort 顺序）
+        result.sort(key=lambda x: (-x["redeemCount"], x["sort"]))
+        return result
     finally:
         conn.close()
 
@@ -854,6 +982,30 @@ async def get_logs(date: str = "", limit: int = 100):
     finally:
         conn.close()
 
+# ─── Parent authentication ─────────────────────────────────────────────────
+
+@router.get("/auth/status")
+async def auth_status():
+    auth = read_auth()
+    return {
+        "initialized": bool(auth),
+        "mustChange": bool(auth and auth.get("must_change")),
+    }
+
+@router.post("/auth/change-pin")
+async def change_admin_pin(request: Request):
+    body = await request.json()
+    current_pin = str(body.get("currentPin", ""))
+    new_pin = str(body.get("newPin", ""))
+    if not verify_admin_pin(current_pin):
+        return {"status": "error", "message": "当前 PIN 不正确"}
+    if len(new_pin) < 8:
+        return {"status": "error", "message": "新 PIN 至少需要 8 位"}
+    if hmac.compare_digest(current_pin, new_pin):
+        return {"status": "error", "message": "新 PIN 不能与当前 PIN 相同"}
+    write_auth(new_pin, must_change=False)
+    return {"status": "Success"}
+
 # ─── Evaluate (POST - single day write, mirrors GAS doPost single) ─────────
 
 class EvaluatePayload(BaseModel):
@@ -870,6 +1022,7 @@ async def evaluate(payload: EvaluatePayload, request: Request):
     conn = get_db()
     ip = request.client.host if request else "unknown"
     try:
+        require_admin(payload.token)
         result = write_evaluation(conn, payload.dict())
         conn.commit()
         log_action("evaluate", ip, f"date={payload.date}")
@@ -886,6 +1039,7 @@ async def batch_write(payload: EvaluatePayload, request: Request):
     conn = get_db()
     ip = request.client.host if request else "unknown"
     try:
+        require_admin(payload.token)
         batch = payload.batch
         if not batch:
             return {"status": "error", "message": "batch array required"}
@@ -924,6 +1078,13 @@ async def generic_action(request: Request):
         body = await request.json()
         action = body.get("action", "")
         result = {"status": "error", "message": "Unknown action"}
+
+        admin_actions = {
+            "bonus", "markAbsent", "upsertRedeemItem", "upsertRedeemItems",
+            "setExchangeRate", "evaluate", "batch"
+        }
+        if action in admin_actions:
+            require_admin(body.get("pin", ""))
 
         if action == "redeem":
             result = action_redeem(conn, body.get("itemId", ""))
@@ -985,8 +1146,7 @@ def action_redeem(conn, item_id: str):
 # ─── Action: Bonus ──────────────────────────────────────────────────────────
 
 def action_bonus(conn, pin: str, coin_type: str, amount: int, reason: str = ""):
-    if pin != "emma2026!":
-        raise ValueError("PIN 校验失败")
+    require_admin(pin)
     if coin_type not in ("silver", "gold"):
         raise ValueError("coinType 必须是 silver 或 gold")
     amt = abs(int(amount or 0))
@@ -1014,7 +1174,8 @@ def action_exchange(conn, direction: str, amount: int):
         raise ValueError("direction 必须是 s2g（银→金）或 g2s（金→银）")
 
     rate_row = conn.execute("SELECT value FROM app_config WHERE key='exchange_rate'").fetchone()
-    rate = int(rate_row["value"]) if rate_row else 5
+    raw = rate_row["value"] if rate_row else "5"
+    rate = int(float(raw))  # safe: handles both '5' and '5.0'
     amt = int(amount)
     if amt < 1:
         raise ValueError("交换数量必须 ≥ 1")
@@ -1057,7 +1218,7 @@ def action_mark_absent(conn, date_str: str):
     if not parsed:
         raise ValueError("date 格式无效，需为 YYYY-MM-DD")
 
-    weekday_labels = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+    weekday_labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
     weekday = weekday_labels[parsed.weekday()]
 
     # Write absent evaluation
@@ -1145,6 +1306,8 @@ app.include_router(router)
 
 @app.post("/api/poc/seed-dummy")
 async def seed_dummy():
+    if not ENABLE_SEED_DUMMY:
+        raise HTTPException(status_code=404, detail="Not found")
     conn = get_db()
     try:
         conn.execute("DELETE FROM evaluations")

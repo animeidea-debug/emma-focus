@@ -5,13 +5,15 @@ import os
 
 app = FastAPI()
 
-# 允许前端跨域访问
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 前端与 API 默认同源；仅在显式配置时允许指定跨域来源。
+cors_origins = [origin.strip() for origin in os.environ.get("EMMA_CORS_ORIGINS", "").split(",") if origin.strip()]
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
 AVATAR_FILE = "/app/data/avatar.txt"
 

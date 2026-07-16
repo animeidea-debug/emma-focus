@@ -29,12 +29,72 @@
 </head>
 
 <body class="bg-slate-900 text-white p-8">
+
+    <!-- 🚀 升级公告 — 本地部署迁移完成 -->
+    <div id="migrationBanner"
+        class="max-w-6xl mx-auto bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl shadow-lg p-4 mb-6 border border-emerald-400 relative hidden">
+        <button onclick="dismissBanner()"
+            class="absolute top-2 right-3 text-white/60 hover:text-white text-lg leading-none">&times;</button>
+        <div class="flex items-start gap-3">
+            <div class="text-2xl shrink-0">🚀</div>
+            <div class="text-white text-xs">
+                <p class="font-bold text-sm mb-0.5">系统升级完成！本地化迁移成功 🎉</p>
+                <p class="text-white/80">不再依赖 Google 外网 · 响应 < 20ms · 三层数据保护 · 随时随地访问</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function dismissBanner() {
+            const b = document.getElementById('migrationBanner');
+            if (b) b.classList.add('hidden');
+            localStorage.setItem('emmaMigrationBannerDismissed', Date.now().toString());
+        }
+        (function () {
+            const b = document.getElementById('migrationBanner');
+            if (!b) return;
+            const d = localStorage.getItem('emmaMigrationBannerDismissed');
+            if (d) {
+                const e = Date.now() - Number(d);
+                if (e < 86400000) { b.remove(); return; }
+                localStorage.removeItem('emmaMigrationBannerDismissed');
+            }
+            b.classList.remove('hidden');
+        })();
+    </script>
+
     <div class="max-w-6xl mx-auto mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-black text-white">🐾 Emma Admin 审计控制台</h1>
         <button id="copyPromptBtn" onclick="copyGeminiPrompt()"
             class="bg-slate-700 hover:bg-slate-600 text-xs px-4 py-2 rounded font-bold transition-colors">
             📋 复制 Gemini Prompt
         </button>
+    </div>
+
+    <div class="max-w-6xl mx-auto mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <label for="adminPin" class="block text-sm font-bold text-amber-300 mb-2">🔐 家长管理员 PIN</label>
+        <div class="flex items-center gap-3">
+            <input id="adminPin" type="password" autocomplete="one-time-code"
+                class="bg-slate-950 border border-slate-600 text-white rounded px-3 py-2 text-sm w-64"
+                placeholder="本次管理操作使用的 PIN">
+            <span class="text-xs text-slate-400">仅保存在当前标签页内，不写入 URL 或本地持久存储。</span>
+            <button id="showPinSetupBtn" type="button"
+                class="hidden bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded text-xs">修改 PIN</button>
+        </div>
+        <div id="pinSetupPanel" class="mt-4 hidden border-t border-slate-700 pt-4">
+            <p id="pinSetupMessage" class="text-sm text-amber-300 mb-3"></p>
+            <div class="flex items-center gap-3 flex-wrap">
+                <input id="newAdminPin" type="password" autocomplete="new-password" minlength="8"
+                    class="bg-slate-950 border border-slate-600 text-white rounded px-3 py-2 text-sm w-64"
+                    placeholder="新 PIN（至少 8 位）">
+                <input id="confirmAdminPin" type="password" autocomplete="new-password" minlength="8"
+                    class="bg-slate-950 border border-slate-600 text-white rounded px-3 py-2 text-sm w-64"
+                    placeholder="再次输入新 PIN">
+                <button id="changePinBtn" type="button"
+                    class="bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded text-sm font-bold">修改 PIN</button>
+            </div>
+            <div id="pinSetupStatus" class="mt-2 text-xs hidden"></div>
+        </div>
     </div>
 
     <div class="max-w-6xl mx-auto grid grid-cols-2 gap-8">
@@ -135,6 +195,73 @@
         let isBatchMode = false;
         let validationError = null;
         const API_URL = window.location.origin + '/api/poc';
+
+        function getAdminPin() {
+            return document.getElementById('adminPin').value;
+        }
+
+        function requireAdminPin() {
+            const pin = getAdminPin();
+            if (!pin) {
+                alert('请先输入家长管理员 PIN');
+                document.getElementById('adminPin').focus();
+                return null;
+            }
+            return pin;
+        }
+
+        async function loadAuthStatus() {
+            const panel = document.getElementById('pinSetupPanel');
+            const message = document.getElementById('pinSetupMessage');
+            const showButton = document.getElementById('showPinSetupBtn');
+            try {
+                const response = await fetch(`${API_URL}/auth/status`);
+                const status = await response.json();
+                if (status.mustChange) {
+                    panel.classList.remove('hidden');
+                    showButton.classList.add('hidden');
+                    message.innerText = '⚠️ 首次登录必须修改临时 PIN，修改前管理操作不可用。';
+                } else {
+                    panel.classList.add('hidden');
+                    showButton.classList.remove('hidden');
+                }
+            } catch (error) {
+                panel.classList.remove('hidden');
+                showButton.classList.add('hidden');
+                message.innerText = '⚠️ 无法读取 PIN 状态：' + error.message;
+            }
+        }
+
+        async function changeAdminPin() {
+            const currentPin = requireAdminPin();
+            if (!currentPin) return;
+            const newPin = document.getElementById('newAdminPin').value;
+            const confirmPin = document.getElementById('confirmAdminPin').value;
+            const statusBox = document.getElementById('pinSetupStatus');
+            statusBox.classList.remove('hidden');
+            if (newPin.length < 8 || newPin !== confirmPin) {
+                statusBox.className = 'mt-2 text-xs text-rose-300';
+                statusBox.innerText = newPin.length < 8 ? '新 PIN 至少需要 8 位' : '两次输入的新 PIN 不一致';
+                return;
+            }
+            const response = await fetch(`${API_URL}/auth/change-pin`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPin, newPin })
+            });
+            const result = await response.json();
+            if (result.status !== 'Success') {
+                statusBox.className = 'mt-2 text-xs text-rose-300';
+                statusBox.innerText = result.message || '修改失败';
+                return;
+            }
+            document.getElementById('adminPin').value = newPin;
+            document.getElementById('newAdminPin').value = '';
+            document.getElementById('confirmAdminPin').value = '';
+            statusBox.className = 'mt-2 text-xs text-emerald-300';
+            statusBox.innerText = '✅ PIN 已修改，临时 PIN 已失效';
+            await loadAuthStatus();
+        }
 
         // Gemini Prompt 复制功能
         async function copyGeminiPrompt() {
@@ -273,6 +400,8 @@
         function update(cat, idx, field, val) { currentData[cat][idx][field] = val; }
 
         async function submitData() {
+            const pin = requireAdminPin();
+            if (!pin) return;
             if (validationError) {
                 alert("校验未通过，提交被阻止：" + validationError);
                 return;
@@ -285,9 +414,10 @@
                     action: 'evaluate',
                     date: currentData.evaluations.Date,
                     ...currentData,
-                    token: undefined
+                    pin
                 };
             }
+            payload.pin = pin;
 
             const res = await fetch(API_URL + '/generic', {
                 method: 'POST',
@@ -408,6 +538,8 @@
         }
 
         async function saveAllItems() {
+            const pin = requireAdminPin();
+            if (!pin) return;
             const items = readAllItems();
             const invalid = items.find(i => !i.itemId);
             if (invalid) { alert('所有 ItemId 不能为空'); return; }
@@ -415,10 +547,10 @@
                 const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'upsertRedeemItems', items })
+                    body: JSON.stringify({ action: 'upsertRedeemItems', items, pin })
                 });
                 const r = await res.json();
-                if (r.error) { alert('保存失败：' + r.error); return; }
+                if (r.status !== 'Success') { alert('保存失败：' + (r.message || r.error || JSON.stringify(r))); return; }
                 const box = document.getElementById('redeemItemsStatus');
                 box.className = 'text-xs mt-2 text-emerald-300';
                 box.innerText = `✅ 已保存 ${items.length} 项`;
@@ -431,6 +563,8 @@
         }
 
         async function resetDefault() {
+            const pin = requireAdminPin();
+            if (!pin) return;
             if (!confirm('确定要恢复默认兑换项？这将覆盖当前所有配置。')) return;
             const defaults = [
                 { itemId: 'switch_30m', label: '🕹️ Switch 30 分钟', description: '畅玩 30 分钟大作', coinType: 'silver', cost: 1, sort: 10, active: true },
@@ -444,10 +578,10 @@
                 const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'upsertRedeemItems', items: defaults })
+                    body: JSON.stringify({ action: 'upsertRedeemItems', items: defaults, pin })
                 });
                 const r = await res.json();
-                if (r.error) { alert('失败：' + r.error); return; }
+                if (r.status !== 'Success') { alert('失败：' + (r.message || r.error || JSON.stringify(r))); return; }
                 await loadRedeemItems();
             } catch (err) {
                 alert('请求失败：' + err.message);
@@ -474,6 +608,8 @@
         // 📅 快速缺席标记
         // ============================================================
         async function markAbsent() {
+            const pin = requireAdminPin();
+            if (!pin) return;
             const dateInput = document.getElementById('absentDate');
             const statusBox = document.getElementById('absentStatus');
             const date = dateInput.value;
@@ -490,12 +626,12 @@
                 const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'markAbsent', date })
+                    body: JSON.stringify({ action: 'markAbsent', date, pin })
                 });
                 const result = await res.json();
-                if (result.error) {
+                if (result.status !== 'Success') {
                     statusBox.className = 'mt-3 text-sm text-rose-300';
-                    statusBox.innerText = '❌ ' + result.error;
+                    statusBox.innerText = '❌ ' + (result.message || result.error || JSON.stringify(result));
                 } else {
                     statusBox.className = 'mt-3 text-sm text-emerald-300';
                     statusBox.innerText = `✅ ${result.date} (${result.weekday}) 已标记为不在场`;
@@ -522,6 +658,8 @@
         }
 
         async function saveExchangeRate() {
+            const pin = requireAdminPin();
+            if (!pin) return;
             const input = document.getElementById('exchangeRateInput');
             const statusBox = document.getElementById('exchangeRateStatus');
             const rate = Number(input.value);
@@ -538,12 +676,12 @@
                 const res = await fetch(API_URL + '/generic', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'setExchangeRate', rate })
+                    body: JSON.stringify({ action: 'setExchangeRate', rate, pin })
                 });
                 const result = await res.json();
-                if (result.error) {
+                if (result.status !== 'Success') {
                     statusBox.className = 'mt-3 text-sm text-rose-300';
-                    statusBox.innerText = '❌ ' + result.error;
+                    statusBox.innerText = '❌ ' + (result.message || result.error || JSON.stringify(result));
                 } else {
                     statusBox.className = 'mt-3 text-sm text-emerald-300';
                     statusBox.innerText = `✅ 汇率已更新为 ${result.rate} : 1`;
@@ -556,6 +694,16 @@
 
         // 页面加载即拉一次
         document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('adminPin').value = '';
+            document.getElementById('newAdminPin').value = '';
+            document.getElementById('confirmAdminPin').value = '';
+            document.getElementById('showPinSetupBtn').addEventListener('click', () => {
+                document.getElementById('pinSetupMessage').innerText = '输入当前 PIN 后，可以设置新的家长管理员 PIN。';
+                document.getElementById('pinSetupPanel').classList.remove('hidden');
+                document.getElementById('showPinSetupBtn').classList.add('hidden');
+            });
+            document.getElementById('changePinBtn').addEventListener('click', () => withLoading('changePinBtn', changeAdminPin));
+            loadAuthStatus();
             document.getElementById('addItemBtn').addEventListener('click', addBlankItem);
             document.getElementById('reloadItemsBtn').addEventListener('click', loadRedeemItems);
             loadRedeemItems();

@@ -47,23 +47,30 @@ echo " 🚀 Emma Focus — NAS 部署 (WebDAV)"
 echo "============================================="
 
 # ----- 1. 读取 WebDAV 密码（跨平台）-----
-# 优先级：macOS Keychain > 环境变量 > 交互输入
+# 优先级：当前终端环境变量 > macOS Keychain > 交互输入
+# 环境变量优先可以绕过 Keychain ACL/授权弹窗异常；变量只需在当前终端临时设置。
 PASSWORD=""
 
-# macOS: 从 Keychain 读取
-if [ "$(uname)" = "Darwin" ]; then
-    PASSWORD=$(security find-generic-password -s "emma-webdav" -a "garychen" -w 2>/dev/null)
+# 当前终端临时变量（Windows/Linux/macOS 通用）
+if [ -n "$WEBDAV_PASS" ]; then
+    PASSWORD="$WEBDAV_PASS"
 fi
 
-# 后备：从环境变量读取（Windows/Linux/macOS 通用）
-if [ -z "$PASSWORD" ] && [ -n "$WEBDAV_PASS" ]; then
-    PASSWORD="$WEBDAV_PASS"
+# macOS: 未提供环境变量时才从 Keychain 读取
+if [ -z "$PASSWORD" ] && [ "$(uname)" = "Darwin" ]; then
+    PASSWORD=$(security find-generic-password -s "emma-webdav" -a "garychen" -w 2>/dev/null)
 fi
 
 # 最后：交互式输入
 if [ -z "$PASSWORD" ]; then
-    echo -e "${YELLOW}⚠️ 请输入 WebDAV 密码（输入时不显示）：${NC}"
-    read -s PASSWORD
+    echo -e "${YELLOW}⚠️ 请输入 WebDAV 密码（输入时不显示），然后按回车：${NC}"
+    if [ -r /dev/tty ]; then
+        stty -echo < /dev/tty
+        IFS= read -r PASSWORD < /dev/tty
+        stty echo < /dev/tty
+    else
+        IFS= read -r PASSWORD
+    fi
     echo ""
 fi
 
@@ -77,22 +84,29 @@ fi
 PASSWORD=$(echo "$PASSWORD" | tr -d '\r\n')
 
 # ----- 2. 配置 rclone remote（只创建一次）-----
+echo -e "${YELLOW}⏳ 检查本地 rclone 配置...${NC}"
 OBSCURED=$(rclone obscure "$PASSWORD")
 
-# 检查 remote 是否已存在，不存在再创建
-if ! rclone lsd emma-focus-webdav: --timeout 2s > /dev/null 2>&1; then
+# 只检查本地配置名称；不要在此阶段连接 NAS。
+if ! rclone listremotes 2>/dev/null | grep -qx "emma-focus-webdav:"; then
+    echo "  创建 emma-focus-webdav 配置"
     rclone config delete emma-focus-webdav 2>/dev/null || true
     rclone config create emma-focus-webdav webdav \
         url "http://${NAS_IP}:${NAS_PORT}" \
         vendor other user "$WEBDAV_USER" pass "$OBSCURED" > /dev/null 2>&1
+else
+    echo "  ✅ emma-focus-webdav 已存在"
 fi
 
 # Tailscale remote（独立，不共用）
-if ! rclone lsd emma-focus-tailscale: --timeout 2s > /dev/null 2>&1; then
+if ! rclone listremotes 2>/dev/null | grep -qx "emma-focus-tailscale:"; then
+    echo "  创建 emma-focus-tailscale 配置"
     rclone config delete emma-focus-tailscale 2>/dev/null || true
     rclone config create emma-focus-tailscale webdav \
         url "$NAS_TAILSCALE" \
         vendor other user "$WEBDAV_USER" pass "$OBSCURED" > /dev/null 2>&1
+else
+    echo "  ✅ emma-focus-tailscale 已存在"
 fi
 
 unset OBSCURED
@@ -197,6 +211,19 @@ if [ -d "${SCRIPT_DIR}/../infra/web/html/poc" ]; then
     echo "  ✅ poc/"
 fi
 
+# ----- 6a. 同步本地 XLSX 备份文件（不进 git）-----
+# Emma_Focus_DB.xlsx 是真实数据，不进 git，但应存到 NAS 宿主机
+# 通过 WebDAV 同步到备份目录，贯彻"数据在外"原则
+echo ""
+echo -e "${YELLOW}📄 同步 XLSX 数据备份...${NC}"
+XLSX_FILE="${SCRIPT_DIR}/../Emma_Focus_DB.xlsx"
+if [ -f "$XLSX_FILE" ]; then
+    rclone copy "$XLSX_FILE" "${REMOTE}:/backups/emma_data/" 2>&1 | grep -v "NOTICE" | tail -1 || true
+    echo "  ✅ Emma_Focus_DB.xlsx → /data/backups/emma_data/"
+else
+    echo "  ⏭️  本地无 Emma_Focus_DB.xlsx，跳过"
+fi
+
 # ----- 6b. 同步后端 Python 文件 -----
 echo ""
 echo -e "${YELLOW}📄 同步后端...${NC}"
@@ -205,6 +232,20 @@ if [ -d "${SCRIPT_DIR}/../infra/web/backend" ]; then
         --exclude "*.pyc" --exclude "__pycache__" --exclude ".gitkeep" \
         --exclude "data/" --exclude "data/poc.db" 2>&1 | grep -v "NOTICE" | tail -1 || true
     echo "  ✅ backend/ (excl data/ — persistent DB)"
+fi
+
+# ----- 6c. 修复 HTML 文件权限（WebDAV 同步可能丢失 644）-----
+echo ""
+echo -e "${YELLOW}🔧 修复 HTML 文件权限...${NC}"
+# 通过 SSH 连接到 NAS，用 docker exec 通过 WebDAV 容器（root）修复权限
+if command -v ssh >/dev/null 2>&1 && [ -f ~/.ssh/nas_ed25519 ] && [ "$(uname)" = "Darwin" ]; then
+    NAS_HOST="${NAS_IP}" NAS_PORT_SSH=10000
+    retry_with_backoff 2 2 ssh -i ~/.ssh/nas_ed25519 -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
+        -p 10000 "13918962622@${NAS_IP}" \
+        "docker exec clinedeploy-rclone-webdav chmod 644 /data/docker/html/*.html 2>/dev/null; echo '  ✅ HTML 权限已修复'" 2>/dev/null || \
+    echo -e "  ⚠️  无法通过 SSH 修复权限，需手动执行：docker exec clinedeploy-rclone-webdav chmod 644 /data/docker/html/*.html"
+else
+    echo -e "  ⏭️  非 macOS 或 SSH 不可用，跳过"
 fi
 
 # ----- 7. 完成 -----
