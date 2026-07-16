@@ -89,6 +89,21 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
    切换到 `~/Desktop/NAS` → `git pull && sh deploy/deploy.sh web`
 3. GAS 已退役（2026-07-14），不再需要 `clasp push`
 
+## 🔐 数据持久化策略（P0 事故后重建，2026-07-14）
+
+**核心原则：数据在外，容器在内。** 所有生产数据必须先放在 NAS 宿主机，再通过 volume mapping 挂载到容器内。禁止将任何持久化数据放在容器内部文件系统。
+
+| 数据 | 策略 | 说明 |
+|------|------|------|
+| SQLite 数据库 | Volume mapping `./backend/data:/app/data` | 容器重启不丢失 |
+| Emma_Focus_DB.xlsx | `deploy.sh` 同步到 NAS `data/backups/` | 不进 git，真实数据 |
+| 备份快照 | `backup_data.py` → `/app/data/Backups/emma_data/` | 每日 08:00+20:00，保留 30 天 |
+
+**什么时候用 XLSX？**
+- `Emma_Focus_DB.xlsx` 是 Google Sheets 导出的原始数据。它不应在常规流程中使用。
+- 仅在**灾难恢复场景 C**（所有数据库文件丢失）时，才通过 `import_xlsx_to_sqlite.py` 从 XLSX 重建。
+- ⚠️ 绝对不要提交到 git。
+
 ## 凭证管理（Emma Focus 特定）
 - WebDAV（emma-webdav/garychen）已写入 Keychain
 - 另一台电脑首次使用前，需要先在 Keychain 中存入对应凭证
@@ -104,7 +119,7 @@ crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
 2. 安装 [rclone for Windows](https://rclone.org/downloads/)
 3. `git clone` 仓库后，设置密码：
    ```powershell
-   setx WEBDAV_PASS "Momoco198399"
+   setx WEBDAV_PASS "your-password"
    ```
 4. 运行部署：
    ```powershell
