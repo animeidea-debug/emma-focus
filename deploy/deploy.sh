@@ -182,7 +182,7 @@ echo -e "${YELLOW}📄 同步 scripts...${NC}"
 if [ -d "${SCRIPT_DIR}/../video merge" ]; then
     # 同步脚本；remote .env 由 NAS 侧独立管理，常规应用部署不得读取、覆盖或删除。
     # notify.sh 与 .env 由 NAS 基础设施仓库统一管理，应用部署不得覆盖。
-    rclone sync "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" --exclude "notify.sh" 2>&1 | grep -v "NOTICE" | tail -2 || true
+    rclone copy "${SCRIPT_DIR}/../video merge/" "${REMOTE}:/scripts/" --exclude ".env" --exclude "notify.sh" 2>&1 | grep -v "NOTICE" | tail -2 || true
     echo -e "${GREEN}✅ scripts 同步完成${NC}"
     # 真实备份 cron 从 /scripts/backup_data.sh 调用，显式同步包装器。
     rclone copy "${SCRIPT_DIR}/backup_data.sh" "${REMOTE}:/scripts/" 2>&1 | grep -v "NOTICE" || true
