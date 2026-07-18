@@ -138,6 +138,12 @@ sh deploy/deploy.sh web   # 上传 + 重启 site_frontend + site_backend
 
 ## 已知问题 / 事故记录
 
+### 2026-07-17：Codex 编辑后——客厅 volume 丢失 + notify.sh 不兼容 sh
+- **原因**：Codex 修改 tdarr docker-compose 时移除了客厅源目录 volume mapping `XiaomiCamera_00_B888808E0906 → /mnt/source_videos_livingroom:ro`，且重写了 `notify.sh` 为纯 bash 语法（`BASH_SOURCE`, `function()`），但 `merge_v2.sh` 和 `run_v2.sh` 的 shebang 是 `#!/bin/sh`，调用也用 `sh`
+- **影响**：客厅视频合并始终找到 0 个文件；脚本报 `Bad substitution` / `Syntax error: "(" unexpected`；cron lock 过期阻塞后续执行
+- **修复**：重新添加客厅 volume 并重启 tdarr_node；改 `merge_v2.sh` shebang → `#!/bin/bash`，`run_v2.sh/test_v2.sh` 中 `sh` 调用 → `bash`；清理 stale lock 文件
+- **警示**：Codex 编辑后必须检查：① volume 映射完整性  ② notify.sh 的 bash 兼容性
+
 ### 2026-07-14：nginx proxy 502 — site_backend:81 未监听
 - **原因**：`docker-compose.yml` 的 `command` 只启动了 `main:app`（port 80），未启动 `poc_main:app`（port 81）
 - **影响**：首次部署后所有 `/api/poc/` 返回 502，avatar API（port 80）正常
@@ -185,6 +191,7 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
 - [x] 2026-07-17：Pushover 统一库、分级声音、连续失败升级、Heartbeat 恢复通知和每日摘要完成
+- [x] 2026-07-19：修复 cron shell 不兼容（NAS 统一 notify.sh 使用 bash-only 语法，但 crontab 中 3 个 cron 用 `/bin/sh` 执行，导致所有通知相关脚本静默失败）
 
 ## 项目规模
 
