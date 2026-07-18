@@ -1,15 +1,27 @@
-#!/bin/sh
+#!/bin/bash
 # ==============================================================================
 # 🚀 新一代监控合并总控脚本
 #
 # 按顺序处理各摄像头，串行执行。
 # 输出到 /mnt/export_videos/{CAMERA}_{YYYYMMDD}.mp4
 #
-# 用法：sh run_v2.sh
+# 用法：bash run_v2.sh
+#
+# Stale lock 自检: 如果锁文件存在但持有进程已不存在，自动清理。
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/notify.sh"
+
+# ----- Stale lock 自检 -----
+LOCK_FILE="${VIDEO_MERGE_LOCK:-/tmp/nas-video-merge.lock}"
+if [ -f "$LOCK_FILE" ]; then
+    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$LOCK_PID" ] && [ ! -d "/proc/$LOCK_PID" ] 2>/dev/null; then
+        echo "⚠️ 检测到 stale lock (PID $LOCK_PID 不存在)，自动清理"
+        rm -f "$LOCK_FILE"
+    fi
+fi
 
 NAS_DATA="/tmp/zfsv3/nvme14/13918962622/data"
 STATE_DIR="${VIDEO_MERGE_STATE_DIR:-/tmp/nas-video-merge-state}"
@@ -81,7 +93,7 @@ for camera_config in $CAMERAS; do
 源: ${CAMERA}
 参数: ${RES}p / ${SPEED}x / 截止 ${MAX_HOUR}:00" 0 pushover || true
 
-    CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" CAMERA_LABEL="$LABEL" sh "$SCRIPT_DIR/merge_v2.sh"
+    CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" CAMERA_LABEL="$LABEL" bash "$SCRIPT_DIR/merge_v2.sh"
     EXIT_CODE=$?
 
     RESULT_FILE="${NAS_DATA}/export_videos/result_v2_${CAMERA}.json"

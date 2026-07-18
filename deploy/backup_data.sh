@@ -31,6 +31,16 @@ BACKUP_STATE_DIR="${BACKUP_STATE_DIR:-/tmp/zfsv3/nvme14/13918962622/data/monitor
 TODAY=$(date +%Y%m%d)
 mkdir -p "$BACKUP_STATE_DIR"
 
+# ----- Stale lock 自检 -----
+LOCK_FILE="${EMMA_BACKUP_LOCK:-/tmp/nas-emma-backup.lock}"
+if [ -f "$LOCK_FILE" ]; then
+    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
+    if [ -n "$LOCK_PID" ] && [ ! -d "/proc/$LOCK_PID" ] 2>/dev/null; then
+        echo "⚠️ 检测到 stale backup lock (PID $LOCK_PID 不存在)，自动清理"
+        rm -f "$LOCK_FILE"
+    fi
+fi
+
 echo "============================================="
 echo " 💾 Emma Focus — 数据备份"
 echo "============================================="
