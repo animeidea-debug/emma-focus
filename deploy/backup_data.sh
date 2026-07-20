@@ -26,7 +26,11 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER="site_backend"
+DOCKER_BIN="${DOCKER_BIN:-/usr/bin/docker}"
 EXIT_CODE=0
+BACKUP_STATE_DIR="${BACKUP_STATE_DIR:-/tmp/nas-monitor-state/backup}"
+TODAY=$(date +%Y%m%d)
+mkdir -p "$BACKUP_STATE_DIR"
 
 echo "============================================="
 echo " 💾 Emma Focus — 数据备份"
@@ -34,24 +38,26 @@ echo "============================================="
 echo ""
 
 # 检查容器是否存在
-if ! /usr/bin/docker ps --filter name="${CONTAINER}" --format "{{.Names}}" | grep -q "${CONTAINER}"; then
+if ! "$DOCKER_BIN" ps --filter name="${CONTAINER}" --format "{{.Names}}" | grep -q "${CONTAINER}"; then
     echo -e "❌ 容器 ${CONTAINER} 未运行"
     echo "   请先启动容器: docker compose -p site up -d"
-    exit 1
+    EXIT_CODE=1
+else
+    echo "⏳ 在容器 ${CONTAINER} 内执行备份..."
+    echo ""
+    # 在容器内执行 Python 备份脚本
+    "$DOCKER_BIN" exec "${CONTAINER}" python3 /app/backup_data.py
+    EXIT_CODE=$?
 fi
-
-echo "⏳ 在容器 ${CONTAINER} 内执行备份..."
-echo ""
-
-# 在容器内执行 Python 备份脚本
-/usr/bin/docker exec "${CONTAINER}" python3 /app/backup_data.py
-EXIT_CODE=$?
 
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
     echo "✅ 备份完成！"
+    : > "$BACKUP_STATE_DIR/$TODAY.success"
+    rm -f "$BACKUP_STATE_DIR/$TODAY.failed"
 else
     echo "❌ 备份执行异常（exit code: ${EXIT_CODE}）"
+    : > "$BACKUP_STATE_DIR/$TODAY.failed"
 fi
 
 # Pushover 通知：本地仓库路径或 NAS /scripts 同目录均支持。
@@ -59,14 +65,13 @@ NOTIFY_SCRIPT="${SCRIPT_DIR}/../video merge/notify.sh"
 [ -f "$NOTIFY_SCRIPT" ] || NOTIFY_SCRIPT="${SCRIPT_DIR}/notify.sh"
 if [ -f "$NOTIFY_SCRIPT" ]; then
     . "$NOTIFY_SCRIPT"
-    TODAY=$(date +%Y%m%d)
     if [ $EXIT_CODE -eq 0 ]; then
         pushover_notify "Emma Focus Backup" "✅ 数据备份成功 | ${TODAY}
-SQLite 快照与 CSV 已生成" 0 || true
+SQLite 快照与 CSV 已生成" 0 magic || true
     else
         pushover_notify "Emma Focus Backup" "⚠️ 数据备份失败 | ${TODAY}
 退出码: ${EXIT_CODE}
-日志: /tmp/nas-emma-backup.cron.log" 1 || true
+日志: /tmp/nas-emma-backup.cron.log" 1 siren || true
     fi
 fi
 

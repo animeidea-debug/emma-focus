@@ -36,6 +36,8 @@ pushover_notify() {
     title="$1"
     message="$2"
     priority="${3:-0}"
+    sound="${4:-${PUSHOVER_SOUND:-}}"
+    log_file="${PUSHOVER_LOG_FILE:-/tmp/nas-notifications.jsonl}"
 
     if [ -z "$PUSHOVER_NAS_TOKEN" ] || [ -z "$PUSHOVER_NAS_USER" ]; then
         echo "[notify] ⚠️ Pushover 凭证未配置，跳过通知" >&2
@@ -43,6 +45,10 @@ pushover_notify() {
     fi
 
     response_file=$(mktemp "/tmp/pushover-response.XXXXXX") || return 1
+    extra_args=""
+    [ -n "$sound" ] && extra_args="--data-urlencode sound=$sound"
+    [ "$priority" = "2" ] && extra_args="$extra_args --data-urlencode retry=60 --data-urlencode expire=3600"
+    # shellcheck disable=SC2086
     if curl --silent --show-error --fail -X POST \
         --connect-timeout 5 --max-time 15 --retry 3 --retry-delay 2 \
         --retry-all-errors \
@@ -51,16 +57,25 @@ pushover_notify() {
         --data-urlencode "user=$PUSHOVER_NAS_USER" \
         --data-urlencode "title=$title" \
         --data-urlencode "message=$message" \
-        --data-urlencode "priority=$priority" \
+        --data-urlencode "priority=$priority" $extra_args \
         > "$response_file"; then
+        if ! grep -q '"status"[[:space:]]*:[[:space:]]*1' "$response_file"; then
+            echo "[notify] ❌ API 响应未确认成功: $title" >&2
+            printf '{"time":"%s","title":"%s","result":"api_error"}\n' "$(date -Iseconds)" "$title" >> "$log_file"
+            rm -f "$response_file"
+            return 1
+        fi
+        request_id=$(sed -n 's/.*"request"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$response_file" | head -1)
         rm -f "$response_file"
-        echo "[notify] ✅ 已发送: $title"
+        printf '{"time":"%s","title":"%s","priority":%s,"result":"sent","request":"%s"}\n' "$(date -Iseconds)" "$title" "$priority" "$request_id" >> "$log_file"
+        echo "[notify] ✅ 已发送: $title (request=$request_id)"
         return 0
     else
         status=$?
     fi
 
     echo "[notify] ❌ 发送失败: $title (curl=$status)" >&2
+    printf '{"time":"%s","title":"%s","priority":%s,"result":"curl_error","code":%s}\n' "$(date -Iseconds)" "$title" "$priority" "$status" >> "$log_file"
     rm -f "$response_file"
     return "$status"
 }

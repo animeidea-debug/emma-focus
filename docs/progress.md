@@ -96,6 +96,7 @@
 | 2026-07-14 | **🔐 数据持久化 + 三层备份策略** | P0 事故后重建，V=A volume 映射消除容器内数据，增加 SQLite 快照和 XLSX 同步 |
 | 2026-07-17 | **📦 基础设施单一真源完成** | WebDAV/Tdarr Compose 与 NAS 仓库核对；`/data/backups` 挂载迁移至 NAS，Emma Focus 重复副本删除 |
 | 2026-07-17 | **🔔 Pushover 通知闭环** | 保留总任务及分摄像头启动通知；部分失败正确告警；22:05 未启动看门狗；备份 cron 补齐成功/失败通知 |
+| 2026-07-17 | **🛡️ NAS 通知可靠性收口** | NAS 统一通知库负责超时/重试/API 回执/JSONL 日志；Heartbeat 首次失败、第三次升级与恢复去重；23:10 每日摘要；应用部署禁止覆盖通知库 |
 | 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
@@ -136,6 +137,28 @@ sh deploy/deploy.sh web   # 上传 + 重启 site_frontend + site_backend
 - 每次部署时自动同步本地 XLSX 到 NAS 备份目录
 
 ## 已知问题 / 事故记录
+
+### 2026-07-19：cron shell 不兼容——NAS 统一 notify.sh 导致所有通知相关定时任务静默失败
+- **类型**：⚠️ **P1 事故**（非数据丢失，但核心运维通知链路完全中断约 48 小时）
+- **原因**：Codex 在 `codex/pushover-notification-hardening` 分支（NAS 仓库）创建了统一版 `notify.sh`（`#!/bin/bash`，使用 `local`、`BASH_SOURCE`、`args+=()` 等 bash-only 语法），并通过 NAS deploy 同步到生产。但 cron 表中 3 个 Emma Focus 脚本仍用 `/bin/sh` 执行，source notify.sh 时直接崩溃。
+- **cron 运行用户**：`13918962622`（UID 1002），NAS 标准运维用户，非 root。cron daemon 以 root 启动但按 UID 1002 执行任务。
+- **影响**：
+  - `run_v2.sh`（视频合并 22:00）→ 静默失败，merge 完全停止
+  - `backup_data.sh`（数据备份 08:00/20:00）→ 静默失败，SQLite 快照停止
+  - `video_merge_watchdog.sh`（看门狗 22:05）→ 静默失败，无异常告警（讽刺的是告警机制自己坏了，所以没有告警）
+  - `camera_heartbeat.sh` 和 `notification_daily_summary.sh` 用 `/bin/bash` 执行，不受影响
+- **发现方式**：手动执行 `run_v2.sh` 看到 `Bad substitution` / `Syntax error: "(" unexpected` 错误
+- **修复**：`~/Desktop/NAS/cron/project.cron` 中 3 处 `/bin/sh` → `/bin/bash`，然后 `bash cron/manage.sh install` 通过 SSH 安装（已验证 `crontab -l` 所有 5 个条目均使用 `/bin/bash`）
+- **警示**：
+  1. 如果更换 notify.sh 的实现语言（sh→bash），必须同步更新所有 source 它的脚本的 shebang 和 cron shell
+  2. Codex 可能在不同仓库创建不一致的 notify.sh 版本（Emma Focus 的 `video merge/notify.sh` 是 `#!/bin/sh`，NAS 仓库的 `scripts/notify.sh` 是 `#!/bin/bash`）
+  3. deploy.sh 已配置 `--exclude "notify.sh"` 防止 Emma Focus 部署覆盖 NAS 统一版，这本身是正确设计，但导致 Emma Focus 本地仓库的 sh 版本 notify.sh 永远不会同步到生产——一旦 NAS 统一版换了语言，Emma Focus 脚本必须全部改用 bash
+
+### 2026-07-17：Codex 编辑后——客厅 volume 丢失 + notify.sh 不兼容 sh
+- **原因**：Codex 修改 tdarr docker-compose 时移除了客厅源目录 volume mapping `XiaomiCamera_00_B888808E0906 → /mnt/source_videos_livingroom:ro`，且重写了 `notify.sh` 为纯 bash 语法（`BASH_SOURCE`, `function()`），但 `merge_v2.sh` 和 `run_v2.sh` 的 shebang 是 `#!/bin/sh`，调用也用 `sh`
+- **影响**：客厅视频合并始终找到 0 个文件；脚本报 `Bad substitution` / `Syntax error: "(" unexpected`；cron lock 过期阻塞后续执行
+- **修复**：重新添加客厅 volume 并重启 tdarr_node；改 `merge_v2.sh` shebang → `#!/bin/bash`，`run_v2.sh/test_v2.sh` 中 `sh` 调用 → `bash`；清理 stale lock 文件
+- **警示**：Codex 编辑后必须检查：① volume 映射完整性  ② notify.sh 的 bash 兼容性
 
 ### 2026-07-14：nginx proxy 502 — site_backend:81 未监听
 - **原因**：`docker-compose.yml` 的 `command` 只启动了 `main:app`（port 80），未启动 `poc_main:app`（port 81）
@@ -183,6 +206,10 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 ### 已完成
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
+- [x] 2026-07-17：Pushover 统一库、分级声音、连续失败升级、Heartbeat 恢复通知和每日摘要完成
+- [x] 2026-07-19：修复 cron shell 不兼容（NAS 统一 notify.sh 使用 bash-only 语法，但 crontab 中 3 个 cron 用 `/bin/sh` 执行，导致所有通知相关脚本静默失败）
+- [x] 2026-07-19：cron lock 策略改进 — NAS cron 使用 `flock -w` 等待锁；脚本不再假设 flock 文件包含 PID
+- [x] 2026-07-20：备份状态改用 UID 1002 可写的 `/tmp/nas-monitor-state/backup`；视频结果 JSON 改由 Tdarr 容器清理，消除宿主权限错误
 
 ## 项目规模
 
