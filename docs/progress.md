@@ -208,7 +208,8 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
 - [x] 2026-07-17：Pushover 统一库、分级声音、连续失败升级、Heartbeat 恢复通知和每日摘要完成
 - [x] 2026-07-19：修复 cron shell 不兼容（NAS 统一 notify.sh 使用 bash-only 语法，但 crontab 中 3 个 cron 用 `/bin/sh` 执行，导致所有通知相关脚本静默失败）
-- [x] 2026-07-19：cron lock 策略改进 — `flock -n` → `flock -w 600`（等 10 分钟而非直接跳过），`run_v2.sh` 和 `backup_data.sh` 内置 stale lock 自检（PID 不存在时自动清理）
+- [x] 2026-07-19：cron lock 策略改进 — NAS cron 使用 `flock -w` 等待锁；脚本不再假设 flock 文件包含 PID
+- [x] 2026-07-20：备份状态改用 UID 1002 可写的 `/tmp/nas-monitor-state/backup`；视频结果 JSON 改由 Tdarr 容器清理，消除宿主权限错误
 
 ## 项目规模
 

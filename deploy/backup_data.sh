@@ -26,20 +26,11 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER="site_backend"
+DOCKER_BIN="${DOCKER_BIN:-/usr/bin/docker}"
 EXIT_CODE=0
-BACKUP_STATE_DIR="${BACKUP_STATE_DIR:-/tmp/zfsv3/nvme14/13918962622/data/monitor-state/backup}"
+BACKUP_STATE_DIR="${BACKUP_STATE_DIR:-/tmp/nas-monitor-state/backup}"
 TODAY=$(date +%Y%m%d)
 mkdir -p "$BACKUP_STATE_DIR"
-
-# ----- Stale lock 自检 -----
-LOCK_FILE="${EMMA_BACKUP_LOCK:-/tmp/nas-emma-backup.lock}"
-if [ -f "$LOCK_FILE" ]; then
-    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
-    if [ -n "$LOCK_PID" ] && [ ! -d "/proc/$LOCK_PID" ] 2>/dev/null; then
-        echo "⚠️ 检测到 stale backup lock (PID $LOCK_PID 不存在)，自动清理"
-        rm -f "$LOCK_FILE"
-    fi
-fi
 
 echo "============================================="
 echo " 💾 Emma Focus — 数据备份"
@@ -47,7 +38,7 @@ echo "============================================="
 echo ""
 
 # 检查容器是否存在
-if ! /usr/bin/docker ps --filter name="${CONTAINER}" --format "{{.Names}}" | grep -q "${CONTAINER}"; then
+if ! "$DOCKER_BIN" ps --filter name="${CONTAINER}" --format "{{.Names}}" | grep -q "${CONTAINER}"; then
     echo -e "❌ 容器 ${CONTAINER} 未运行"
     echo "   请先启动容器: docker compose -p site up -d"
     EXIT_CODE=1
@@ -55,7 +46,7 @@ else
     echo "⏳ 在容器 ${CONTAINER} 内执行备份..."
     echo ""
     # 在容器内执行 Python 备份脚本
-    /usr/bin/docker exec "${CONTAINER}" python3 /app/backup_data.py
+    "$DOCKER_BIN" exec "${CONTAINER}" python3 /app/backup_data.py
     EXIT_CODE=$?
 fi
 

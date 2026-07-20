@@ -9,7 +9,7 @@
 #   CODEC     — 编码器 (默认 hevc_qsv)
 #
 # 用法：
-#   CAMERA=Study SOURCE=/mnt/source_study sh merge_v2.sh
+#   CAMERA=Study SOURCE=/mnt/source_study bash merge_v2.sh
 #
 # 输出到 /mnt/export_videos/{CAMERA}_{YYYYMMDD}.mp4
 # 使用容器内部 /tmp（不依赖 temp_workspace volume）

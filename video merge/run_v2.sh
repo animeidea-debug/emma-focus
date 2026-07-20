@@ -7,21 +7,10 @@
 #
 # 用法：bash run_v2.sh
 #
-# Stale lock 自检: 如果锁文件存在但持有进程已不存在，自动清理。
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/notify.sh"
-
-# ----- Stale lock 自检 -----
-LOCK_FILE="${VIDEO_MERGE_LOCK:-/tmp/nas-video-merge.lock}"
-if [ -f "$LOCK_FILE" ]; then
-    LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
-    if [ -n "$LOCK_PID" ] && [ ! -d "/proc/$LOCK_PID" ] 2>/dev/null; then
-        echo "⚠️ 检测到 stale lock (PID $LOCK_PID 不存在)，自动清理"
-        rm -f "$LOCK_FILE"
-    fi
-fi
 
 NAS_DATA="/tmp/zfsv3/nvme14/13918962622/data"
 STATE_DIR="${VIDEO_MERGE_STATE_DIR:-/tmp/nas-video-merge-state}"
@@ -93,6 +82,8 @@ for camera_config in $CAMERAS; do
 源: ${CAMERA}
 参数: ${RES}p / ${SPEED}x / 截止 ${MAX_HOUR}:00" 0 pushover || true
 
+    # 结果文件由容器内 root 创建；也必须由容器清理，宿主 cron 用户无权删除。
+    docker exec tdarr_node rm -f "/mnt/export_videos/result_v2_${CAMERA}.json" || true
     CAMERA="$CAMERA" SOURCE="$SOURCE" RES="$RES" CODEC="$CODEC" MAX_HOUR="$MAX_HOUR" SPEED="$SPEED" CAMERA_LABEL="$LABEL" bash "$SCRIPT_DIR/merge_v2.sh"
     EXIT_CODE=$?
 
@@ -101,7 +92,6 @@ for camera_config in $CAMERAS; do
     F=0
     if [ -f "$RESULT_FILE" ]; then
         eval "$(cat "$RESULT_FILE" | sed 's/[{}"]//g; s/,/ /g' | awk '{for(i=1;i<=NF;i++){split($i,a,":"); if(a[1]=="success") S=a[2]; if(a[1]=="fail") F=a[2]}} END {print "S="S"; F="F}')"
-        rm -f "$RESULT_FILE"
     else
         F=1
     fi
@@ -148,8 +138,8 @@ fi
 
 echo ""
 echo "============================================="
-exit "$FINAL_EXIT"
 echo " ✅ V2 全部完成！"
 echo "    成功: ${ALL_SUCCESS} / 失败: ${ALL_FAIL}"
 echo "    耗时: ${ELAPSED}分钟"
 echo "============================================="
+exit "$FINAL_EXIT"
