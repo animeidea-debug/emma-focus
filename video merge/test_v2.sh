@@ -28,7 +28,7 @@ export TEST_MODE=true
 # ----- 如果指定了单摄像头，只测它 -----
 if [ -n "$CAMERA" ] && [ -n "$SOURCE" ]; then
     echo "▶️ 测试【${CAMERA}】(单摄像头模式)..."
-    CAMERA="$CAMERA" SOURCE="$SOURCE" sh "$SCRIPT_DIR/merge_v2.sh" && echo "  ✅ ${CAMERA} 通过" || echo "  ⚠️ ${CAMERA} 异常"
+    CAMERA="$CAMERA" SOURCE="$SOURCE" bash "$SCRIPT_DIR/merge_v2.sh" && echo "  ✅ ${CAMERA} 通过" || echo "  ⚠️ ${CAMERA} 异常"
     echo ""
     echo "输出文件:"
     docker exec tdarr_node ls -lh /mnt/export_videos_test/ 2>/dev/null
@@ -41,7 +41,7 @@ fi
 
 # ----- 批量测试所有摄像头（安装新摄像头后启用）-----
 # echo "▶️ 测试【Study】..."
-# CAMERA=Study SOURCE=/mnt/source_study sh "$SCRIPT_DIR/merge_v2.sh" && echo "  ✅ Study 通过" || echo "  ⚠️ Study 异常"
+# CAMERA=Study SOURCE=/mnt/source_study bash "$SCRIPT_DIR/merge_v2.sh" && echo "  ✅ Study 通过" || echo "  ⚠️ Study 异常"
 
 echo ""
 echo "============================================="
