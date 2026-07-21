@@ -98,6 +98,7 @@
 | 2026-07-17 | **🔔 Pushover 通知闭环** | 保留总任务及分摄像头启动通知；部分失败正确告警；22:05 未启动看门狗；备份 cron 补齐成功/失败通知 |
 | 2026-07-17 | **🛡️ NAS 通知可靠性收口** | NAS 统一通知库负责超时/重试/API 回执/JSONL 日志；Heartbeat 首次失败、第三次升级与恢复去重；23:10 每日摘要；应用部署禁止覆盖通知库 |
 | 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
+| 2026-07-22 | **⭐ TMOS 奖励与头像统一** | TMOS 星星/等级使用幂等事件账本；银币金币继续写入 Emma `token_transactions`；头像与等级边框在两端统一展示 |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则 |

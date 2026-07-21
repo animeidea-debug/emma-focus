@@ -95,6 +95,7 @@
                 <div>
                     <h1 class="text-2xl md:text-3xl font-black text-orange-800">Emma 的专注力成长看板</h1>
                     <p class="text-orange-600 mt-1 font-semibold text-sm md:text-base">用你不懈的努力，自驱自律，精准兑换快乐特权吧！</p>
+                    <p id="rewardIdentity" class="mt-1 text-xs font-black text-indigo-600">Lv.1 · 晨光萌芽 · ⭐ 0</p>
                 </div>
             </div>
             <div class="flex gap-2 bg-orange-50 p-3 rounded-2xl border border-orange-200 shadow-inner text-xs z-10">
@@ -683,7 +684,7 @@
         })();
 
         document.addEventListener('DOMContentLoaded', async function () {
-            await Promise.all([loadData(null), loadCharts(), loadTokens(), loadRedeemItems()]);
+            await Promise.all([loadData(null), loadCharts(), loadTokens(), loadRedeemItems(), loadUnifiedRewardProfile()]);
 
             const initYM = (EMMA_DATA && EMMA_DATA.ym) ||
                 (EMMA_DATA.dataRange && EMMA_DATA.dataRange.maxYM) ||
@@ -1359,6 +1360,21 @@
         // 🎨 头像选择器 — NAS 服务端存储 + 拖拽/缩放裁剪
         // ==========================================
         const AVATAR_API = `/api/avatar`;
+        async function loadUnifiedRewardProfile() {
+            try {
+                const response = await fetch('/tmos/be/reward-profile/public/default');
+                if (!response.ok) return;
+                const profile = await response.json();
+                const identity = document.getElementById('rewardIdentity');
+                if (identity) identity.innerText = `Lv.${profile.level} · ${profile.title} · ⭐ ${profile.lifetimeStars}`;
+                const colors = ['#B88A45','#B88A45','#66849A','#66849A','#81759A','#81759A','#627594','#627594','#B88A45','#81759A'];
+                const avatar = document.getElementById('avatarBtn');
+                if (avatar) {
+                    avatar.style.borderColor = colors[Math.max(0, Math.min(9, profile.level - 1))];
+                    avatar.style.boxShadow = profile.level >= 7 ? `0 0 0 3px #F1E5CE, 0 0 12px ${colors[profile.level - 1]}66` : 'none';
+                }
+            } catch (_) { /* TMOS reward service is optional during rolling deploys. */ }
+        }
         let AVATAR_PENDING = null;
         let AVATAR_MODE = 'emoji'; // 'emoji' | 'image'
 
