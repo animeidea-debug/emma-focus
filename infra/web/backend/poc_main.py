@@ -146,6 +146,14 @@ def init_db():
             note TEXT DEFAULT ''
         );
 
+        CREATE TABLE IF NOT EXISTS tmos_reward_settlements (
+            settlement_id TEXT PRIMARY KEY, user TEXT NOT NULL, settlement_type TEXT NOT NULL,
+            source_event_ids TEXT NOT NULL DEFAULT '[]', star_credit_milli_delta INTEGER NOT NULL DEFAULT 0,
+            silver_delta INTEGER NOT NULL DEFAULT 0, gold_delta INTEGER NOT NULL DEFAULT 0,
+            policy_version INTEGER NOT NULL, created_at TEXT NOT NULL,
+            reversed_settlement_id TEXT, wallet_transaction_id INTEGER UNIQUE
+        );
+
         CREATE TABLE IF NOT EXISTS redeem_items (
             item_id TEXT PRIMARY KEY,
             label TEXT NOT NULL,
@@ -313,9 +321,17 @@ def get_tokens_data(conn):
     # Sync tokens table
     conn.execute("UPDATE tokens SET silver_balance=?, gold_balance=?", (actual_s, actual_g))
 
+    table_names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    settlement_rows = conn.execute("SELECT * FROM tmos_reward_settlements WHERE wallet_transaction_id IS NOT NULL").fetchall() if "tmos_reward_settlements" in table_names else []
+    settlements = {row["wallet_transaction_id"]: row for row in settlement_rows}
+    event_rows = conn.execute("SELECT fact_id,fact_type,fact_date,title,stars,active FROM tmos_reward_events").fetchall() if "tmos_reward_events" in table_names else []
+    events = {row["fact_id"]: dict(row) for row in event_rows}
     transactions = []
     for r in txns:
+        settlement = settlements.get(r["id"])
+        source_ids = json.loads(settlement["source_event_ids"]) if settlement else []
         transactions.append({
+            "id": r["id"],
             "date": r["date"],
             "type": r["type"],
             "description": r["description"],
@@ -323,7 +339,15 @@ def get_tokens_data(conn):
             "goldDelta": r["gold_delta"] or 0,
             "silverBalance": r["silver_balance"] or 0,
             "goldBalance": r["gold_balance"] or 0,
-            "note": r["note"] or ""
+            "note": r["note"] or "",
+            "source": "tmos" if settlement else "emma",
+            "settlement": ({
+                "id": settlement["settlement_id"], "type": settlement["settlement_type"],
+                "policyVersion": settlement["policy_version"], "starCreditMilliDelta": settlement["star_credit_milli_delta"],
+                "reversedSettlementId": settlement["reversed_settlement_id"],
+                "sourceEventIds": source_ids,
+                "sourceEvents": [events[event_id] for event_id in source_ids if event_id in events],
+            } if settlement else None)
         })
 
     return {

@@ -37,7 +37,8 @@ BACKUP_BASE = os.environ.get("EMMA_BACKUP_BASE", "/app/backups")
 
 # 需要导出的表
 TABLES = ["evaluations", "activity_logs", "token_transactions", "redeem_items", "app_config",
-          "tmos_reward_policy", "tmos_reward_events", "tmos_reward_profiles", "tmos_reward_milestones"]
+          "tmos_reward_policy", "tmos_reward_events", "tmos_reward_profiles", "tmos_reward_milestones",
+          "tmos_reward_settlements"]
 
 # 各表的 CSV header（用于空表回退）
 TABLE_HEADERS = {
@@ -50,6 +51,7 @@ TABLE_HEADERS = {
     "tmos_reward_events": "User,Fact_ID,Fact_Type,Fact_Date,Title,Stars,Silver_Credit_Milli,Policy_Version,Active,Created_At,Updated_At",
     "tmos_reward_profiles": "User,Lifetime_Stars,Silver_Contributed,Gold_Contributed,Level,Title,Updated_At",
     "tmos_reward_milestones": "User,Level,Gold_Awarded,Policy_Version,Awarded_At",
+    "tmos_reward_settlements": "Settlement_ID,User,Settlement_Type,Source_Event_IDs,Star_Credit_Milli_Delta,Silver_Delta,Gold_Delta,Policy_Version,Created_At,Reversed_Settlement_ID,Wallet_Transaction_ID",
 }
 
 

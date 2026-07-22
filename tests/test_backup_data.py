@@ -35,6 +35,7 @@ class BackupDataTest(unittest.TestCase):
                 "evaluations",
                 "activity_logs",
                 "token_transactions",
+                "tmos_reward_settlements",
                 "redeem_items",
                 "app_config",
             ):

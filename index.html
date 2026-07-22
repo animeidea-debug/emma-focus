@@ -364,6 +364,14 @@
                     <div>
                         <h3 class="text-base font-black text-rose-800 mb-2 flex items-center gap-2">📋 最近交易</h3>
                         <p class="text-xs text-rose-600 mb-3 pb-2 border-b border-rose-100">历史奖励 / 兑换 / 手动调整记录</p>
+                        <div id="ledgerFilters" class="flex flex-wrap gap-1.5 mb-3">
+                            <button data-ledger-filter="all" class="ledger-filter rounded-full bg-rose-600 text-white px-2.5 py-1 text-[10px]">全部</button>
+                            <button data-ledger-filter="tmos" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">TMOS</button>
+                            <button data-ledger-filter="emma" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">Emma</button>
+                            <button data-ledger-filter="silver" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">银币</button>
+                            <button data-ledger-filter="gold" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">金币</button>
+                            <button data-ledger-filter="reversal" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">冲正</button>
+                        </div>
                     </div>
                     <ul id="tokenLedger" class="space-y-2 text-xs text-gray-700 flex-1"></ul>
                     <div class="flex justify-between items-center mt-4 pt-3 border-t border-rose-100">
@@ -619,6 +627,7 @@
 
         // -- 新增：分页参数 --
         let currentLedgerPage = 1;
+        let currentLedgerFilter = 'all';
         const LEDGER_PAGE_SIZE = 17;
 
         // ==========================================
@@ -754,13 +763,21 @@
                 }
             });
             document.getElementById('ledgerNextBtn').addEventListener('click', () => {
-                const txs = (TOKEN_DATA && TOKEN_DATA.transactions) || [];
+                const txs = filteredLedgerTransactions();
                 const totalPages = Math.ceil(txs.length / LEDGER_PAGE_SIZE) || 1;
                 if (currentLedgerPage < totalPages) {
                     currentLedgerPage++;
                     renderTokenLedger();
                 }
             });
+            document.querySelectorAll('.ledger-filter').forEach(btn => btn.addEventListener('click', () => {
+                currentLedgerFilter = btn.dataset.ledgerFilter;
+                currentLedgerPage = 1;
+                document.querySelectorAll('.ledger-filter').forEach(item => {
+                    item.className = `ledger-filter rounded-full px-2.5 py-1 text-[10px] ${item === btn ? 'bg-rose-600 text-white' : 'bg-white border border-rose-200'}`;
+                });
+                renderTokenLedger();
+            }));
         });
 
         function ymOf(y, m) { return y + "-" + String(m).padStart(2, "0"); }
@@ -1035,11 +1052,13 @@
             const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
             const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag}🥈</span>` : '';
             const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag}🥇</span>` : '';
+            const sourceBadge = tx.source === 'tmos' ? '<span class="rounded bg-indigo-100 text-indigo-700 px-1.5 py-0.5 text-[9px] font-bold">TMOS</span>' : '';
+            const detail = tx.settlement && !compact ? `<details class="mt-1 text-[10px] text-gray-500"><summary class="cursor-pointer text-indigo-600">查看结算来源 · v${tx.settlement.policyVersion}</summary><div class="mt-1 rounded bg-indigo-50/60 p-2"><div>结算 ID：${escapeHtml(tx.settlement.id)}</div>${tx.settlement.reversedSettlementId ? `<div>冲正原结算：${escapeHtml(tx.settlement.reversedSettlementId)}</div>` : ''}${(tx.settlement.sourceEvents || []).map(event => `<div class="mt-1">${escapeHtml(event.fact_date)} · ${escapeHtml(event.title || event.fact_type)} · ${event.stars >= 0 ? '+' : ''}${event.stars}⭐</div>`).join('') || '<div class="mt-1">等级里程碑或历史汇总结算</div>'}</div></details>` : '';
             return `<li class="flex items-start gap-2 py-${compact ? '0.5' : '1'} border-b ${compact ? 'border-gray-100/60' : 'border-rose-100/60'} last:border-0">
                 <span title="${meta.title}" class="${compact ? 'text-[11px]' : ''}">${meta.emoji}</span>
                 <div class="flex-1 min-w-0">
                     ${showDate ? `<div class="text-[11px] text-gray-500">${tx.date}</div>` : ''}
-                    <div class="${compact ? 'text-[11px]' : 'text-xs'} text-gray-800 truncate">${escapeHtml(tx.description || '')}</div>
+                    <div class="${compact ? 'text-[11px]' : 'text-xs'} text-gray-800 truncate">${sourceBadge} ${escapeHtml(tx.description || '')}</div>${detail}
                 </div>
                 <div class="flex ${compact ? 'gap-1 text-[11px]' : 'flex-col items-end text-xs gap-0.5'}">${sChip}${gChip}</div>
             </li>`;
@@ -1051,7 +1070,7 @@
             const prevBtn = document.getElementById('ledgerPrevBtn');
             const nextBtn = document.getElementById('ledgerNextBtn');
 
-            const txs = (TOKEN_DATA && TOKEN_DATA.transactions) || [];
+            const txs = filteredLedgerTransactions();
             const totalPages = Math.ceil(txs.length / LEDGER_PAGE_SIZE) || 1;
 
             if (!txs.length) {
@@ -1087,6 +1106,9 @@
                 case 'bonus_gold': return { emoji: '🎁', title: '手动奖励（金）' };
                 case 'redeem': return { emoji: '🛒', title: '兑换' };
                 case 'exchange': return { emoji: '🔄', title: '币种交换' };
+                case 'tmos_silver_conversion': return { emoji: '⭐', title: 'TMOS 星星结算' };
+                case 'tmos_level_milestone': return { emoji: '🌌', title: 'TMOS 等级里程碑' };
+                case 'tmos_reversal': return { emoji: '↩️', title: 'TMOS 奖励冲正' };
                 default: return { emoji: '•', title: type };
             }
         }
@@ -1374,6 +1396,16 @@
                     avatar.style.boxShadow = profile.level >= 7 ? `0 0 0 3px #F1E5CE, 0 0 12px ${colors[profile.level - 1]}66` : 'none';
                 }
             } catch (_) { /* TMOS reward service is optional during rolling deploys. */ }
+        }
+
+        function filteredLedgerTransactions() {
+            const txs = (TOKEN_DATA && TOKEN_DATA.transactions) || [];
+            if (currentLedgerFilter === 'tmos') return txs.filter(tx => tx.source === 'tmos');
+            if (currentLedgerFilter === 'emma') return txs.filter(tx => tx.source !== 'tmos');
+            if (currentLedgerFilter === 'silver') return txs.filter(tx => tx.silverDelta);
+            if (currentLedgerFilter === 'gold') return txs.filter(tx => tx.goldDelta);
+            if (currentLedgerFilter === 'reversal') return txs.filter(tx => tx.settlement && tx.settlement.type === 'reversal');
+            return txs;
         }
         let AVATAR_PENDING = null;
         let AVATAR_MODE = 'emoji'; // 'emoji' | 'image'

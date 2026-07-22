@@ -123,6 +123,26 @@ class PocBusinessTest(unittest.TestCase):
 
         self.assertEqual([(row["type"], row["silver_delta"]) for row in rows], [("deduct_silver", -2)])
 
+    def test_tmos_settlement_is_exposed_with_source_events(self):
+        conn = self.backend.get_db()
+        conn.execute("""CREATE TABLE tmos_reward_events (
+            user TEXT, fact_id TEXT PRIMARY KEY, fact_type TEXT, fact_date TEXT, title TEXT,
+            stars INTEGER, silver_credit_milli INTEGER, policy_version INTEGER, active INTEGER,
+            created_at TEXT, updated_at TEXT)""")
+        conn.execute("INSERT INTO tmos_reward_events VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                     ("default", "task-1", "task", "2026-07-22", "数学复习", 2, 400, 3, 1, "now", "now"))
+        cursor = conn.execute("INSERT INTO token_transactions(date,type,description,silver_delta,gold_delta) VALUES(?,?,?,?,?)",
+                              ("2026-07-22", "tmos_silver_conversion", "TMOS 星星结算", 1, 0))
+        conn.execute("""INSERT INTO tmos_reward_settlements
+            (settlement_id,user,settlement_type,source_event_ids,star_credit_milli_delta,silver_delta,gold_delta,
+             policy_version,created_at,wallet_transaction_id) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+            ("settle-1", "default", "silver_conversion", '["task-1"]', 1000, 1, 0, 3, "now", cursor.lastrowid))
+        conn.commit()
+        transaction = self.backend.get_tokens_data(conn)["transactions"][0]
+        conn.close()
+        self.assertEqual(transaction["source"], "tmos")
+        self.assertEqual(transaction["settlement"]["sourceEvents"][0]["title"], "数学复习")
+
     def test_admin_pin_is_required_and_compared(self):
         with self.assertRaisesRegex(ValueError, "PIN 校验失败"):
             self.backend.require_admin("wrong-pin")
