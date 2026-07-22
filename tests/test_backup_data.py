@@ -15,6 +15,11 @@ BACKUP_SCRIPT = PROJECT_ROOT / "infra/web/backend/backup_data.py"
 
 
 class BackupDataTest(unittest.TestCase):
+    def test_deploy_never_syncs_shared_backend_root(self):
+        deploy = (PROJECT_ROOT / "deploy/deploy.sh").read_text(encoding="utf-8")
+        self.assertNotIn('rclone sync "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/"', deploy)
+        self.assertIn('rclone copy "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/"', deploy)
+
     def test_default_backup_path_matches_nas_contract(self):
         spec = importlib.util.spec_from_file_location("emma_backup_contract", BACKUP_SCRIPT)
         module = importlib.util.module_from_spec(spec)

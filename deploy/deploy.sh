@@ -229,10 +229,12 @@ fi
 echo ""
 echo -e "${YELLOW}📄 同步后端...${NC}"
 if [ -d "${SCRIPT_DIR}/../infra/web/backend" ]; then
-    rclone sync "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/" \
+    # /docker/backend is shared by Emma, TMOS and Family Time Flow. This must be
+    # non-deleting copy: sync would erase sibling code and persistent data dirs.
+    rclone copy "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/" \
         --exclude "*.pyc" --exclude "__pycache__" --exclude ".gitkeep" \
         --exclude "data/" --exclude "data/poc.db" 2>&1 | grep -v "NOTICE" | tail -1 || true
-    echo "  ✅ backend/ (excl data/ — persistent DB)"
+    echo "  ✅ backend/ 非删除式上传（不会触碰 TMOS/FTF 目录）"
 fi
 
 # ----- 6c. 修复 HTML 文件权限（WebDAV 同步可能丢失 644）-----

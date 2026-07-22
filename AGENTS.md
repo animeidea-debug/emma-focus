@@ -32,6 +32,7 @@ Repository boundary:
 - Do not recreate `infra/tdarr/` or `infra/webdav/` Compose files here. They were reconciled and removed on 2026-07-17; the NAS repository is their sole source of truth.
 - Emma Focus backup code writes to `/app/backups` by default. The NAS repository must explicitly map that path and set `EMMA_BACKUP_BASE=/app/backups`; do not introduce a second production backup tree under `/app/data/Backups`.
 - Normal Emma Focus deployment must exclude `video merge/.env`. Secrets are provisioned independently on the NAS and must never be copied, replaced, or permission-reset by the application deployment script.
+- `/docker/backend` is shared with TMOS and Family Time Flow. Emma deployment may only use non-deleting `rclone copy` at that root; `rclone sync` is forbidden because it deletes sibling code and persistent data directories.
 - The 08:00/20:00 backup schedule is owned by the NAS repository's UID 1002 user crontab. Do not add duplicate root cron entries here.
 
 ## Data model and invariants

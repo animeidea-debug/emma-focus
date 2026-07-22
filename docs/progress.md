@@ -100,6 +100,7 @@
 | 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
 | 2026-07-22 | **⭐ TMOS 奖励与头像统一** | TMOS 星星/等级使用幂等事件账本；银币金币继续写入 Emma `token_transactions`；头像与等级边框在两端统一展示 |
 | 2026-07-22 | **🧾 TMOS 奖励三层账本** | 奖励事实、币结算、Emma 钱包交易通过唯一 settlement ID 关联；Emma 可筛选 TMOS 交易并展开原始奖励，冲正保留完整链路 |
+| 2026-07-22 | **🛡️ 共享 backend 部署边界** | Emma 后端改为非删除式 `rclone copy`；禁止在共享 `/docker/backend` 根目录使用 `sync`，避免删除 TMOS/FTF 及持久化目录 |
 | 2026-07-13 | 🔄 infra 管理迁移到 NAS 项目 | deploy.sh 移除 docker compose 同步 |
 | 2026-07-09 | 🔧 nginx 多项目隔离 | Family Time Flow 项目覆盖首页 |
 | 2026-07-09 | 🏗️ clinerules 迁移到 infra-template | 统一管理共享 Cline 规则 |
