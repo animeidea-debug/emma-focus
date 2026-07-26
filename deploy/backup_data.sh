@@ -30,6 +30,7 @@ DOCKER_BIN="${DOCKER_BIN:-/usr/bin/docker}"
 EXIT_CODE=0
 BACKUP_STATE_DIR="${BACKUP_STATE_DIR:-/tmp/nas-monitor-state/backup}"
 TODAY=$(date +%Y%m%d)
+RUN_TIME=$(date +%H%M)
 mkdir -p "$BACKUP_STATE_DIR"
 
 echo "============================================="
@@ -53,11 +54,12 @@ fi
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
     echo "✅ 备份完成！"
-    : > "$BACKUP_STATE_DIR/$TODAY.success"
-    rm -f "$BACKUP_STATE_DIR/$TODAY.failed"
+    : > "$BACKUP_STATE_DIR/$TODAY-$RUN_TIME.success"
+    rm -f "$BACKUP_STATE_DIR/$TODAY-$RUN_TIME.failed"
 else
     echo "❌ 备份执行异常（exit code: ${EXIT_CODE}）"
-    : > "$BACKUP_STATE_DIR/$TODAY.failed"
+    : > "$BACKUP_STATE_DIR/$TODAY-$RUN_TIME.failed"
+    rm -f "$BACKUP_STATE_DIR/$TODAY-$RUN_TIME.success"
 fi
 
 # Pushover 通知：本地仓库路径或 NAS /scripts 同目录均支持。
