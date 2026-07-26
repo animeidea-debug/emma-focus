@@ -19,8 +19,8 @@ STATE_DIR="$TMP_DIR/state"
 TODAY=$(date +%Y%m%d)
 DOCKER_BIN="$TMP_DIR/docker" BACKUP_STATE_DIR="$STATE_DIR" FAKE_BACKUP_EXIT=0 \
     sh "$PROJECT_ROOT/deploy/backup_data.sh"
-test -f "$STATE_DIR/$TODAY.success"
-test ! -f "$STATE_DIR/$TODAY.failed"
+find "$STATE_DIR" -maxdepth 1 -name "$TODAY-*.success" | grep -q .
+test -z "$(find "$STATE_DIR" -maxdepth 1 -name "$TODAY-*.failed" -print -quit)"
 
 set +e
 DOCKER_BIN="$TMP_DIR/docker" BACKUP_STATE_DIR="$STATE_DIR" FAKE_BACKUP_EXIT=7 \
@@ -28,6 +28,6 @@ DOCKER_BIN="$TMP_DIR/docker" BACKUP_STATE_DIR="$STATE_DIR" FAKE_BACKUP_EXIT=7 \
 status=$?
 set -e
 test "$status" -eq 7
-test -f "$STATE_DIR/$TODAY.failed"
+find "$STATE_DIR" -maxdepth 1 -name "$TODAY-*.failed" | grep -q .
 
 echo "backup wrapper tests passed"
