@@ -123,6 +123,53 @@ class PocBusinessTest(unittest.TestCase):
 
         self.assertEqual([(row["type"], row["silver_delta"]) for row in rows], [("deduct_silver", -2)])
 
+    def test_eye_rest_minutes_do_not_create_rewards(self):
+        conn = self.backend.get_db()
+        conn.execute(
+            """
+            INSERT INTO evaluations
+                (date, focus_blocks, distractions, eye_rest_minutes, tokens_net, absent)
+            VALUES ('2026-07-16', 0, 0, 180, 0, 0)
+            """
+        )
+        self.backend.derive_transactions(conn, "2026-07-16")
+        count = conn.execute(
+            "SELECT COUNT(*) FROM token_transactions WHERE type='eyerest_silver'"
+        ).fetchone()[0]
+        conn.close()
+
+        self.assertEqual(count, 0)
+
+    def test_legacy_eye_rest_rewards_are_revoked_once(self):
+        conn = self.backend.get_db()
+        conn.execute(
+            "DELETE FROM app_config WHERE key='migration_remove_eyerest_rewards_v1'"
+        )
+        conn.execute(
+            """
+            INSERT INTO token_transactions
+                (date, type, description, silver_delta, gold_delta)
+            VALUES
+                ('2026-07-10', 'award_silver', '专注奖励', 3, 0),
+                ('2026-07-10', 'eyerest_silver', '护眼里程碑', 1, 0),
+                ('2026-07-11', 'eyerest_silver', '护眼里程碑', 1, 0)
+            """
+        )
+        removed = self.backend.remove_legacy_eyerest_rewards(conn)
+        removed_again = self.backend.remove_legacy_eyerest_rewards(conn)
+        balance = conn.execute(
+            "SELECT silver_balance FROM tokens LIMIT 1"
+        ).fetchone()[0]
+        count = conn.execute(
+            "SELECT COUNT(*) FROM token_transactions WHERE type='eyerest_silver'"
+        ).fetchone()[0]
+        conn.close()
+
+        self.assertEqual(removed, 2)
+        self.assertEqual(removed_again, 0)
+        self.assertEqual(balance, 3)
+        self.assertEqual(count, 0)
+
     def test_tmos_settlement_is_exposed_with_source_events(self):
         conn = self.backend.get_db()
         conn.execute("""CREATE TABLE tmos_reward_events (

@@ -269,15 +269,6 @@ def parse_date_safe(val):
     except (ValueError, TypeError):
         return None
 
-def iso_week_bounds(date_str: str):
-    """Return (monday, sunday, weekTag) for the ISO week containing date_str."""
-    d = datetime.strptime(date_str, "%Y-%m-%d")
-    dow = (d.weekday() + 1) % 7  # Monday=0
-    monday = d - timedelta(days=dow)
-    sunday = monday + timedelta(days=6)
-    fmt = lambda x: x.strftime("%Y-%m-%d")
-    return fmt(monday), fmt(sunday), fmt(monday)[5:] + "~" + fmt(sunday)[5:]
-
 def rebuild_balances(conn):
     """Rebuild silver_balance/gold_balance from transactions >= TOKEN_START_DATE."""
     rows = conn.execute("""
@@ -752,7 +743,7 @@ def write_evaluation(conn, payload: dict):
 # ─── Token derivation (mirrors GAS deriveTransactionsForDate) ──────────────
 
 def derive_transactions(conn, date_str: str):
-    """Derive award/streak/eyerest transactions for a date."""
+    """Derive focus, distraction and gold transactions for a date."""
     # Delete existing derived transactions for this date
     derived_types = ("award_silver", "deduct_silver", "award_gold", "streak_gold", "eyerest_silver")
     conn.execute("""
@@ -821,38 +812,39 @@ def derive_transactions(conn, date_str: str):
                         VALUES (?, 'streak_gold', ?, 0, 1)
                     """, (date_str, "3 日连击奖励"))
 
-    # Eye rest milestone
-    recompute_eyerest(conn, date_str)
-
     # Rebuild balances
     rebuild_balances(conn)
 
-def recompute_eyerest(conn, date_str: str):
-    """Recompute eyerest_silver for the ISO week of date_str."""
-    monday, sunday, week_tag = iso_week_bounds(date_str)
-    # Delete existing eyerest_silver for this week
-    conn.execute("""
-        DELETE FROM token_transactions
-        WHERE type='eyerest_silver' AND date >= ? AND date <= ?
-    """, (monday, sunday))
+def remove_legacy_eyerest_rewards(conn):
+    """One-time migration: revoke all historical eye-rest rewards and rebuild balances."""
+    migration_key = "migration_remove_eyerest_rewards_v1"
+    applied = conn.execute("SELECT 1 FROM app_config WHERE key=?", (migration_key,)).fetchone()
+    if applied:
+        return 0
 
-    # Sum eye_rest_minutes for the week
-    week_total = conn.execute("""
-        SELECT COALESCE(SUM(eye_rest_minutes), 0) as total FROM evaluations
-        WHERE date >= ? AND date <= ?
-    """, (monday, sunday)).fetchone()["total"]
+    cursor = conn.execute("DELETE FROM token_transactions WHERE type='eyerest_silver'")
+    silver_balance, gold_balance = rebuild_balances(conn)
+    conn.execute(
+        "UPDATE tokens SET silver_balance=?, gold_balance=?",
+        (silver_balance, gold_balance),
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)",
+        (migration_key, str(cursor.rowcount)),
+    )
+    return cursor.rowcount
 
-    count = week_total // 60
-    last_date = conn.execute("""
-        SELECT date FROM evaluations WHERE date >= ? AND date <= ? ORDER BY date DESC LIMIT 1
-    """, (monday, sunday)).fetchone()
-    last = last_date["date"] if last_date else sunday
 
-    for i in range(count):
-        conn.execute("""
-            INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
-            VALUES (?, 'eyerest_silver', ?, 1, 0)
-        """, (last, f"护眼里程碑 {week_tag} (#{i+1})"))
+def apply_reward_policy_migrations():
+    conn = get_db()
+    try:
+        remove_legacy_eyerest_rewards(conn)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+apply_reward_policy_migrations()
 
 # ─── Endpoints ──────────────────────────────────────────────────────────────
 
