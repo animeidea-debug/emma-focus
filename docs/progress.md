@@ -117,19 +117,16 @@
 
 ## 部署流程（重要！）
 
-### Emma Focus 自身内容（HTML/脚本/后端代码）
+### NAS Git release（正式路径）
 ```sh
-cd ~/Desktop/Emma\ Focus
-git pull           # 拉取最新
-sh deploy/deploy.sh  # 同步 HTML + 后端 + scripts 到 WebDAV
+nas-deploy emma-focus --ref <完整的40位提交SHA>
+nas-deploy status
 ```
 
-### Docker Compose / nginx 配置（由 NAS 项目管理）
-```sh
-cd ~/Desktop/NAS
-git pull
-sh deploy/deploy.sh web   # 上传 + 重启 site_frontend + site_backend
-```
+NAS 仓库拥有统一 `nas-deploy` runner、Compose、release symlink、数据库备份、
+健康检查和回滚。Emma Focus 仓库仍拥有产品网页、Python 后端和视频脚本源码。
+`.env`、Pushover 通知库和生产数据库不会随 release 覆盖。原 WebDAV 脚本仅
+作为迁移期应急路径保留。
 
 ## 数据备份
 

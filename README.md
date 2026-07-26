@@ -60,19 +60,17 @@
 
 ## 部署流程
 
-### 前端 + 后端代码（Emma Focus 项目）
+### NAS Git release（推荐）
 ```sh
-cd ~/Desktop/Emma\ Focus
-git pull                    # 拉取最新
-sh deploy/deploy.sh         # 同步到 NAS (HTML + 后端 + scripts)
+nas-deploy emma-focus --ref <完整的40位提交SHA>
+# 或在确认 main 已可发布后：
+nas-deploy emma-focus --latest
 ```
 
-### Docker Compose / Nginx（NAS 项目）
-```sh
-cd ~/Desktop/NAS
-git pull                    # 拉取最新
-sh deploy/deploy.sh web     # 上传 compose + nginx 并重启容器
-```
+该命令由 NAS 基础设施仓库管理，会在 NAS 上拉取源码、运行测试、备份
+SQLite、切换网页/后端/受控视频脚本并执行健康检查。数据库、`.env` 和统一
+`notify.sh` 不属于 release。旧的 `sh deploy/deploy.sh` WebDAV 流程只保留
+为迁移期应急路径。
 
 ### 数据迁移（仅首次）
 ```sh
