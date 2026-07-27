@@ -15,7 +15,10 @@
 │
 ├── docs/                    # 文档
 │   ├── progress.md          # 项目进度（含部署流程）
-│   └── gemini_prompt.md     # Gemini 提示词
+│   └── emma-review/         # Work 交接、隐私边界与导入流程
+│
+├── skills/emma-review/      # Emma Review 规则、Prompt 和严格 JSON 校验器
+├── .agents/skills/          # Codex 项目级 Skill 发现链接
 │
 ├── infra/web/backend/       # 后端 Python 代码（由 deploy.sh 同步）
 │   ├── main.py              # 头像服务 (port 80)
@@ -56,7 +59,24 @@
 - ⭐ **TMOS 成长联动** — 星星等级、称号与头像边框统一展示；TMOS 银币/金币写入同一交易账本，并可按来源筛选、展开结算和原始奖励
 - 📜 **成长指南** — 活动规则、代币机制、专注力技巧速查
 - 🎥 **视频自动合并** — 书房与客厅摄像头按各自参数自动生成延时视频
+- 🤖 **Emma Review** — ChatGPT Work/视频模型生成候选审计 JSON，本地严格校验后由家长确认入库
 - 🔔 **运行通知闭环** — 总任务与分摄像头启动/结果通知、未启动看门狗、备份告警、Heartbeat 去重/恢复/升级与每日摘要；生产通知库由 NAS 仓库统一管理
+
+## Emma Review
+
+仓库级 Skill 位于 `skills/emma-review/`，并通过
+`.agents/skills/emma-review` 被 Codex 自动发现。完整审计 Prompt 的唯一真源
+是 `skills/emma-review/references/audit-prompt.md`。
+
+模型生成的 JSON 不得直接写入生产后端。先执行：
+
+```sh
+python3 skills/emma-review/scripts/emma_review.py \
+  validate /path/to/result.json --expected-date YYYY-MM-DD
+```
+
+校验通过后仍需在 Admin 页面人工预览并由家长确认。真实视频、分析结果、PIN
+和模型凭证不得提交 Git。详细流程见 `docs/emma-review/integration.md`。
 
 ## 部署流程
 

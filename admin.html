@@ -65,9 +65,9 @@
 
     <div class="max-w-6xl mx-auto mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-black text-white">🐾 Emma Admin 审计控制台</h1>
-        <button id="copyPromptBtn" onclick="copyGeminiPrompt()"
+        <button id="copyPromptBtn" onclick="copyEmmaReviewInstruction()"
             class="bg-slate-700 hover:bg-slate-600 text-xs px-4 py-2 rounded font-bold transition-colors">
-            📋 复制 Gemini Prompt
+            📋 复制 Emma Review 调用说明
         </button>
     </div>
 
@@ -263,11 +263,14 @@
             await loadAuthStatus();
         }
 
-        // Gemini Prompt 复制功能
-        async function copyGeminiPrompt() {
+        // Emma Review 的完整规则由仓库级 Skill 统一管理，避免 Admin 保存第二份 Prompt。
+        async function copyEmmaReviewInstruction() {
             try {
-                const res = await fetch('gemini_prompt.md');
-                const text = await res.text();
+                const text = [
+                    '请使用已安装的 @Emma Review Skill 审核指定日期的 Study_YYYYMMDD.mp4。',
+                    '严格使用视频 OSD 的真实时间，返回原始 JSON，不要添加 Markdown 或解释。',
+                    '完成后先保存 result.json 并通过本地校验，不要直接 POST 到生产后端。'
+                ].join('\n');
                 await navigator.clipboard.writeText(text);
                 const btn = document.getElementById('copyPromptBtn');
                 const orig = btn.innerHTML;

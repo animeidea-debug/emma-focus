@@ -99,6 +99,9 @@
 | 2026-07-17 | **🛡️ NAS 通知可靠性收口** | NAS 统一通知库负责超时/重试/API 回执/JSONL 日志；Heartbeat 首次失败、第三次升级与恢复去重；23:10 每日摘要；应用部署禁止覆盖通知库 |
 | 2026-07-17 | **🔒 跨项目备份/密钥契约** | 生产备份统一使用 `/app/backups`；NAS UID 1002 cron 管理 08:00/20:00；Emma 部署永不覆盖远端 `.env` |
 | 2026-07-26 | **👁️ 取消护眼代币奖励** | 护眼分钟继续用于活动记录与图表，但不再产生银币；一次性迁移删除历史 `eyerest_silver` 流水并重算余额 |
+| 2026-07-27 | **🤖 Emma Review 仓库级 Skill** | Work 与 Codex 共享同一规则、13 岁身份提示和严格 JSON 校验器；模型结果先校验、家长复核，禁止直接携带 PIN 写生产 |
+| 2026-07-27 | **✅ Emma Review 首次生产闭环** | 2026-07-26 Work JSON 经严格校验、备份、家长隐藏 PIN 授权后通过内网 API 入库；回读确认 12 个阶段和 +1 银币，原兑换流水未变 |
+| 2026-07-27 | **🎬 Emma Review ready 契约** | 书房视频改为临时文件编码、ffprobe 校验、原子发布、日期级 ready 清单后再发完成通知；自动分析读取清单而不抓取 Pushover |
 | 2026-07-22 | **⭐ TMOS 奖励与头像统一** | TMOS 星星/等级使用幂等事件账本；银币金币继续写入 Emma `token_transactions`；头像与等级边框在两端统一展示 |
 | 2026-07-22 | **🧾 TMOS 奖励三层账本** | 奖励事实、币结算、Emma 钱包交易通过唯一 settlement ID 关联；Emma 可筛选 TMOS 交易并展开原始奖励，冲正保留完整链路 |
 | 2026-07-22 | **🛡️ 共享 backend 部署边界** | Emma 后端改为非删除式 `rclone copy`；禁止在共享 `/docker/backend` 根目录使用 `sync`，避免删除 TMOS/FTF 及持久化目录 |
@@ -203,8 +206,12 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 
 ### 待办
 - [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
+- [ ] 设计服务端审计校验、`pending_review` 队列和不暴露家长 PIN 的批准流程
+- [ ] 用 5 个已人工审核日期基准测试 Qwen3-VL 4B/8B 的准确率、耗时与峰值内存
 
 ### 已完成
+- [x] 2026-07-27：建立 repo 级 Emma Review Skill、Work 交接文档、13 岁统一 Prompt 和严格 JSON 校验测试
+- [x] 2026-07-27：完成 2026-07-26 Work 结果首次受控生产提交和数据库回读验证
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
 - [x] 2026-07-17：Pushover 统一库、分级声音、连续失败升级、Heartbeat 恢复通知和每日摘要完成

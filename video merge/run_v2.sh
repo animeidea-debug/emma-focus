@@ -96,18 +96,25 @@ for camera_config in $CAMERAS; do
         F=1
     fi
 
-    ALL_SUCCESS=$((ALL_SUCCESS + S))
-    ALL_FAIL=$((ALL_FAIL + F))
     CAMERA_ELAPSED=$(( ($(date +%s) - CAMERA_START_TS) / 60 ))
+    READY_FILE="${NAS_DATA}/export_videos/${LABEL}/.ready/${CAMERA}_${TODAY}.ready.json"
+    READY_STATUS="存在"
 
     if [ $EXIT_CODE -ne 0 ] && [ "$F" -eq 0 ]; then
         F=1
-        ALL_FAIL=$((ALL_FAIL + 1))
     fi
+    if [ ! -s "$READY_FILE" ]; then
+        READY_STATUS="缺失"
+        [ "$F" -eq 0 ] && F=1
+    fi
+
+    ALL_SUCCESS=$((ALL_SUCCESS + S))
+    ALL_FAIL=$((ALL_FAIL + F))
 
     if [ "$F" -gt 0 ] || [ $EXIT_CODE -ne 0 ]; then
         pushover_notify "Video Merge" "⚠️ ${LABEL}视频合并异常 | ${TODAY}
 成功: ${S} 失败: ${F}
+当日 ready 清单: ${READY_STATUS}
 耗时: ${CAMERA_ELAPSED} 分钟
 日志: merge_v2_${CAMERA}.log" 1 siren || true
     else

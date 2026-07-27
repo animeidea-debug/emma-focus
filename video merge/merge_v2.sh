@@ -44,6 +44,22 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
         LOG_FILE="${OUTPUT_BASE}/merge_v2_${CAMERA}.log"
         RESULT_FILE="${OUTPUT_BASE}/result_v2_${CAMERA}.json"
     fi
+    READY_DIR="${OUTPUT_BASE}/.ready"
+    mkdir -p "$READY_DIR"
+
+    write_ready_manifest() {
+        ready_date="$1"
+        ready_output="$2"
+        ready_file="${READY_DIR}/${CAMERA}_${ready_date}.ready.json"
+        ready_temp="${ready_file}.tmp.$$"
+        ready_bytes=$(stat -f%z "$ready_output" 2>/dev/null || stat --format=%s "$ready_output" 2>/dev/null || echo 0)
+        ready_duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$ready_output" 2>/dev/null || echo 0)
+        ready_completed_at=$(date "+%Y-%m-%dT%H:%M:%S%z")
+        printf "{\"schema_version\":1,\"status\":\"ready\",\"camera\":\"%s\",\"label\":\"%s\",\"audit_date\":\"%s\",\"path\":\"%s\",\"bytes\":%s,\"duration_seconds\":%s,\"completed_at\":\"%s\"}\n" \
+            "$CAMERA" "$CAMERA_LABEL" "$ready_date" "$ready_output" "$ready_bytes" "$ready_duration" "$ready_completed_at" > "$ready_temp"
+        chmod 644 "$ready_temp"
+        mv -f "$ready_temp" "$ready_file"
+    }
 
     # ----- 日志轮转 -----
     if [ -f "$LOG_FILE" ]; then
@@ -94,11 +110,19 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
 
     while read -r d; do
         OUTPUT_FILE="${OUTPUT_BASE}/${CAMERA}_${d}.mp4"
+        TEMP_OUTPUT="${OUTPUT_BASE}/${CAMERA}_${d}.part.mp4"
 
-        # 跳过已有成品（0字节视为无效）
+        # 跳过已有且可读取的成品，并补写幂等 ready 清单。
         if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-            echo "[skip] ${d} 成品已存在，跳过。" >> "$LOG_FILE"
-            continue
+            if ffprobe -v error -show_format "$OUTPUT_FILE" < /dev/null > /dev/null 2>&1; then
+                READY_FILE_FOR_DATE="${READY_DIR}/${CAMERA}_${d}.ready.json"
+                if [ ! -s "$READY_FILE_FOR_DATE" ] || [ "$OUTPUT_FILE" -nt "$READY_FILE_FOR_DATE" ]; then
+                    write_ready_manifest "$d" "$OUTPUT_FILE"
+                fi
+                echo "[skip] ${d} 成品已存在且校验通过，ready 清单已确认。" >> "$LOG_FILE"
+                continue
+            fi
+            echo "[warn] ${d} 现有成品不可读取，将重新生成。" >> "$LOG_FILE"
         fi
 
         echo "[$(date)] 🚀 开始处理 ${CAMERA} 日期 ${d} (${RESOLUTION}P - 30x)" >> "$LOG_FILE"
@@ -184,6 +208,7 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
         ATTEMPT=1
         MAX_ATTEMPTS=2
         START_TIME=$(date +%s)
+        rm -f "$TEMP_OUTPUT"
 
         while [ $ATTEMPT -le $MAX_ATTEMPTS ] && [ $FFMPEG_STATUS -ne 0 ]; do
             if [ $ATTEMPT -gt 1 ]; then
@@ -195,10 +220,13 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
                 -i "/tmp/v2_list_${CAMERA}_${d}.txt" \
                 -vf "vpp_qsv=w=${VPP_W}:h=${VPP_H},setpts=${SETPTS}*PTS" \
                 -an -c:v "${CODEC}" -preset veryfast -r 20 \
-                "$OUTPUT_FILE" < /dev/null >> "$LOG_FILE" 2>&1
+                "$TEMP_OUTPUT" < /dev/null >> "$LOG_FILE" 2>&1
 
             FFMPEG_STATUS=$?
-            if [ $FFMPEG_STATUS -eq 0 ] && [ -s "$OUTPUT_FILE" ]; then
+            if [ $FFMPEG_STATUS -eq 0 ] && [ -s "$TEMP_OUTPUT" ] && \
+                ffprobe -v error -show_format "$TEMP_OUTPUT" < /dev/null > /dev/null 2>&1; then
+                mv -f "$TEMP_OUTPUT" "$OUTPUT_FILE"
+                write_ready_manifest "$d" "$OUTPUT_FILE"
                 END_TIME=$(date +%s)
                 ELAPSED=$((END_TIME - START_TIME))
                 FILE_SIZE=$(ls -lh "$OUTPUT_FILE" 2>/dev/null | awk "{print \$5}")
@@ -209,11 +237,14 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
                 echo "✅ ${CAMERA} ${d} 出片！尝试: $ATTEMPT | 耗时: ${ELAPSED}s | 文件: ${FILE_SIZE} | 时长: ${DUR_FMT}" >> "$LOG_FILE"
                 SUCCESS=$((SUCCESS + 1))
             else
+                rm -f "$TEMP_OUTPUT"
+                FFMPEG_STATUS=1
                 ATTEMPT=$((ATTEMPT + 1))
             fi
         done
 
         if [ $FFMPEG_STATUS -ne 0 ] || [ ! -s "$OUTPUT_FILE" ]; then
+            rm -f "$TEMP_OUTPUT"
             END_TIME=$(date +%s)
             ELAPSED=$((END_TIME - START_TIME))
             echo "❌ ${CAMERA} ${d} 中断。尝试: $((ATTEMPT-1)) | 耗时: ${ELAPSED}s" >> "$LOG_FILE"

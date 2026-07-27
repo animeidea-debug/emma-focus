@@ -20,3 +20,7 @@ emma_focus_api.js
 env.local
 Emma_Focus_DB.xlsx
 infra/web/backend/data/
+
+# Local Emma Review jobs and sensitive model results
+.emma-review/
+.venv-emma-review/

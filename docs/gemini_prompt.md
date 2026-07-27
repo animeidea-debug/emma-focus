@@ -1,1 +1,8 @@
-__Constraint:__ Every stage MUST have exactly one of the six enum values above (`Focus`, `Coaching`, `Screen`, `Activity`, `Distraction`, `Eye Rest`). Do NOT invent new categories or use generic labels like "Other", "Unknown", or "Neutral". If an activity does not clearly fit any category, default to the closest match based on the definitions above.
+# Emma Review Prompt
+
+本文件不再保存第二份模型提示词。唯一真源是：
+
+`skills/emma-review/references/audit-prompt.md`
+
+ChatGPT Work 和 Codex 应调用 `Emma Review` Skill。Admin 页面只复制 Skill
+调用说明，避免提示词副本发生漂移。
