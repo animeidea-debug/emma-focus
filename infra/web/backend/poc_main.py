@@ -751,31 +751,32 @@ def derive_transactions(conn, date_str: str):
         WHERE date = ? AND type IN (?, ?, ?, ?, ?)
     """, (date_str, *derived_types))
 
-    # Get tokens_net from evaluations
+    # Get evaluation data
     ev = conn.execute("SELECT tokens_net, rating, focus_blocks, distractions, absent FROM evaluations WHERE date=?",
                       (date_str,)).fetchone()
     if ev:
-        tokens_net = ev["tokens_net"] or 0
-        if tokens_net > 0:
+        # ── 银币奖励：后端独立计算，不依赖 Gemini 的 tokens_net ──
+        fb = ev["focus_blocks"] or 0
+        dist = ev["distractions"] or 0
+        # +1 银币/专注块，-1 银币/每3次分心
+        silver_award = fb - (dist // 3)
+        if silver_award > 0:
+            deduct_part = ""
+            if dist >= 3:
+                deduct_part = " 分心扣" + str(dist // 3)
+            description = "专注奖励 " + date_str + " (" + str(fb) + "块 +" + str(silver_award) + ")" + deduct_part
             conn.execute("""
                 INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
                 VALUES (?, 'award_silver', ?, ?, 0)
-            """, (date_str, "专注奖励 " + date_str, tokens_net))
-        elif tokens_net < 0:
-            # 分心扣除：按每 3 次分心扣 1 银币
-            dist = ev["distractions"] or 0
-            deduct_count = dist // 3
-            if deduct_count > 0:
-                conn.execute("""
-                    INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
-                    VALUES (?, 'deduct_silver', ?, ?, 0)
-                """, (date_str, f"分心扣除（{dist} 次分心 × 每3次扣1银币）", tokens_net))
-            else:
-                # 兜底：直接记录 tokens_net 为负值（如 2026-06-25 的 -1）
-                conn.execute("""
-                    INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
-                    VALUES (?, 'deduct_silver', ?, ?, 0)
-                """, (date_str, "分心扣除 " + date_str, tokens_net))
+            """, (date_str, description, silver_award))
+        elif silver_award < 0:
+            description = "分心扣除 " + date_str + " (" + str(dist) + "次分心"
+            conn.execute("""
+                INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)
+                VALUES (?, 'deduct_silver', ?, ?, 0)
+            """, (date_str, description, silver_award))
+        # 更新 evaluations 表中的 tokens_net 使其与实际一致
+        conn.execute("UPDATE evaluations SET tokens_net=? WHERE date=?", (silver_award, date_str))
 
         # Check excellent day → award_gold
         is_excellent = (
