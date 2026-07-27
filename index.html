@@ -367,7 +367,7 @@
                             <button data-ledger-filter="all"
                                 class="ledger-filter rounded-full bg-rose-600 text-white px-2.5 py-1 text-[10px]">全部</button>
                             <button data-ledger-filter="tmos"
-                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">TMOS</button>
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">时间管理</button>
                             <button data-ledger-filter="emma"
                                 class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">Emma</button>
                             <button data-ledger-filter="silver"
@@ -1057,8 +1057,8 @@
             const gSign = tx.goldDelta > 0 ? '+' : (tx.goldDelta < 0 ? '−' : '');
             const sChip = sMag ? `<span class="font-bold text-slate-700">${sSign}${sMag}🥈</span>` : '';
             const gChip = gMag ? `<span class="font-bold text-amber-700">${gSign}${gMag}🥇</span>` : '';
-            const sourceBadge = tx.source === 'tmos' ? '<span class="rounded bg-indigo-100 text-indigo-700 px-1.5 py-0.5 text-[9px] font-bold">TMOS</span>' : '';
-            const detail = tx.settlement && !compact ? `<details class="mt-1 text-[10px] text-gray-500"><summary class="cursor-pointer text-indigo-600">查看结算来源 · v${tx.settlement.policyVersion}</summary><div class="mt-1 rounded bg-indigo-50/60 p-2"><div>结算 ID：${escapeHtml(tx.settlement.id)}</div>${tx.settlement.reversedSettlementId ? `<div>冲正原结算：${escapeHtml(tx.settlement.reversedSettlementId)}</div>` : ''}${(tx.settlement.sourceEvents || []).map(event => `<div class="mt-1">${escapeHtml(event.fact_date)} · ${escapeHtml(event.title || event.fact_type)} · ${event.stars >= 0 ? '+' : ''}${event.stars}⭐</div>`).join('') || '<div class="mt-1">等级里程碑或历史汇总结算</div>'}</div></details>` : '';
+            const sourceBadge = tx.source === 'tmos' ? '<span class="rounded bg-indigo-100 text-indigo-700 px-1.5 py-0.5 text-[9px] font-bold">时间管理</span>' : '';
+            const detail = tx.settlement && !compact ? `<details class="mt-1 text-[10px] text-gray-500"><summary class="cursor-pointer text-indigo-600">查看成长明细 · v${tx.settlement.policyVersion}</summary><div class="mt-1 rounded bg-indigo-50/60 p-2">${tx.settlement.reversedSettlementId ? `<div>调整原结算：${escapeHtml(tx.settlement.reversedSettlementId)}</div>` : ''}${(tx.settlement.sourceEvents || []).map(event => `<div class="mt-1">${escapeHtml(event.fact_date)} · ${escapeHtml(event.title || event.fact_type)} · ${event.stars >= 0 ? '+' : ''}${event.stars}⭐</div>`).join('') || '<div class="mt-1">等级里程碑或历史汇总</div>'}</div></details>` : '';
             return `<li class="flex items-start gap-2 py-${compact ? '0.5' : '1'} border-b ${compact ? 'border-gray-100/60' : 'border-rose-100/60'} last:border-0">
                 <span title="${meta.title}" class="${compact ? 'text-[11px]' : ''}">${meta.emoji}</span>
                 <div class="flex-1 min-w-0">
@@ -1110,9 +1110,10 @@
                 case 'bonus_gold': return { emoji: '🎁', title: '手动奖励（金）' };
                 case 'redeem': return { emoji: '🛒', title: '兑换' };
                 case 'exchange': return { emoji: '🔄', title: '币种交换' };
-                case 'tmos_silver_conversion': return { emoji: '⭐', title: 'TMOS 星星结算' };
-                case 'tmos_level_milestone': return { emoji: '🌌', title: 'TMOS 等级里程碑' };
-                case 'tmos_reversal': return { emoji: '↩️', title: 'TMOS 奖励冲正' };
+                case 'tmos_silver_conversion': return { emoji: '⭐', title: '时间管理 · 星星结算' };
+                case 'tmos_level_milestone': return { emoji: '🌌', title: '时间管理 · 等级里程碑' };
+                case 'tmos_daily_settlement': return { emoji: '📅', title: '时间管理 · 每日计划执行成长奖励' };
+                case 'tmos_reversal': return { emoji: '↩️', title: '时间管理 · 奖励调整' };
                 default: return { emoji: '•', title: type };
             }
         }
