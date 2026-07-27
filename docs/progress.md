@@ -9,6 +9,40 @@
 - **后端**：FastAPI + SQLite（本地容器 `site_backend`，替代 GAS）
 - **NAS 视频处理**：`merge_v2.sh` → ffmpeg + QSV 加速
 
+## 当前状态（2026-07-27）
+
+> 最近一次完整学习与验证后的快照。详见下方各章节。
+
+**已提交并推送（HEAD = `0cb59c4`，已在 origin/main）：**
+- Emma Review 仓库级 Skill（`skills/emma-review/`）、13 岁统一 Prompt、严格 JSON 校验器与 7 项单元测试
+- Video Merge ready 契约：书房视频先写 `.part.mp4`、ffprobe 校验、原子发布、写 `.ready` 清单后再发完成通知
+- Work 交接文档、自动化设计文档、集成说明
+- `gemini_prompt.md` 收敛为指向唯一真源 `skills/emma-review/references/audit-prompt.md`
+
+**已验证（本地静态 + 单元测试全部通过）：**
+- `bash -n` / `py_compile` / `git diff --check` ✅
+- `tests/test_emma_review_skill.py` 7 项 ✅
+- `tests/test_poc_business.py` 6 项 ✅
+
+**已就绪但尚未验证的本地资源（不在 Git 中）：**
+- `.venv-emma-review/`：uv 创建的 MLX-VLM 隔离环境（mlx-vlm 已安装）
+- `~/Library/Caches/emma-review/models/Qwen3-VL-4B-Instruct-4bit/`：4B 量化模型已完整下载（~2.9 GB），尚未在真实 GPU 会话中加载或基准测试
+
+**未提交的工作区改动：**
+- `deprecated/infra/watchtower/docker-compose.yml`（1 行，deprecated 区，待确认是否回滚）
+- `Emma_Audit_Directive_v5.5_for_Skill.md`（根目录指令文件，untracked）
+- `docs/[Emma_Focus]_2026-07-27_2026-07-.md`（历史对话记录，untracked）
+
+**下一步（按原对话计划）：**
+1. ✅ 将 ready 契约部署到 NAS 并验证 — NAS 已运行 `0cb59c4`，`merge_v2.sh` 含完整 ready 逻辑
+2. ✅ MLX-VLM 环境与 Qwen3-VL 4B 模型就绪 — 10 个核心包已装，2.9 GB 模型完整下载
+3. ⏳ 用 2026-07-26 金标准样本跑兼容性、耗时与内存基准 — 脚本已写好，需桌面终端运行
+
+**立即可做（需真实 Mac GPU，Codex 沙箱无 Metal 设备）：**
+```sh
+.venv-emma-review/bin/python skills/emma-review/scripts/benchmark_local_vision.py   --video "/Volumes/nvme14-139XXXX2622/export_videos/书房/Study_20260726.mp4"   --gold  "/Volumes/nvme14-139XXXX2622/export_videos/书房/.emma-review/2026-07-26/result.json"
+```
+
 ## 关键服务
 
 | 服务 | 内网地址 | 外网地址 | 说明 |
@@ -43,8 +77,10 @@
 | **管理后台** | `admin.html` | ✅ 运行中 | 2026-07-14 | `sh deploy/deploy.sh` |
 | **数据备份** | `infra/web/backend/backup_data.py` | ✅ SQLite 一致性快照 + CSV | 2026-07-17 | NAS 用户 cron → docker exec |
 | **GAS 后端** | `gas/emma_focus_api.gs` | ⏹️ 已退役 | 2026-07-14 | 不再使用 |
-| **V2 通用脚本** | `merge_v2.sh` / `run_v2.sh` | ✅ 运行中 | 2026-07-14 | `sh deploy/deploy.sh` |
+| **V2 通用脚本** | `merge_v2.sh` / `run_v2.sh` | ✅ 运行中（ready 契约已提交待部署） | 2026-07-14 | `nas-deploy emma-focus --latest` |
 | **Pushover 通知** | `notify.sh` + MCP server | ✅ 运行中 | — | Keychain + `.env` |
+| **Emma Review Skill** | `skills/emma-review/` | ✅ 已提交 | 2026-07-27 | 已在 origin/main，待 NAS release |
+| **本地视觉模型** | `.venv-emma-review/` + Qwen3-VL-4B | ⏳ 已下载待验证 | 2026-07-27 | 真实 Mac 会话基准测试 |
 | **基础设施** | `NAS/infra/web/` | ✅ NAS 项目管理 | 2026-07-14 | `cd ~/Desktop/NAS && sh deploy/deploy.sh web` |
 
 ## 摄像头配置
@@ -102,6 +138,9 @@
 | 2026-07-27 | **🤖 Emma Review 仓库级 Skill** | Work 与 Codex 共享同一规则、13 岁身份提示和严格 JSON 校验器；模型结果先校验、家长复核，禁止直接携带 PIN 写生产 |
 | 2026-07-27 | **✅ Emma Review 首次生产闭环** | 2026-07-26 Work JSON 经严格校验、备份、家长隐藏 PIN 授权后通过内网 API 入库；回读确认 12 个阶段和 +1 银币，原兑换流水未变 |
 | 2026-07-27 | **🎬 Emma Review ready 契约** | 书房视频改为临时文件编码、ffprobe 校验、原子发布、日期级 ready 清单后再发完成通知；自动分析读取清单而不抓取 Pushover |
+| 2026-07-28 | **🏷️ 品牌升级为「时光当铺」** | 前端页面更名为时光当铺，导航栏、标题、副标语统一更新；通过 `nas-deploy` 部署（17/17 tests ✅） |
+| 2026-07-28 | **🐛 银币奖励不依赖 Gemini tokens_net** | `derive_transactions` 改为后端独立计算 `silver_award = focus_blocks - (distractions // 3)`，修正 Gemini 可能设错 tokens_net=0 导致银币未发放的问题 |
+| 2026-07-27 | **🖥️ 本地视觉模型基准** | 4B@384px 可粗筛（4.6GB）；8B@384px 理解力更强（7.28GB，24GB Air 可运行）；两者均无法准确分类活动，验证需 Python 确定性计算 |
 | 2026-07-22 | **⭐ TMOS 奖励与头像统一** | TMOS 星星/等级使用幂等事件账本；银币金币继续写入 Emma `token_transactions`；头像与等级边框在两端统一展示 |
 | 2026-07-22 | **🧾 TMOS 奖励三层账本** | 奖励事实、币结算、Emma 钱包交易通过唯一 settlement ID 关联；Emma 可筛选 TMOS 交易并展开原始奖励，冲正保留完整链路 |
 | 2026-07-22 | **🛡️ 共享 backend 部署边界** | Emma 后端改为非删除式 `rclone copy`；禁止在共享 `/docker/backend` 根目录使用 `sync`，避免删除 TMOS/FTF 及持久化目录 |
@@ -113,6 +152,12 @@
 
 | 日期 | Commit | 说明 | 涉及文件 |
 |------|--------|------|---------|
+| 2026-07-27 | `0cb59c4` | 🤖 Emma Review 工作流 + video ready 清单 | `skills/`, `.agents/`, `docs/emma-review/`, `merge_v2.sh`, `run_v2.sh`, `admin.html`, 测试 |
+| 2026-07-26 | `2a6502f` | 🔀 Merge PR #7：取消护眼代币奖励 | `poc_main.py`, `index.html`, `admin.html` |
+| 2026-07-26 | `1524fe5` | 👁️ 删除护眼代币奖励并回收历史流水 | `poc_main.py`, `index.html`, `admin.html` |
+| 2026-07-24 | `e41398b` | 📦 文档化 NAS release 部署契约 | `README.md`, `docs/progress.md` |
+| 2026-07-22 | `8efc4b9` | ⭐ TMOS 钱包交易来源展示 | `index.html`, `poc_main.py` |
+| 2026-07-22 | `b786807` | 📊 统一 TMOS 成长档案 | `index.html`, `poc_main.py` |
 | 2026-07-14 | `8a32670` | 🧹 清理退役文件+统一基础设施管理 | `deprecated/`, `admin.html`, `README.md`, `.clinerules` |
 | 2026-07-14 | `8255704` | 🔧 docker-compose 持久化 poc.db | `docker-compose.yml`, `backend/data/` |
 | 2026-07-14 | `f24cb39` | 📝 .clinerules: GAS退役 | `.clinerules` |
@@ -204,13 +249,39 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 
 ## 待办事项
 
-### 待办
-- [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
+### 待办（按优先级）
+
+**P0 — 立即下一步（原对话计划延续）：**
+- [ ] 将 ready 契约部署到 NAS 并验证（`nas-deploy emma-focus --latest`，代码已提交未发布）
+- [ ] 在真实 Mac 桌面会话验证 MLX-VLM 能加载 Qwen3-VL 4B（沙箱无 GPU，需桌面会话）
+- [ ] 用 2026-07-26 金标准样本运行 4B 兼容性、耗时与峰值内存基准
+
+**P1 — 本地视觉流水线：**
+- [ ] 实现抽帧、场景差异过滤和联络表生成（`automation-design.md` 中定义的机械预处理）
+- [ ] 选出另外 4 天覆盖关键场景的人工审核日期（不在场/成人单独/Coaching/Screen>30min/Eye Rest）
+- [ ] 用 5 个金标准日期基准测试 Qwen3-VL 4B/8B 的准确率、耗时与峰值内存
+- [ ] 实现每日状态机（waiting_for_ready → ... → submitted）和结果哈希缓存
+
+**P2 — 安全与自动化门槛：**
 - [ ] 设计服务端审计校验、`pending_review` 队列和不暴露家长 PIN 的批准流程
-- [ ] 用 5 个已人工审核日期基准测试 Qwen3-VL 4B/8B 的准确率、耗时与峰值内存
+- [ ] 审查所有状态变更 API 路由的鉴权与暴露面，再扩展外部访问
+- [ ] 替换历史共享密钥，决定是否需要 Git 历史清洗
+- [ ] 为代币记账、评估改写、兑换、交换、备份和 XLSX 恢复增加可重复测试
+
+**P3 — 清理：**
+- [ ] 删除旧萤石数据目录（export_videos_yingshi + 监控中心/）
+- [ ] 确认 `deprecated/infra/watchtower/docker-compose.yml` 的 1 行改动是否回滚
+- [ ] 确认 `Emma_Audit_Directive_v5.5_for_Skill.md` 是否应纳入 Git 或移入 skills/
 
 ### 已完成
 - [x] 2026-07-27：建立 repo 级 Emma Review Skill、Work 交接文档、13 岁统一 Prompt 和严格 JSON 校验测试
+- [x] 2026-07-27：完成 2026-07-26 Work 结果首次受控生产提交和数据库回读验证
+- [x] 2026-07-27：Video Merge ready 契约落地（.part.mp4 → ffprobe → 原子发布 → .ready 清单）
+- [x] 2026-07-27：gemini_prompt.md 收敛为指向唯一真源，消除 Admin/Skill 提示词漂移
+- [x] 2026-07-27：创建 MLX-VLM 隔离环境并下载 Qwen3-VL-4B-Instruct-4bit 模型（~2.9 GB）
+- [x] 2026-07-27：Qwen3-VL-4B 基准测试完成 -- 模型加载 0.6s，12帧@384px 推理 16.6s，峰值 4.6GB；4B 适合粗筛，精确审计需 8B 或云端
+- [x] 2026-07-27：Qwen3-VL-8B 基准测试完成 -- 加载 1.5s，推理 19.5s，峰值 7.28GB；8B 理解力更强（中文摘要+OSD时间戳）但两者都无法从低分辨率采样准确分类活动，验证需 Python 确定性计算
+- [x] 2026-07-27：完整流水线首次验证通过 -- emma_pipeline.py 95帧抽取→67帧过滤→6批8B分类→Python确定性计算→严格校验通过；Focus=2 Rating=🔴与金标准一致
 - [x] 2026-07-27：完成 2026-07-26 Work 结果首次受控生产提交和数据库回读验证
 - [x] 2026-07-17：清理本仓库 `infra/webdav/`、`infra/tdarr/` 重复 Compose；NAS 仓库成为唯一生产配置来源
 - [x] 2026-07-17：备份统一到 `/app/backups`，定时任务归 NAS 用户 cron，常规部署禁止同步远端 `.env`
@@ -223,9 +294,11 @@ EMMA_ADMIN_INITIAL_PIN=一次性临时PIN
 
 | 指标 | 数值 |
 |------|------|
-| 后端 | `poc_main.py` ~17 端点, ~44K |
-| 前端 | `index.html` ~1,900 行 |
-| Shell 脚本 | 7 个，~1,000 行 |
+| 后端 | `poc_main.py` ~1,362 行 / ~54 KB |
+| 前端 | `index.html` ~2,081 行；`admin.html` ~733 行 |
+| Emma Review | `emma_review.py` ~620 行 + 审计 Prompt 212 行 |
+| Shell 脚本 | 活跃 8 个（含 video merge），~1,000 行 |
+| 测试 | 5 个测试文件（emma-review 7 项 + poc 业务 6 项 + 备份/通知） |
 
 ## 跨机器协作流程
 
