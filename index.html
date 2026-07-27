@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emma 的专注力成长看板</title>
+    <title>时光当铺 - 自律典当时光，规划兑换自由</title>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦊</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -69,7 +69,7 @@
     <div class="max-w-5xl mx-auto mb-2 flex items-center gap-1 text-xs">
         <a href="/"
             class="inline-flex items-center gap-1.5 rounded-lg bg-orange-100 px-3 py-1.5 font-semibold text-orange-700 shadow-sm">
-            <span>🦊</span> 专注力看板
+            <span>🕰️</span> 时光当铺
         </a>
         <span class="text-orange-300 mx-1">|</span>
         <a href="/tmos/"
@@ -81,7 +81,7 @@
     <div id="loadingOverlay"
         class="fixed inset-0 bg-white/95 z-50 flex flex-col justify-center items-center backdrop-blur-sm">
         <div class="text-6xl animate-bounce mb-4">🦊</div>
-        <h2 class="text-xl font-black text-orange-800 animate-pulse">🦊 正在加载 Emma 看板...</h2>
+        <h2 class="text-xl font-black text-orange-800 animate-pulse">🕰️ 正在加载时光当铺...</h2>
         <p class="text-xs text-orange-600 mt-2 font-bold" id="loadingText">从 NAS 加载专注力数据中，请稍候</p>
     </div>
 
@@ -93,8 +93,8 @@
                 <button id="avatarBtn"
                     class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center text-4xl border-2 border-orange-400 cursor-pointer hover:bg-orange-200 transition-colors shrink-0">🐶</button>
                 <div>
-                    <h1 class="text-2xl md:text-3xl font-black text-orange-800">Emma 的专注力成长看板</h1>
-                    <p class="text-orange-600 mt-1 font-semibold text-sm md:text-base">用你不懈的努力，自驱自律，精准兑换快乐特权吧！</p>
+                    <h1 class="text-2xl md:text-3xl font-black text-orange-800">时光当铺</h1>
+                    <p class="text-orange-600 mt-1 font-semibold text-sm md:text-base">自律典当时光，规划兑换自由！</p>
                     <p id="rewardIdentity" class="mt-1 text-xs font-black text-indigo-600">Lv.1 · 晨光萌芽 · ⭐ 0</p>
                 </div>
             </div>
@@ -364,12 +364,18 @@
                         <h3 class="text-base font-black text-rose-800 mb-2 flex items-center gap-2">📋 最近交易</h3>
                         <p class="text-xs text-rose-600 mb-3 pb-2 border-b border-rose-100">历史奖励 / 兑换 / 手动调整记录</p>
                         <div id="ledgerFilters" class="flex flex-wrap gap-1.5 mb-3">
-                            <button data-ledger-filter="all" class="ledger-filter rounded-full bg-rose-600 text-white px-2.5 py-1 text-[10px]">全部</button>
-                            <button data-ledger-filter="tmos" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">TMOS</button>
-                            <button data-ledger-filter="emma" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">Emma</button>
-                            <button data-ledger-filter="silver" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">银币</button>
-                            <button data-ledger-filter="gold" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">金币</button>
-                            <button data-ledger-filter="reversal" class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">冲正</button>
+                            <button data-ledger-filter="all"
+                                class="ledger-filter rounded-full bg-rose-600 text-white px-2.5 py-1 text-[10px]">全部</button>
+                            <button data-ledger-filter="tmos"
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">TMOS</button>
+                            <button data-ledger-filter="emma"
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">Emma</button>
+                            <button data-ledger-filter="silver"
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">银币</button>
+                            <button data-ledger-filter="gold"
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">金币</button>
+                            <button data-ledger-filter="reversal"
+                                class="ledger-filter rounded-full bg-white border border-rose-200 px-2.5 py-1 text-[10px]">冲正</button>
                         </div>
                     </div>
                     <ul id="tokenLedger" class="space-y-2 text-xs text-gray-700 flex-1"></ul>
@@ -1387,7 +1393,7 @@
                 const profile = await response.json();
                 const identity = document.getElementById('rewardIdentity');
                 if (identity) identity.innerText = `Lv.${profile.level} · ${profile.title} · ⭐ ${profile.lifetimeStars}`;
-                const colors = ['#B88A45','#B88A45','#66849A','#66849A','#81759A','#81759A','#627594','#627594','#B88A45','#81759A'];
+                const colors = ['#B88A45', '#B88A45', '#66849A', '#66849A', '#81759A', '#81759A', '#627594', '#627594', '#B88A45', '#81759A'];
                 const avatar = document.getElementById('avatarBtn');
                 if (avatar) {
                     avatar.style.borderColor = colors[Math.max(0, Math.min(9, profile.level - 1))];
