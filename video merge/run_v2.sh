@@ -14,10 +14,22 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 NAS_DATA="/tmp/zfsv3/nvme14/13918962622/data"
 STATE_DIR="${VIDEO_MERGE_STATE_DIR:-/tmp/nas-video-merge-state}"
+LOG_RETENTION_DAYS="${VIDEO_MERGE_LOG_RETENTION_DAYS:-30}"
 TODAY=$(date +%Y%m%d)
 START_TS=$(date +%s)
 
 mkdir -p "$STATE_DIR"
+
+case "$LOG_RETENTION_DAYS" in
+    ''|*[!0-9]*)
+        echo "⚠️ 无效的 VIDEO_MERGE_LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-<empty>}，回退为 30 天"
+        LOG_RETENTION_DAYS=30
+        ;;
+esac
+if [ "$LOG_RETENTION_DAYS" -lt 1 ]; then
+    echo "⚠️ VIDEO_MERGE_LOG_RETENTION_DAYS 必须至少为 1，回退为 30 天"
+    LOG_RETENTION_DAYS=30
+fi
 
 echo ""
 echo "============================================="
@@ -41,6 +53,19 @@ if ! docker exec tdarr_node sh -c 'rm -rf /tmp/* 2>/dev/null; mkdir -p /tmp' 2>&
     exit 1
 fi
 echo "✅ 临时文件已清理"
+echo ""
+
+# 只清理 merge_v2 产生的带归档后缀日志；不删除视频、ready 清单、结果 JSON
+# 或 /tmp 下的 cron 日志。日志由容器内 root 创建，因此同样在容器内清理。
+echo "⏳ 清理超过 ${LOG_RETENTION_DAYS} 天的转码日志归档..."
+if ! docker exec -e LOG_RETENTION_DAYS="$LOG_RETENTION_DAYS" tdarr_node sh -c '
+    find /mnt/export_videos -maxdepth 1 -type f -name "merge_v2_*.log.*" \
+        -mtime "+${LOG_RETENTION_DAYS}" -print -delete
+'; then
+    echo "⚠️ 旧转码日志清理失败；本次视频合并继续执行"
+else
+    echo "✅ 旧转码日志归档清理完成"
+fi
 echo ""
 
 ALL_SUCCESS=0

@@ -47,6 +47,13 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
     READY_DIR="${OUTPUT_BASE}/.ready"
     mkdir -p "$READY_DIR"
 
+    # 每次运行先归档上一份同摄像头日志。归档采用时间戳，供 run_v2.sh
+    # 统一保留 30 天；当前日志始终保留，便于最新故障排查。
+    if [ -s "$LOG_FILE" ]; then
+        LOG_ARCHIVE="${LOG_FILE}.$(date +%Y%m%d-%H%M%S)-$$.previous"
+        mv "$LOG_FILE" "$LOG_ARCHIVE"
+    fi
+
     write_ready_manifest() {
         ready_date="$1"
         ready_output="$2"
@@ -65,7 +72,7 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
     if [ -f "$LOG_FILE" ]; then
         SIZE=$(stat -f%z "$LOG_FILE" 2>/dev/null || stat --format=%s "$LOG_FILE" 2>/dev/null || echo 0)
         if [ "$SIZE" -gt "${MAX_LOG_SIZE}" ]; then
-            mv "$LOG_FILE" "${LOG_FILE}.old"
+            mv "$LOG_FILE" "${LOG_FILE}.$(date +%Y%m%d-%H%M%S)-$$.oversize"
             echo "[LOG_ROTATE] 日志超过 ${MAX_LOG_SIZE}B，已重命名" > "$LOG_FILE"
         fi
     fi
