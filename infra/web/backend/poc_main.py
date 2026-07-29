@@ -689,7 +689,7 @@ def write_evaluation(conn, payload: dict):
                  eye_rest_minutes, note, absent, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (d, day_type, start_t, end_t, fb, dist, eye, note, absent,
-                  "gray" if absent else "green"))
+                  status_from_rating("", bool(absent), fb, dist)))
 
     # ── Evaluations ──
     if payload.get("evaluations") and isinstance(payload["evaluations"], dict):
@@ -702,15 +702,23 @@ def write_evaluation(conn, payload: dict):
         # Check if row exists, then update specific fields
         existing = conn.execute("SELECT * FROM evaluations WHERE date=?", (d,)).fetchone()
         if existing:
+            status = status_from_rating(
+                rating,
+                bool(existing["absent"]),
+                existing["focus_blocks"] or 0,
+                existing["distractions"] or 0,
+            )
             conn.execute("""
-                UPDATE evaluations SET summary=?, rating=?, tokens_net=?
+                UPDATE evaluations SET summary=?, rating=?, tokens_net=?, status=?
                 WHERE date=?
-            """, (summary, rating, tokens_net, d))
+            """, (summary, rating, tokens_net, status, d))
         else:
+            status = status_from_rating(rating, False, 0, 0)
             conn.execute("""
-                INSERT INTO evaluations (date, summary, rating, tokens_net)
-                VALUES (?, ?, ?, ?)
-            """, (d, summary, rating, tokens_net))
+                INSERT INTO evaluations
+                (date, summary, rating, tokens_net, status)
+                VALUES (?, ?, ?, ?, ?)
+            """, (d, summary, rating, tokens_net, status))
 
     # ── Activity_Logs / Stages ──
     if payload.get("stages") and isinstance(payload["stages"], list):

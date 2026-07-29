@@ -140,6 +140,38 @@ class PocBusinessTest(unittest.TestCase):
 
         self.assertEqual(count, 0)
 
+    def test_write_evaluation_persists_status_from_rating(self):
+        conn = self.backend.get_db()
+        payload = {
+            "date": "2026-07-29",
+            "timeline": [{
+                "Date": "2026-07-29",
+                "Day_Type": "周三",
+                "Time_Start": "09:21",
+                "Time_End": "19:18",
+                "Focus_Blocks": 4,
+                "Distractions": 2,
+                "Eye_Rest_Minutes": 0,
+                "Absent": False,
+                "Note": "人工确认",
+            }],
+            "evaluations": {
+                "Date": "2026-07-29",
+                "Summary": "人工确认",
+                "Rating": "🟡 警告",
+                "Tokens_Net": 4,
+            },
+            "stages": [],
+        }
+
+        self.backend.write_evaluation(conn, payload)
+        row = conn.execute(
+            "SELECT rating, status FROM evaluations WHERE date='2026-07-29'"
+        ).fetchone()
+        conn.close()
+
+        self.assertEqual((row["rating"], row["status"]), ("🟡 警告", "amber"))
+
     def test_legacy_eye_rest_rewards_are_revoked_once(self):
         conn = self.backend.get_db()
         conn.execute(
