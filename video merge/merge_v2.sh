@@ -144,17 +144,37 @@ docker exec -e CAMERA="$CAMERA" -e CAMERA_LABEL="$CAMERA_LABEL" -e SOURCE_DIR="$
             [ "$start_date" = "$d" ] && echo "$fpath" >> "/tmp/v2_day_${CAMERA}_${d}.txt"
         done < "$ALL_FILES_TMP"
 
-        # ⏭️ 最新日期跳过不完整的（只检查起始时间戳中下午13-21时）
+        # ⏭️ 最新日期跳过不完整的。新款文件名同时包含起止时间：
+        #     00_YYYYMMDDHHMMSS_YYYYMMDDHHMMSS.mp4
+        # 只检查开始小时会漏掉从上午持续到下午/晚上的长片段，因此应判断
+        # 视频区间是否与 13:00:00-21:59:59 相交。旧款单时间戳格式继续
+        # 使用开始小时作为兼容回退。
         if [ "$d" = "$LATEST_DATE" ] && [ "$TEST_MODE" != "true" ]; then
             HAS_AFTERNOON=false
+            AFTERNOON_START="${d}130000"
+            AFTERNOON_END="${d}215959"
             while IFS= read -r fpath; do
                 fname=$(basename "$fpath")
-                hour=$(echo "$fname" | cut -d_ -f2 | grep -oE "^2026[0-9]{4}([0-9]{2})" | sed "s/^2026[0-9]\{4\}//")
-                [ -z "$hour" ] && hour=$(echo "$fname" | grep -oE "^${d}([0-9]{2})" | sed "s/^${d}//")
-                H=$(echo "$hour" | sed "s/^0*//")
-                if [ -n "$H" ] && [ "$H" -ge 13 ] && [ "$H" -le 21 ]; then
+                start_ts=$(echo "$fname" | cut -d_ -f2 | grep -oE "^2026[0-9]{10}")
+                end_ts=$(echo "$fname" | cut -d_ -f3 | grep -oE "^2026[0-9]{10}")
+
+                if [ -n "$start_ts" ] && [ -n "$end_ts" ] && \
+                   [ "$start_ts" -le "$AFTERNOON_END" ] && \
+                   [ "$end_ts" -ge "$AFTERNOON_START" ]; then
                     HAS_AFTERNOON=true
                     break
+                fi
+
+                if [ -z "$start_ts" ]; then
+                    start_ts=$(echo "$fname" | grep -oE "^${d}[0-9]{6}" | head -1)
+                fi
+                if [ -n "$start_ts" ] && [ -z "$end_ts" ]; then
+                    hour=$(echo "$start_ts" | cut -c9-10)
+                    H=$(echo "$hour" | sed "s/^0*//")
+                    if [ -n "$H" ] && [ "$H" -ge 13 ] && [ "$H" -le 21 ]; then
+                        HAS_AFTERNOON=true
+                        break
+                    fi
                 fi
             done < "/tmp/v2_day_${CAMERA}_${d}.txt"
             if [ "$HAS_AFTERNOON" = false ]; then
