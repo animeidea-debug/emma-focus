@@ -1,0 +1,6 @@
+# Reproducible local-only Emma Review inference environment.
+# Install into .venv-emma-review; this environment is not used by production.
+mlx-vlm==0.6.8
+mlx==0.32.0
+opencv-python==5.0.0.93
+psutil==7.2.2

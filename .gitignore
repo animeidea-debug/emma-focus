@@ -24,3 +24,9 @@ infra/web/backend/data/
 # Local Emma Review jobs and sensitive model results
 .emma-review/
 .venv-emma-review/
+Study_*.mp4
+__pycache__/
+*.py[cod]
+
+# Local Codex session exports can contain personal operational history.
+docs/[[]Emma_Focus[]]_*.md
