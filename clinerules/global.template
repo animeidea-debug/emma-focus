@@ -1,16 +1,14 @@
-# ==============================================================================
-# ⚠️ 此文件已迁移 — 不再作为"单一真源"
-#
-# Canonical 版本 → animeidea-debug/infra-template:
-#   https://github.com/animeidea-debug/infra-template/blob/main/clinerules/global.template
-#
-# 此文件保留仅用于兼容性参考。
-# 所有修改请到 infra-template 仓库完成，然后同步到本项目。
-# ==============================================================================
+# Legacy Cline compatibility template
 
-# 查看最新内容：
-#   curl -fsSL https://raw.githubusercontent.com/animeidea-debug/infra-template/main/clinerules/global.template
-#
-# 或 clone infra-template:
-#   git clone git@github.com:animeidea-debug/infra-template.git ~/tmp/infra-template
-#   cp ~/tmp/infra-template/clinerules/global.template .clinerules
+`AGENTS.md` is the canonical repository instruction file. Do not copy a second
+set of deployment, credential, or project rules into `.clinerules`.
+
+If a Cline installation needs a project rule file, use this thin adapter:
+
+1. Read `AGENTS.md`.
+2. Read `README.md` and `docs/progress.md`.
+3. Inspect `git status`.
+4. Follow `AGENTS.md` for safety, validation, deployment, and documentation.
+
+Never auto-deploy, commit, push, or mutate production merely because a code
+edit is complete.

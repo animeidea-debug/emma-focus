@@ -35,6 +35,17 @@
 > **⚠️ 重要**：Docker Compose 和 nginx 配置由 `~/Desktop/NAS` 项目统一管理。
 > 修改 `infra/web/` 后需同步到 NAS 项目并执行 `sh ~/Desktop/NAS/deploy/deploy.sh web`。
 
+## 文档与协作入口
+
+- `AGENTS.md`：长期有效的项目边界、安全规则和验证要求，供 Codex/Cline 等编码代理读取。
+- `docs/progress.md`：当前状态、已验证事实、进行中工作和下一步计划；项目交接时优先阅读。
+- `README.md`：面向开发者和维护者的稳定项目说明，不记录逐次会话流水。
+- `docs/emma-review/`：视频分析、Work 交接、隐私边界和审核导入流程。
+
+统一约定使用复数文件名 `AGENTS.md`。GitHub SSH 凭证属于本机和 GitHub
+账户配置，不写入仓库；项目 remote 可以使用 SSH，但不得提交私钥、口令或
+个人密钥路径。
+
 ## 架构
 
 ```
@@ -77,6 +88,39 @@ python3 skills/emma-review/scripts/emma_review.py \
 
 校验通过后仍需在 Admin 页面人工预览并由家长确认。真实视频、分析结果、PIN
 和模型凭证不得提交 Git。详细流程见 `docs/emma-review/integration.md`。
+
+本地视觉流水线当前以 Qwen2.5-VL-7B 4-bit 为主模型，输入按最长边 640px
+等比例缩放，不再把 16:9 画面拉伸成正方形。它支持使用 Git 外的家长确认
+参考图做同人匹配，并将人物身份、人数、成人直接辅导、Emma 主动屏幕交互、
+注意力方向和基础活动拆成窄问题，再由 Python 按明确优先级合成类别。主动
+Screen 必须同时满足“正在操作/观看设备”和“注意力在屏幕”两项证据；短于
+5 分钟、前后均为独自纸面学习的孤立查询可折回连续学习，但 Coaching 前的
+短时 Screen 保留。场景过滤后的大观察缺口必须拆组，OSD 跨度超过 20 分钟
+的组还会递归细分；成人或不确定身份区间是阶段合并的硬边界。任一组 OSD
+缺失或倒退都会终止候选生成。流水线只生成带结果哈希的 `pending_review`
+候选，不接受 PIN，也不直接 POST 生产 API。
+
+后续日期运行时，流水线会从同一 Git 外 `.emma-review` 根目录读取更早日期、
+已提交的 `parent_feedback.json`。它只把去重、限量后的通用 `lesson` 提供给
+本地 VLM，并在 review metadata 中记录反馈数量和源文件哈希；具体日期区间、
+完整结果和 PIN 不会进入模型提示。人物观察明确区分“成人仅在旁”与“直接
+辅导”，前者不再自动归为 Coaching。
+
+本地运行框架固定在 `skills/emma-review/requirements-local-vision.txt`；
+当前为 `mlx-vlm 0.6.8`。升级只发生在 `.venv-emma-review` 隔离环境中，
+不会改变 NAS 后端或生产容器。
+
+本机候选运行器要求显式提供视频与模型目录，并默认拒绝没有 Video Merge
+`.ready` 清单的文件：
+
+```sh
+EMMA_VIDEO_DIR="/path/to/export_videos/书房" \
+EMMA_REVIEW_MODEL="/path/to/local-model" \
+sh run_tonight.sh YYYY-MM-DD
+```
+
+它只在本地生成 `pending_review` 候选；视频、结果、家长反馈和任何身份参考图
+均保留在 Git 外。
 
 ## 部署流程
 

@@ -30,3 +30,6 @@ __pycache__/
 
 # Local Codex session exports can contain personal operational history.
 docs/[[]Emma_Focus[]]_*.md
+
+# The canonical Emma Review directive lives under skills/emma-review/references/.
+Emma_Audit_Directive_v*.md

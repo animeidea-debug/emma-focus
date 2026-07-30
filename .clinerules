@@ -1,127 +1,15 @@
-# ==============================================================================
-# [shared] — 通用规则（来自 animeidea-debug/infra-template clinerules/global.template）
-# 此段是单一真源，修改请到 infra-template，然后同步到此文件。
-# ==============================================================================
+# Cline project adapter
 
-## 凭证管理
-所有密码通过 macOS Keychain 读取，不在文件中明文存储：
-- WebDAV: `security find-generic-password -s "emma-webdav" -a "garychen" -w`
-- SSH: `security find-generic-password -s "nas-ssh" -a "garychen" -w`
-- 其他凭证: 同上模式，service 名称自定义
-- 另一台电脑首次使用前，需要先在 Keychain 中存入对应凭证
+The canonical project instructions are in `AGENTS.md`.
 
-## 自动部署
-每次完成代码修改后自动执行（无需询问）：
-1. `sh deploy/deploy.sh`    # NAS 部署（同步 scripts + HTML + 后端 .py）
-2. **Docker Compose / nginx** 由 `NAS` 项目管理
-   - 修改 `NAS/infra/web/docker-compose.yml` 或 `NAS/infra/web/nginx.conf` 后
-   - 需执行 `cd ~/Desktop/NAS && sh deploy/deploy.sh web` 才能生效
-3. **GAS 已退役**（2026-07-14），不再执行 `clasp push`
+Before doing any work, read these files in order:
 
-⚠️ `deploy.sh` 连接策略（含指数退避重试）：
-   - **内网环境**（检测到 192.168.x.x）→ 4 次重试 LAN WebDAV（2s/4s/8s/16s），不尝试 Tailscale
-   - **外网环境** → 3 次重试 Tailscale Funnel（5s/10s/20s）
-   - 每次同步前先检测 rclone remote 是否存在，避免重复创建
-   - SSH 操作（chmod、容器重启）也带 3 次重试
+1. `AGENTS.md`
+2. `README.md`
+3. `docs/progress.md`
+4. `git status`
 
-## WebDAV 容器管理
-⚠️ `rclone/rclone:latest` 镜像的 ENTRYPOINT 是 `rclone`，不是 shell！
-docker-compose.yml 中**不能用** `command: sh -c "..."`，必须用 JSON 数组格式。
-
-密码通过同目录 `.env` 文件（已 gitignored）提供。
-
-## 脚本权限问题
-WebDAV `rclone sync` 不保留 +x 权限，所有 .sh 文件部署后为 644。
-修改脚本后必须执行 `docker exec tdarr_node chmod +x /app/scripts/*.sh`
-或通过 `deploy.sh` 自动修复（SSH docker exec）。
-crontab 调绝对路径时，644 无 +x 的脚本会静默失败！
-
-## git push 后自动文档更新
-每次 commit + push 后，自动更新：
-1. `docs/progress.md` — 最近提交表格 + 事故记录
-2. `README.md` — 如果项目结构或部署方式变化
-
-## 多项目共享 nginx 规则
-重要：不要覆盖已有项目的首页！
-
-1. **每个项目使用独立子目录**：
-   ```
-   infra/web/html/
-   ├── index.html              # 已有项目（根路径，保留）
-   └── your-project-name/      # 新项目放这里
-       └── index.html
-   ```
-
-2. **每个项目添加独立的 nginx location 块**：
-   ```nginx
-   location /your-project-name/ {
-       alias /usr/share/nginx/html/your-project-name/;
-       try_files $uri $uri/ /your-project-name/index.html;
-   }
-   ```
-
-3. **不要修改根 location / 块**（已有项目保留）
-
-4. **部署时只同步你的项目目录**。
-
-# ==============================================================================
-# [project] — Emma Focus 项目特定规则
-# ==============================================================================
-
-## 🔗 依赖的外部项目
-
-| 项目 | 用途 | 说明 |
-|:----|:-----|:------|
-| `NAS` (animeidea-debug/nas-infra) | 基础设施管理 | 所有 docker-compose.yml、nginx.conf 由 NAS 项目统一部署 |
-| `infra-template` (animeidea-debug/infra-template) | 共享模板 | clinerules 单一真源 |
-
-**⚠️ 修改任何 docker-compose.yml 或 nginx.conf 后，需到 NAS 项目执行其 deploy.sh 才能生效。**
-
-## Mac 启动流程
-每次使用 Mac 时，首先执行同步：
-1. `git pull`                # 拉取最新代码
-2. `sh deploy/deploy.sh`     # NAS 同步（脚本 + HTML）
-
-## 部署流程
-每次修改 HTML/脚本/后端代码后，自动执行（无需询问）：
-1. `sh deploy/deploy.sh`    # NAS 同步（脚本 + HTML + 后端 .py）
-2. 如修改了 docker-compose 或 nginx.conf：
-   切换到 `~/Desktop/NAS` → `git pull && sh deploy/deploy.sh web`
-3. GAS 已退役（2026-07-14），不再需要 `clasp push`
-
-## 🔐 数据持久化策略（P0 事故后重建，2026-07-14）
-
-**核心原则：数据在外，容器在内。** 所有生产数据必须先放在 NAS 宿主机，再通过 volume mapping 挂载到容器内。禁止将任何持久化数据放在容器内部文件系统。
-
-| 数据 | 策略 | 说明 |
-|------|------|------|
-| SQLite 数据库 | Volume mapping `./backend/data:/app/data` | 容器重启不丢失 |
-| Emma_Focus_DB.xlsx | `deploy.sh` 同步到 NAS `data/backups/` | 不进 git，真实数据 |
-| 备份快照 | `backup_data.py` → `/app/data/Backups/emma_data/` | 每日 08:00+20:00，保留 30 天 |
-
-**什么时候用 XLSX？**
-- `Emma_Focus_DB.xlsx` 是 Google Sheets 导出的原始数据。它不应在常规流程中使用。
-- 仅在**灾难恢复场景 C**（所有数据库文件丢失）时，才通过 `import_xlsx_to_sqlite.py` 从 XLSX 重建。
-- ⚠️ 绝对不要提交到 git。
-
-## 凭证管理（Emma Focus 特定）
-- WebDAV（emma-webdav/garychen）已写入 Keychain
-- 另一台电脑首次使用前，需要先在 Keychain 中存入对应凭证
-
-## 跨机器协作
-- 另一台电脑 `git commit` 后，这边 `git pull` 拿到改动
-- 这边改动后自动 `sh deploy/deploy.sh`
-- 如果改了 compose/nginx，还需 `cd ~/Desktop/NAS && git pull && sh deploy/deploy.sh web`
-- 项目状态见 `docs/progress.md`
-
-## Windows 首次设置
-1. 安装 [Git for Windows](https://git-scm.com/)（自带 Git Bash）
-2. 安装 [rclone for Windows](https://rclone.org/downloads/)
-3. `git clone` 仓库后，设置密码：
-   ```powershell
-   setx WEBDAV_PASS "your-password"
-   ```
-4. 运行部署：
-   ```powershell
-   .\deploy\run_deploy.bat    # NAS 部署
-   ```
+Follow `AGENTS.md` for repository boundaries, safety, validation, deployment,
+and documentation maintenance. Do not duplicate those rules here. In
+particular, never auto-deploy, commit, push, or mutate production merely because
+a code edit is complete; require the approval specified in `AGENTS.md`.
