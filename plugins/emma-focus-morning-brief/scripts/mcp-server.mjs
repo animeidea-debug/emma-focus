@@ -14,8 +14,13 @@ function readConfig() {
   const baseUrl = String(process.env.EMMA_FOCUS_BRIEF_BASE_URL || file.baseUrl || '').replace(/\/+$/, '')
   if (baseUrl) {
     const parsed = new URL(baseUrl)
-    const localHttp = parsed.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)
-    if (parsed.protocol !== 'https:' && !localHttp) throw new Error('Emma Focus morning-brief endpoint must use HTTPS')
+    const isLanAddress = ['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)
+      || parsed.hostname.startsWith('192.168.')
+      || parsed.hostname.startsWith('10.')
+      || parsed.hostname.match(/^172\.(1[6-9]|2\d|3[01])\./)
+      || parsed.hostname.endsWith('.local')
+    const localHttp = parsed.protocol === 'http:' && isLanAddress
+    if (parsed.protocol !== 'https:' && !localHttp) throw new Error('Emma Focus morning-brief endpoint must use HTTPS (LAN addresses may use HTTP)')
   }
   return { baseUrl }
 }
@@ -37,10 +42,24 @@ function readToken(baseUrl) {
 async function apiRequest(path) {
   const { baseUrl } = readConfig()
   if (!baseUrl) throw new Error('Emma Focus morning-brief endpoint is not configured')
-  const response = await fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${readToken(baseUrl)}`, Accept: 'application/json' } })
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { Authorization: `Bearer ${readToken(baseUrl)}`, Accept: 'application/json' },
+    redirect: 'manual',
+  })
+  // Detect reverse-proxy redirects (ZConnect intercepting unauthenticated requests)
+  if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+    const location = response.headers.get('location') || 'unknown'
+    if (location.includes('zconnect.cn')) {
+      throw new Error(
+        'ZConnect (极空间) intercepted the request. The Bearer token is not being forwarded by the proxy. ' +
+        'Either connect to the home LAN and use the local URL, or configure Tailscale for direct access.'
+      )
+    }
+    throw new Error(`Request redirected to ${location}; check the configured base URL.`)
+  }
   const text = await response.text()
   let body
-  try { body = text ? JSON.parse(text) : {} } catch { body = { detail: text } }
+  try { body = text ? JSON.parse(text) : {} } catch { body = { detail: text.slice(0, 200) } }
   if (!response.ok) throw new Error(`Emma Focus read failed: ${typeof body.detail === 'string' ? body.detail : `HTTP ${response.status}`}`)
   return body
 }
