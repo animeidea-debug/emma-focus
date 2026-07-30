@@ -145,6 +145,40 @@ class EmmaReviewReadinessTests(unittest.TestCase):
             self.assertTrue(report["ready"])
             self.assertTrue(report["producer_confirmed"])
 
+    def test_accepts_compact_producer_audit_date(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            video = root / "Study_20260726.mp4"
+            video.write_bytes(b"video")
+            ready_dir = root / ".ready"
+            ready_dir.mkdir()
+            (ready_dir / "Study_20260726.ready.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "status": "ready",
+                        "camera": "Study",
+                        "label": "书房",
+                        "audit_date": "20260726",
+                        "path": "/mnt/export_videos/书房/Study_20260726.mp4",
+                        "bytes": 5,
+                        "duration_seconds": 10.0,
+                        "completed_at": "2026-07-26T22:36:23+0800",
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            with patch.object(emma_review, "mp4_duration", return_value=10.0):
+                with patch.object(
+                    emma_review.time, "time", return_value=time.time() + 120
+                ):
+                    report = emma_review.inspect_readiness(
+                        root, emma_review.parse_date("2026-07-26")
+                    )
+            self.assertTrue(report["ready"])
+            self.assertTrue(report["producer_confirmed"])
+
     def test_legacy_stable_requires_explicit_override(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

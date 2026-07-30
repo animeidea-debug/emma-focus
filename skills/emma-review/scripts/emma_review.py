@@ -230,12 +230,13 @@ def inspect_readiness(
         expected = {
             "status": "ready",
             "camera": "Study",
-            "audit_date": day.isoformat(),
             "bytes": stat.st_size,
         }
         mismatches = [
             key for key, value in expected.items() if manifest.get(key) != value
         ]
+        if manifest.get("audit_date") not in {day.isoformat(), compact}:
+            mismatches.append("audit_date")
         if Path(str(manifest.get("path", ""))).name != video.name:
             mismatches.append("path")
         if mismatches:
