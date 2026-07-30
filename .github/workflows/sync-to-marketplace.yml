@@ -2,7 +2,7 @@ name: Sync plugin to family marketplace
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - 'plugins/emma-focus-morning-brief/**'
 
