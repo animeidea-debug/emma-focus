@@ -1,6 +1,6 @@
 {
   "name": "emma-focus-morning-brief",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only Emma Focus morning briefs for Codex",
   "author": {
     "name": "Emma Focus"
@@ -12,7 +12,10 @@
     "longDescription": "Provides a scoped read-only MCP connection and a guided skill for factual, child-friendly focus morning briefs.",
     "developerName": "Emma Focus",
     "category": "Productivity",
-    "capabilities": ["Read-only", "Focus review"],
+    "capabilities": [
+      "Read-only",
+      "Focus review"
+    ],
     "defaultPrompt": "Generate Emma's focus morning brief from authoritative data."
   },
   "mcpServers": "./.mcp.json"
