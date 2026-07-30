@@ -1,0 +1,55 @@
+name: Sync plugin to family marketplace
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'plugins/emma-focus-morning-brief/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: emma-focus
+
+      - name: Checkout marketplace repo
+        uses: actions/checkout@v4
+        with:
+          repository: animeidea-debug/codex-family-marketplace
+          token: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
+          path: marketplace
+
+      - name: Sync plugin files
+        run: |
+          rm -rf marketplace/plugins/emma-focus-morning-brief
+          cp -r emma-focus/plugins/emma-focus-morning-brief marketplace/plugins/emma-focus-morning-brief
+
+          TIMESTAMP=$(date -u +"%Y%m%d%H%M%S")
+          python3 -c "
+          import json, sys
+          path = 'marketplace/plugins/emma-focus-morning-brief/.codex-plugin/plugin.json'
+          with open(path) as f:
+              manifest = json.load(f)
+          version = manifest.get('version', '0.1.0')
+          prefix = version.split('+', 1)[0]
+          manifest['version'] = f'{prefix}+codex.{sys.argv[1]}'
+          with open(path, 'w') as f:
+              json.dump(manifest, f, indent=2)
+              f.write('\n')
+          print(f'Version: {version} -> {manifest[\"version\"]}')
+          " "$TIMESTAMP"
+
+      - name: Commit and push to marketplace repo
+        run: |
+          cd marketplace
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "auto-sync emma-focus-morning-brief from Emma Focus@${{ github.sha }}"
+            git push
+          fi
