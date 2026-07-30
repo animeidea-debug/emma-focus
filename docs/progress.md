@@ -2,6 +2,7 @@
 
 > 当前交接快照。长期规则见 `AGENTS.md`，稳定产品和操作说明见 `README.md`。
 > 日期级视频、审计结果、家长反馈和生产数据不进入本文件。
+> 最后更新：2026-07-31
 
 ## 项目状态
 
@@ -13,13 +14,14 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 
 - 家长审核的评估、代币、兑换和备份能力；
 - Video Merge 原子发布与 matching ready manifest；
-- 本地 Emma Review 候选流水线、严格 JSON 校验与 `pending_review` metadata；
+- 本地 Qwen2.5-VL-7B-4bit 视觉候选流水线、严格 JSON 校验、`pending_review` metadata；
 - ready manifest 同时兼容 ISO 和紧凑日期；
 - 安全的本地候选运行器（`run_tonight.sh`），默认拒绝未 ready 视频；
+- parent feedback 闭环：流水线自动加载之前日期的家长修正经验作为 VLM 提示词；
 - GitHub SSH 与统一 `AGENTS.md` / `README.md` / `docs/progress.md` 文档规范；
-- Codex morning-brief 插件已安装，focus-brief 后端已部署；
-- **morning-brief ZConnect 重定向问题已修复**：configure.mjs 现在检测
-  重定向并提示使用 LAN URL；MCP 服务器增加了 LAN HTTP 支持和重定向检测。
+- Codex morning-brief 插件 v0.1.1：ZConnect 重定向检测、LAN HTTP 支持、scoped read token；
+- GitHub Action 自动同步 morning-brief 插件到 family marketplace；
+- 07-30 首次完整实战：pipeline 候选 → 家长审核修正 → 提交入库 → 写入 parent feedback。
 
 ## 安全与发布边界
 
@@ -31,17 +33,19 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 
 ## 当前重点
 
-1. **在家长 Mac 的 LAN 环境下完成 morning-brief token 配置**：
-   ```sh
-   node plugins/emma-focus-morning-brief/scripts/configure.mjs \
-     --base-url http://192.168.6.108:8888/api/poc
-   ```
-   ZConnect 外网 URL 会拦截 CLI 请求并重定向到极空间网页，必须用内网 IP。
-2. 连续积累人工审核样本，量化本地候选对身份、Screen、Coaching、Eye Rest 和阶段边界的偏差；
-3. 完成缓存/状态机和 Pushover 候选完成或失败通知；
-4. 只对低置信度片段评估第二本地模型或云端复核；
+1. 连续积累人工审核样本（已有 2026-07-28 和 07-30 两天 parent feedback）；
+2. 完成缓存/状态机和 Pushover 候选完成或失败通知；
+3. 根据 accumulated feedback 量化流水线对身份、Screen、Coaching 的准确率；
+4. Emma Mac 端 pull 最新代码后在内网完成 morning-brief token 配置；
 5. 为代币记账、评估改写、兑换、备份和恢复补齐可重复测试；
 6. 审查所有状态变更 API 的认证与外网暴露边界。
+
+## 已知问题
+
+- 本地 7B 模型无法可靠区分"家长在旁独立学习"vs"家长辅导"（Coaching 漏判/误判）；
+- 妈妈在远处桌子时偶尔被模型误判为 Emma 使用屏幕（身份/位置混淆）；
+- 短于 30 分钟的独立学习段会被规则降级为 Distraction，但家长有时认为这些也应算 Focus；
+- Eye Rest 与 Activity（整理东西）的区分不准确。
 
 ## 操作入口
 
@@ -51,4 +55,5 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - Work 交接：`docs/emma-review/work-handoff.md`；
 - 部署和恢复：`README.md` 与 NAS 仓库的 `nas-deploy` 文档；
 - Morning brief 配置：`docs/runbooks/configure-emma-focus-morning-brief.md`；
-- Morning brief 设计决策：`docs/decisions/agent-morning-brief-integration.md`。
+- Morning brief 设计决策：`docs/decisions/agent-morning-brief-integration.md`；
+- 每晚视频分析：`EMMA_VIDEO_DIR=... EMMA_REVIEW_MODEL=... sh run_tonight.sh YYYY-MM-DD`。
