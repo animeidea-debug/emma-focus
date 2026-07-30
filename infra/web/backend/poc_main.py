@@ -25,7 +25,7 @@ Endpoints:
 Database: /app/data/poc.db (standalone, separate from site.db)
 """
 
-from fastapi import FastAPI, APIRouter, HTTPException, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
@@ -34,7 +34,8 @@ import json
 import hmac
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
 cors_origins = [origin.strip() for origin in os.environ.get("EMMA_CORS_ORIGINS", "").split(",") if origin.strip()]
@@ -52,6 +53,10 @@ ENABLE_SEED_DUMMY = os.environ.get("EMMA_ENABLE_SEED_DUMMY", "").lower() in ("1"
 AUTH_FILE = os.environ.get("EMMA_AUTH_FILE", "/app/data/security/admin_auth.json")
 INITIAL_PIN = os.environ.get("EMMA_ADMIN_INITIAL_PIN", "")
 PIN_ITERATIONS = 200_000
+FOCUS_BRIEF_SCOPE = "focus-brief:read"
+FOCUS_BRIEF_TOKEN_PREFIX = "emma_focus_brief_"
+FOCUS_BRIEF_MAX_EXPIRY_DAYS = 365
+FOCUS_BRIEF_PIN_FAILURES = []
 
 router = APIRouter(prefix="/api/poc")
 
@@ -177,6 +182,16 @@ def init_db():
             payload TEXT DEFAULT ''
         );
 
+        CREATE TABLE IF NOT EXISTS focus_brief_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            scope TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked_at TEXT DEFAULT NULL
+        );
+
         INSERT OR IGNORE INTO tokens (silver_balance, gold_balance, exchange_rate) VALUES (0, 0, 5);
         INSERT OR IGNORE INTO app_config (key, value) VALUES ('exchange_rate', '5');
     """)
@@ -199,6 +214,68 @@ def log_action(action: str, ip: str = "", payload: str = ""):
 
 def today_iso():
     return datetime.now().strftime("%Y-%m-%d")
+
+def shanghai_today_iso():
+    return datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+
+def parse_iso_date(date_str: str):
+    return datetime.strptime(date_str, "%Y-%m-%d").date()
+
+def focus_brief_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def require_focus_brief_auth(authorization: str | None):
+    """Validate a scoped read token; it is intentionally unrelated to admin PIN auth."""
+    if not authorization or not authorization.startswith("Bearer " + FOCUS_BRIEF_TOKEN_PREFIX):
+        raise HTTPException(status_code=401, detail="Focus-brief read token required")
+    token_hash = focus_brief_token_hash(authorization[7:])
+    now = datetime.now(timezone.utc).isoformat()
+    conn = get_db()
+    try:
+        row = conn.execute("""
+            SELECT 1 FROM focus_brief_tokens
+            WHERE token_hash=? AND scope=? AND revoked_at IS NULL AND expires_at>?
+        """, (token_hash, FOCUS_BRIEF_SCOPE, now)).fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Focus-brief read token is invalid or expired")
+    finally:
+        conn.close()
+
+def check_focus_brief_pin_attempt(pin: str):
+    """Rate-limit PIN failures without persisting sensitive attempt data."""
+    now = datetime.now(timezone.utc).timestamp()
+    FOCUS_BRIEF_PIN_FAILURES[:] = [stamp for stamp in FOCUS_BRIEF_PIN_FAILURES if now - stamp < 300]
+    if len(FOCUS_BRIEF_PIN_FAILURES) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed PIN attempts; retry later")
+    try:
+        require_admin(pin)
+    except ValueError as exc:
+        FOCUS_BRIEF_PIN_FAILURES.append(now)
+        raise HTTPException(status_code=401, detail="Invalid parent PIN") from exc
+    FOCUS_BRIEF_PIN_FAILURES.clear()
+
+def issue_focus_brief_token(pin: str, label: str, expires_days: int):
+    if not 1 <= int(expires_days) <= FOCUS_BRIEF_MAX_EXPIRY_DAYS:
+        raise HTTPException(status_code=422, detail="expires_days must be between 1 and 365")
+    label = str(label or "").strip()
+    if not label or len(label) > 80:
+        raise HTTPException(status_code=422, detail="label must contain 1 to 80 characters")
+    check_focus_brief_pin_attempt(pin)
+    token = FOCUS_BRIEF_TOKEN_PREFIX + secrets.token_urlsafe(32)
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(days=int(expires_days))
+    conn = get_db()
+    try:
+        cursor = conn.execute("""
+            INSERT INTO focus_brief_tokens (label,token_hash,scope,created_at,expires_at)
+            VALUES(?,?,?,?,?)
+        """, (label, focus_brief_token_hash(token), FOCUS_BRIEF_SCOPE,
+              created_at.isoformat(), expires_at.isoformat()))
+        conn.commit()
+        return {"token": token, "token_id": cursor.lastrowid, "scope": FOCUS_BRIEF_SCOPE,
+                "expires_at": expires_at.isoformat()}
+    finally:
+        conn.close()
 
 def hash_pin(pin: str, salt: bytes = None):
     salt = salt or secrets.token_bytes(16)
@@ -345,6 +422,138 @@ def get_tokens_data(conn):
         "silverBalance": actual_s,
         "goldBalance": actual_g,
         "transactions": transactions
+    }
+
+def _brief_activity_totals(conn, date_str: str):
+    """Aggregate only stored activity facts; an absent row is never fabricated as zero."""
+    totals = {"focus_minutes": 0, "activity_minutes": 0, "coaching_minutes": 0,
+              "screen_minutes": 0, "eye_rest_minutes": 0, "distraction_minutes": 0,
+              "other_minutes": 0}
+    rows = conn.execute("""
+        SELECT category, COALESCE(SUM(duration), 0) AS minutes
+        FROM activity_logs WHERE date=? GROUP BY category
+    """, (date_str,)).fetchall()
+    keys = {
+        "Focus": "focus_minutes", "Activity": "activity_minutes", "Coaching": "coaching_minutes",
+        "Screen": "screen_minutes", "Eye Rest": "eye_rest_minutes", "Distraction": "distraction_minutes",
+    }
+    for row in rows:
+        totals[keys.get(row["category"], "other_minutes")] += row["minutes"] or 0
+    totals["study_minutes"] = totals["focus_minutes"] + totals["activity_minutes"]
+    return totals
+
+def _brief_activity_stages(conn, date_str: str):
+    rows = conn.execute("""
+        SELECT stage_name, category, duration, start_time, end_time
+        FROM activity_logs WHERE date=? ORDER BY start_time ASC, id ASC
+    """, (date_str,)).fetchall()
+    return [{"stage": row["stage_name"] or "", "category": row["category"] or "",
+             "duration_minutes": row["duration"] or 0, "start_time": row["start_time"] or "",
+             "end_time": row["end_time"] or ""} for row in rows]
+
+def _brief_wallet_changes(conn, date_str: str):
+    """Group ledger changes without expanding TMOS source facts into duplicate rewards."""
+    settlement_rows = conn.execute("""
+        SELECT wallet_transaction_id, settlement_id FROM tmos_reward_settlements
+        WHERE wallet_transaction_id IS NOT NULL
+    """).fetchall()
+    settlements = {row["wallet_transaction_id"]: row["settlement_id"] for row in settlement_rows}
+    grouped = {}
+    rows = conn.execute("""
+        SELECT id, type, COALESCE(silver_delta, 0) AS silver_delta,
+               COALESCE(gold_delta, 0) AS gold_delta
+        FROM token_transactions WHERE date=? ORDER BY id ASC
+    """, (date_str,)).fetchall()
+    latest_id = None
+    for row in rows:
+        latest_id = row["id"]
+        source = "tmos" if row["id"] in settlements else "emma"
+        key = (source, row["type"])
+        item = grouped.setdefault(key, {"source": source, "type": row["type"], "count": 0,
+                                        "silver_delta": 0, "gold_delta": 0, "settlement_ids": []})
+        item["count"] += 1
+        item["silver_delta"] += row["silver_delta"]
+        item["gold_delta"] += row["gold_delta"]
+        if row["id"] in settlements:
+            item["settlement_ids"].append(settlements[row["id"]])
+    return list(grouped.values()), latest_id
+
+def _pending_tmos_settlements(conn):
+    """Only expose pending settlements when the database has an explicit status column."""
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(tmos_reward_settlements)").fetchall()}
+    if "status" not in columns:
+        return []
+    rows = conn.execute("""
+        SELECT settlement_id, settlement_type, silver_delta, gold_delta
+        FROM tmos_reward_settlements WHERE status='pending'
+    """).fetchall()
+    return [dict(row) for row in rows]
+
+def build_focus_brief(conn, reference_date: str | None = None, trend_days: int = 7):
+    """Build the versioned, read-only morning-brief projection from stored facts."""
+    reference_date = reference_date or shanghai_today_iso()
+    try:
+        reference = parse_iso_date(reference_date)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("reference_date must be YYYY-MM-DD") from exc
+    if not 1 <= int(trend_days) <= 14:
+        raise ValueError("trend_days must be between 1 and 14")
+    yesterday = (reference - timedelta(days=1)).isoformat()
+    evaluation = conn.execute("SELECT * FROM evaluations WHERE date=?", (yesterday,)).fetchone()
+    changes, latest_transaction_id = _brief_wallet_changes(conn, yesterday)
+    if evaluation:
+        activity = _brief_activity_totals(conn, yesterday)
+        status = evaluation["status"] or status_from_rating(
+            evaluation["rating"] or "", bool(evaluation["absent"]),
+            evaluation["focus_blocks"] or 0, evaluation["distractions"] or 0,
+        )
+        review_state = "pending_review" if status == "pending_review" else "reviewed"
+        yesterday_facts = {
+            "date": yesterday, "data_state": review_state, "absent": bool(evaluation["absent"]),
+            "focus_blocks": evaluation["focus_blocks"] or 0,
+            "distractions": evaluation["distractions"] or 0,
+            "eye_rest_minutes": evaluation["eye_rest_minutes"] or 0,
+            "rating": evaluation["rating"] or "", "status": status,
+            "summary": evaluation["summary"] or "", "activity": activity,
+            "activity_stages": _brief_activity_stages(conn, yesterday),
+            "wallet_changes": changes,
+        }
+    else:
+        yesterday_facts = {"date": yesterday, "data_state": "missing", "wallet_changes": changes}
+
+    trend = []
+    for offset in range(int(trend_days) - 1, -1, -1):
+        date_str = (reference - timedelta(days=1 + offset)).isoformat()
+        row = conn.execute("SELECT * FROM evaluations WHERE date=?", (date_str,)).fetchone()
+        wallet_changes, _ = _brief_wallet_changes(conn, date_str)
+        silver_delta = sum(item["silver_delta"] for item in wallet_changes)
+        gold_delta = sum(item["gold_delta"] for item in wallet_changes)
+        if not row:
+            trend.append({"date": date_str, "data_state": "missing", "silver_delta": silver_delta,
+                          "gold_delta": gold_delta})
+            continue
+        activity = _brief_activity_totals(conn, date_str)
+        status = row["status"] or status_from_rating(row["rating"] or "", bool(row["absent"]),
+                                                       row["focus_blocks"] or 0, row["distractions"] or 0)
+        trend.append({"date": date_str, "data_state": "pending_review" if status == "pending_review" else "reviewed",
+                      "focus_minutes": activity["focus_minutes"], "study_minutes": activity["study_minutes"],
+                      "distractions": row["distractions"] or 0, "rating": row["rating"] or "",
+                      "status": status, "silver_delta": silver_delta, "gold_delta": gold_delta})
+
+    balances = conn.execute("""
+        SELECT COALESCE(SUM(silver_delta), 0) AS silver, COALESCE(SUM(gold_delta), 0) AS gold
+        FROM token_transactions WHERE date>=?
+    """, (TOKEN_START_DATE,)).fetchone()
+    latest_evaluation = conn.execute("SELECT MAX(date) AS date FROM evaluations").fetchone()
+    return {
+        "schema_version": 1, "source": "emma-focus", "authoritative": True,
+        "reference_date": reference_date, "generated_at": datetime.now(timezone.utc).isoformat(),
+        "yesterday": yesterday_facts,
+        "wallet": {"silver_balance": balances["silver"], "gold_balance": balances["gold"],
+                   "pending_tmos_settlements": _pending_tmos_settlements(conn)},
+        "trend": trend,
+        "provenance": {"latest_evaluation_date": latest_evaluation["date"] if latest_evaluation else None,
+                       "latest_transaction_id": latest_transaction_id},
     }
 
 def status_from_rating(rating: str, absent: bool, blocks: int, dist: int) -> str:
@@ -1016,6 +1225,61 @@ async def auth_status():
         "initialized": bool(auth),
         "mustChange": bool(auth and auth.get("must_change")),
     }
+
+class FocusBriefTokenRequest(BaseModel):
+    pin: str = ""
+    label: str = "Codex morning brief"
+    expires_days: int = 90
+
+@router.post("/focus-brief/tokens")
+async def create_focus_brief_token(payload: FocusBriefTokenRequest):
+    """One-time parent PIN exchange for a revocable, read-only Codex token."""
+    return issue_focus_brief_token(payload.pin, payload.label, payload.expires_days)
+
+@router.get("/focus-brief/tokens")
+async def list_focus_brief_tokens(x_emma_admin_pin: str = Header(default="")):
+    check_focus_brief_pin_attempt(x_emma_admin_pin)
+    conn = get_db()
+    try:
+        rows = conn.execute("""
+            SELECT id,label,scope,created_at,expires_at,revoked_at
+            FROM focus_brief_tokens ORDER BY id DESC
+        """).fetchall()
+        return {"tokens": [dict(row) for row in rows]}
+    finally:
+        conn.close()
+
+@router.delete("/focus-brief/tokens/{token_id}")
+async def revoke_focus_brief_token(token_id: int, x_emma_admin_pin: str = Header(default="")):
+    check_focus_brief_pin_attempt(x_emma_admin_pin)
+    conn = get_db()
+    try:
+        cursor = conn.execute("""
+            UPDATE focus_brief_tokens SET revoked_at=? WHERE id=? AND revoked_at IS NULL
+        """, (datetime.now(timezone.utc).isoformat(), token_id))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Focus-brief token not found")
+        return {"status": "ok", "revoked": token_id}
+    finally:
+        conn.close()
+
+@router.get("/focus-brief/health")
+async def focus_brief_health(authorization: str = Header(default="")):
+    require_focus_brief_auth(authorization)
+    return {"status": "ok", "source": "emma-focus", "scope": FOCUS_BRIEF_SCOPE}
+
+@router.get("/focus-brief")
+async def focus_brief(reference_date: str = "", trend_days: int = 7,
+                      authorization: str = Header(default="")):
+    require_focus_brief_auth(authorization)
+    conn = get_db()
+    try:
+        return build_focus_brief(conn, reference_date or None, trend_days)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        conn.close()
 
 @router.post("/auth/change-pin")
 async def change_admin_pin(request: Request):

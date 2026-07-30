@@ -17,6 +17,7 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - ready manifest 同时兼容 ISO 和紧凑日期；
 - 安全的本地候选运行器，默认拒绝未 ready 视频；
 - GitHub SSH 与统一 `AGENTS.md` / `README.md` / `docs/progress.md` 文档规范。
+- 本地待审阅的 Codex morning-brief：独立只读投影、哈希化可撤销令牌与双工具 MCP 插件；未部署。
 
 ## 安全与发布边界
 
@@ -34,6 +35,7 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 3. 只对低置信度片段评估第二本地模型或云端复核；
 4. 为代币记账、评估改写、兑换、备份和恢复补齐可重复测试；
 5. 审查所有状态变更 API 的认证与外网暴露边界。
+6. 审阅并批准 morning-brief 后端、插件和配置 runbook，再以完整 SHA 部署；部署前不签发或配置真实令牌。
 
 ## 操作入口
 
@@ -42,3 +44,5 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - 集成边界：`docs/emma-review/integration.md`；
 - Work 交接：`docs/emma-review/work-handoff.md`；
 - 部署和恢复：`README.md` 与 NAS 仓库的 `nas-deploy` 文档。
+- Morning brief：`docs/decisions/agent-morning-brief-integration.md` 与
+  `docs/runbooks/configure-emma-focus-morning-brief.md`。

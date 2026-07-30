@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ def load_backend(db_path):
             return lambda function: function
 
         post = get
+        delete = get
 
     class FakeRouter(FakeApp):
         pass
@@ -42,6 +44,7 @@ def load_backend(db_path):
     fastapi.APIRouter = FakeRouter
     fastapi.HTTPException = FakeHTTPException
     fastapi.Request = object
+    fastapi.Header = lambda default=None: default
     middleware = types.ModuleType("fastapi.middleware")
     cors = types.ModuleType("fastapi.middleware.cors")
     cors.CORSMiddleware = object
@@ -230,6 +233,98 @@ class PocBusinessTest(unittest.TestCase):
         self.backend.write_auth("new-parent-pin", must_change=False)
         self.backend.require_admin("new-parent-pin")
         self.assertFalse(self.backend.verify_admin_pin("test-parent-pin"))
+
+    def prepare_focus_brief_parent(self):
+        self.backend.write_auth("brief-parent-pin", must_change=False)
+
+    def test_focus_brief_missing_evaluation_is_not_zero(self):
+        self.prepare_focus_brief_parent()
+        conn = self.backend.get_db()
+        brief = self.backend.build_focus_brief(conn, "2026-07-30", 7)
+        conn.close()
+        self.assertEqual(brief["yesterday"]["data_state"], "missing")
+        self.assertNotIn("focus_minutes", brief["yesterday"])
+        self.assertEqual(len(brief["trend"]), 7)
+        self.assertEqual(brief["trend"][-1]["data_state"], "missing")
+
+    def test_focus_brief_aggregates_activity_wallet_and_trend(self):
+        conn = self.backend.get_db()
+        conn.execute("""INSERT INTO evaluations
+            (date, focus_blocks, distractions, eye_rest_minutes, rating, summary, absent, status)
+            VALUES ('2026-07-29', 2, 1, 10, '🟢 优秀', '已审核', 0, 'green')""")
+        conn.executemany("""INSERT INTO activity_logs
+            (date, stage_name, category, duration) VALUES ('2026-07-29', ?, ?, ?)""", [
+                ("阅读", "Focus", 45), ("手工", "Activity", 15), ("休息", "Eye Rest", 10),
+            ])
+        conn.executemany("""INSERT INTO token_transactions
+            (date,type,description,silver_delta,gold_delta) VALUES ('2026-07-29','award_silver','专注',?,0)""", [(2,), (1,)])
+        conn.execute("""INSERT INTO evaluations
+            (date, focus_blocks, distractions, rating, absent, status)
+            VALUES ('2026-07-28', 1, 2, '🟡 警告', 0, 'amber')""")
+        conn.execute("""INSERT INTO activity_logs
+            (date, stage_name, category, duration) VALUES ('2026-07-28','练习','Focus',30)""")
+        conn.commit()
+        brief = self.backend.build_focus_brief(conn, "2026-07-30", 2)
+        conn.close()
+        self.assertEqual(brief["yesterday"]["activity"]["focus_minutes"], 45)
+        self.assertEqual(brief["yesterday"]["activity"]["study_minutes"], 60)
+        self.assertEqual(brief["yesterday"]["activity_stages"][0]["stage"], "阅读")
+        self.assertEqual(brief["yesterday"]["wallet_changes"][0]["count"], 2)
+        self.assertEqual(brief["yesterday"]["wallet_changes"][0]["silver_delta"], 3)
+        self.assertEqual(brief["trend"][0]["focus_minutes"], 30)
+        self.assertEqual(brief["trend"][1]["silver_delta"], 3)
+
+    def test_focus_brief_groups_tmos_settlement_once(self):
+        conn = self.backend.get_db()
+        cursor = conn.execute("""INSERT INTO token_transactions
+            (date,type,description,silver_delta,gold_delta) VALUES ('2026-07-29','tmos_silver_conversion','TMOS 结算',1,0)""")
+        conn.execute("""INSERT INTO tmos_reward_settlements
+            (settlement_id,user,settlement_type,source_event_ids,star_credit_milli_delta,silver_delta,gold_delta,
+             policy_version,created_at,wallet_transaction_id) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+            ("settle-brief", "default", "silver_conversion", '["task-1","task-2"]', 1000, 1, 0, 3, "now", cursor.lastrowid))
+        conn.commit()
+        changes, _ = self.backend._brief_wallet_changes(conn, "2026-07-29")
+        conn.close()
+        self.assertEqual(changes, [{"source": "tmos", "type": "tmos_silver_conversion", "count": 1,
+                                    "silver_delta": 1, "gold_delta": 0, "settlement_ids": ["settle-brief"]}])
+
+    def test_focus_brief_token_is_hashed_expiring_and_revocable(self):
+        self.prepare_focus_brief_parent()
+        issued = self.backend.issue_focus_brief_token("brief-parent-pin", "Codex", 90)
+        self.assertEqual(issued["scope"], "focus-brief:read")
+        self.assertTrue(issued["token"].startswith("emma_focus_brief_"))
+        conn = self.backend.get_db()
+        stored = conn.execute("SELECT token_hash FROM focus_brief_tokens WHERE id=?", (issued["token_id"],)).fetchone()[0]
+        conn.close()
+        self.assertEqual(stored, self.backend.focus_brief_token_hash(issued["token"]))
+        self.assertNotEqual(stored, issued["token"])
+        self.assertIsNone(self.backend.require_focus_brief_auth(f"Bearer {issued['token']}"))
+        asyncio.run(self.backend.revoke_focus_brief_token(issued["token_id"], "brief-parent-pin"))
+        with self.assertRaises(self.backend.HTTPException) as caught:
+            self.backend.require_focus_brief_auth(f"Bearer {issued['token']}")
+        self.assertEqual(caught.exception.status_code, 401)
+
+    def test_focus_brief_expired_token_and_write_boundary_are_rejected(self):
+        self.prepare_focus_brief_parent()
+        issued = self.backend.issue_focus_brief_token("brief-parent-pin", "Codex", 1)
+        conn = self.backend.get_db()
+        conn.execute("UPDATE focus_brief_tokens SET expires_at='2000-01-01T00:00:00+00:00' WHERE id=?", (issued["token_id"],))
+        conn.commit()
+        conn.close()
+        with self.assertRaises(self.backend.HTTPException) as caught:
+            self.backend.require_focus_brief_auth(f"Bearer {issued['token']}")
+        self.assertEqual(caught.exception.status_code, 401)
+        with self.assertRaisesRegex(ValueError, "PIN 校验失败"):
+            self.backend.require_admin(issued["token"])
+        request = types.SimpleNamespace(
+            client=types.SimpleNamespace(host="test"),
+            json=lambda: __import__("asyncio").sleep(0, result={
+                "action": "bonus", "pin": issued["token"], "coinType": "silver", "amount": 1,
+            }),
+        )
+        result = asyncio.run(self.backend.generic_action(request))
+        self.assertEqual(result["status"], "error")
+        self.assertIn("PIN", result["message"])
 
 
 if __name__ == "__main__":

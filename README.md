@@ -71,6 +71,7 @@
 - 📜 **成长指南** — 活动规则、代币机制、专注力技巧速查
 - 🎥 **视频自动合并** — 书房与客厅摄像头按各自参数自动生成延时视频
 - 🤖 **Emma Review** — ChatGPT Work/视频模型生成候选审计 JSON，本地严格校验后由家长确认入库
+- 🌅 **Codex Morning Brief** — 仅通过范围受限的只读令牌，读取昨日已审核专注事实、钱包变化与七日趋势
 - 🔔 **运行通知闭环** — 总任务与分摄像头启动/结果通知、未启动看门狗、备份告警、Heartbeat 去重/恢复/升级与每日摘要；生产通知库由 NAS 仓库统一管理
 
 ## Emma Review
@@ -88,6 +89,16 @@ python3 skills/emma-review/scripts/emma_review.py \
 
 校验通过后仍需在 Admin 页面人工预览并由家长确认。真实视频、分析结果、PIN
 和模型凭证不得提交 Git。详细流程见 `docs/emma-review/integration.md`。
+
+## Codex morning brief
+
+`plugins/emma-focus-morning-brief/` 是仓库内的只读 Codex 插件。它只暴露
+`check_connection` 和 `get_focus_brief` 两个 MCP 工具，并从 macOS Keychain 读取
+可撤销、会过期的 `focus-brief:read` 令牌；它不读取家长 PIN，也没有生产写权限。
+
+先部署经审阅的后端，再按
+`docs/runbooks/configure-emma-focus-morning-brief.md` 在家长的 Mac 上生成并保存令牌。
+接口边界和设计理由见 `docs/decisions/agent-morning-brief-integration.md`。
 
 本地视觉流水线当前以 Qwen2.5-VL-7B 4-bit 为主模型，输入按最长边 640px
 等比例缩放，不再把 16:9 画面拉伸成正方形。它支持使用 Git 外的家长确认
