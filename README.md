@@ -9,7 +9,7 @@
 ├── README.md                # 项目说明（本文件）
 │
 ├── deploy/                  # 部署脚本
-│   ├── deploy.sh            # NAS 部署（HTML + 后端 + 脚本）
+│   ├── legacy-webdav-push.sh # ⚠️ 旧 WebDAV 文件推送，非常规发布路径
 │   ├── backup_data.sh       # 数据备份（SQLite → CSV）
 │   └── import_gas_to_sqlite.py # GAS→SQLite 迁移工具
 │
@@ -144,8 +144,8 @@ nas-deploy emma-focus --latest
 
 该命令由 NAS 基础设施仓库管理，会在 NAS 上拉取源码、运行测试、备份
 SQLite、切换网页/后端/受控视频脚本并执行健康检查。数据库、`.env` 和统一
-`notify.sh` 不属于 release。旧的 `sh deploy/deploy.sh` WebDAV 流程只保留
-为迁移期应急路径。
+`notify.sh` 不属于 release。旧的 `sh deploy/legacy-webdav-push.sh` WebDAV
+流程只保留为迁移期应急路径，非常规发布通道。
 
 ### 数据迁移（仅首次）
 ```sh

@@ -16,7 +16,7 @@ BACKUP_SCRIPT = PROJECT_ROOT / "infra/web/backend/backup_data.py"
 
 class BackupDataTest(unittest.TestCase):
     def test_deploy_never_syncs_shared_backend_root(self):
-        deploy = (PROJECT_ROOT / "deploy/deploy.sh").read_text(encoding="utf-8")
+        deploy = (PROJECT_ROOT / "deploy/legacy-webdav-push.sh").read_text(encoding="utf-8")
         self.assertNotIn('rclone sync "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/"', deploy)
         self.assertIn('rclone copy "${SCRIPT_DIR}/../infra/web/backend/" "${REMOTE}:/docker/backend/"', deploy)
 

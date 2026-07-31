@@ -1,5 +1,30 @@
 # Emma Focus collaboration guide
 
+## Deployment interface (hard rule)
+
+Production deployment MUST use the NAS-owned release command, run on
+the NAS:
+
+```sh
+nas-deploy emma-focus --ref <full-40-char-commit-sha>
+# or, only after the default branch has been reviewed:
+nas-deploy emma-focus --latest
+```
+
+- `deploy/legacy-webdav-push.sh` in THIS repository is the legacy
+  WebDAV file-push path. It is **NOT** the production deployment path.
+  Do not invoke it for a normal release. It remains only for
+  infrastructure bootstrap before `nas-deploy` exists on a fresh NAS,
+  or explicit disaster recovery when the NAS cannot reach GitHub.
+- `NAS/deploy/deploy.sh` (in the sibling NAS repository, not here)
+  IS correct for its job — it deploys Docker Compose definitions.
+  Do not confuse it with this repository's `deploy/` script.
+- The authoritative matrix lives at
+  `NAS/docs/deployment-interfaces.md`. Read it before any deploy.
+
+If you are about to run `deploy/legacy-webdav-push.sh`, stop and use
+`nas-deploy emma-focus`.
+
 ## Product purpose
 
 Emma Focus is a private family tool for helping Emma build sustained attention and self-management habits. It turns daily activity records into understandable progress, then reinforces that progress through silver/gold coin rewards and a configurable privilege shop.
@@ -65,12 +90,18 @@ Preserve these invariants:
 3. Keep changes small and separate product behavior, infrastructure, documentation, and data migration work.
 4. Run proportionate validation before handoff.
 5. Update `README.md` or `docs/progress.md` when architecture, deployment, recovery, or operating status changes.
-6. Deploy only after explicit approval, using `sh deploy/deploy.sh`; production Compose/nginx changes must be applied from the NAS repository.
+6. Deploy only after explicit approval, using the NAS-owned release
+   command `nas-deploy emma-focus --ref <full-commit-sha>` (run on the
+   NAS). The legacy `deploy/legacy-webdav-push.sh` WebDAV file-push is
+   **not** the production path and must not be used for a normal
+   release. Production Compose/nginx changes must be applied from the
+   NAS repository (`NAS/deploy/deploy.sh`, which is a different script
+   with the same base name — do not confuse the two).
 
 Minimum static validation:
 
 ```sh
-bash -n deploy/deploy.sh deploy/backup_data.sh
+bash -n deploy/legacy-webdav-push.sh deploy/backup_data.sh
 python3 -m py_compile infra/web/backend/main.py infra/web/backend/poc_main.py infra/web/backend/backup_data.py
 git diff --check
 ```
