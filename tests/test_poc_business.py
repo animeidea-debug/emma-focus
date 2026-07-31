@@ -111,7 +111,7 @@ class PocBusinessTest(unittest.TestCase):
             """
             INSERT INTO evaluations
                 (date, focus_blocks, distractions, tokens_net, absent)
-            VALUES ('2026-07-16', 1, 6, -1, 0)
+            VALUES ('2026-07-16', 1, 6, -5, 0)
             """
         )
         self.backend.derive_transactions(conn, "2026-07-16")
@@ -124,7 +124,7 @@ class PocBusinessTest(unittest.TestCase):
         ).fetchall()
         conn.close()
 
-        self.assertEqual([(row["type"], row["silver_delta"]) for row in rows], [("deduct_silver", -1)])
+        self.assertEqual([(row["type"], row["silver_delta"]) for row in rows], [("deduct_silver", -5)])
 
     def test_eye_rest_minutes_do_not_create_rewards(self):
         conn = self.backend.get_db()
