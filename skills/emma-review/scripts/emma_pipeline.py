@@ -1430,7 +1430,7 @@ def calculate_tokens(stages: list[Stage]) -> tuple[int, int, int, str]:
   Rules (from audit-prompt.md):
   - Focus Block: one per qualifying Focus stage (30+ minutes)
   - Distraction: one per Distraction stage, plus one per Screen stage > 30 min
-  - Tokens_Net = Focus_Blocks - floor(Distractions / 3)
+  - Tokens_Net = Focus_Blocks - Distractions (每次分心扣1个银币)
   - Rating: red if Distractions >= 3, yellow if 1-2, green if 0 and Focus >= 2, white if absent
   """
   focus_blocks = sum(1 for s in stages if s.category == "Focus" and s.duration >= 30)
@@ -1438,7 +1438,7 @@ def calculate_tokens(stages: list[Stage]) -> tuple[int, int, int, str]:
   distractions += sum(1 for s in stages if s.category == "Screen" and s.duration > 30)
   eye_rest = sum(s.duration for s in stages if s.category == "Eye Rest")
 
-  tokens_net = focus_blocks - (distractions // 3)
+  tokens_net = focus_blocks - distractions
 
   # Rating
   if not stages:
@@ -1463,7 +1463,7 @@ def build_result(date: str, stages: list[Stage], frames: list[Frame]) -> dict:
   """Build a result.json compatible with emma_review.py validate."""
   from datetime import datetime
   focus_blocks, distractions, eye_rest, rating = calculate_tokens(stages)
-  tokens_net = focus_blocks - (distractions // 3)
+  tokens_net = focus_blocks - distractions
 
   # Compute Day_Type (Chinese weekday)
   try:
@@ -1650,7 +1650,7 @@ def run_pipeline(date: str, video_path: str, model_path: str,
     # Step 5: Calculate tokens (deterministic Python)
     print(f"\n--- Step 5: Token Calculation ---")
     focus_blocks, distractions, eye_rest, rating = calculate_tokens(stages)
-    tokens_net = focus_blocks - (distractions // 3)
+    tokens_net = focus_blocks - distractions
     print(f" Focus_Blocks: {focus_blocks}")
     print(f" Distractions: {distractions}")
     print(f" Eye_Rest: {eye_rest}min")

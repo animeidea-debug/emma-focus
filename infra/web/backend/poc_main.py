@@ -975,12 +975,12 @@ def derive_transactions(conn, date_str: str):
         # ── 银币奖励：后端独立计算，不依赖 Gemini 的 tokens_net ──
         fb = ev["focus_blocks"] or 0
         dist = ev["distractions"] or 0
-        # +1 银币/专注块，-1 银币/每3次分心
-        silver_award = fb - (dist // 3)
+        # +1 银币/专注块，-1 银币/每次分心
+        silver_award = fb - dist
         if silver_award > 0:
             deduct_part = ""
-            if dist >= 3:
-                deduct_part = " 分心扣" + str(dist // 3)
+            if dist > 0:
+                deduct_part = " 分心扣" + str(dist)
             description = "专注奖励 " + date_str + " (" + str(fb) + "块 +" + str(silver_award) + ")" + deduct_part
             conn.execute("""
                 INSERT INTO token_transactions (date, type, description, silver_delta, gold_delta)

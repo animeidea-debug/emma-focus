@@ -543,7 +543,7 @@ def validate_result(data: object, expected_date: str | None = None) -> list[str]
     if absent and (stages or focus_blocks or distractions or eye_rest):
         errors.append("absent audit must have no stages and zero totals")
 
-    tokens = focus_blocks - math.floor(distractions / 3)
+    tokens = focus_blocks - distractions
     if isinstance(evaluations, dict):
         actual_tokens = evaluations.get("Tokens_Net")
         require_int(actual_tokens, "evaluations.Tokens_Net", errors)

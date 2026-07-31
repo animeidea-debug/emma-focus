@@ -142,7 +142,7 @@ For the one timeline row:
 
 Calculate:
 
-`Tokens_Net = Focus_Blocks - floor(Distractions / 3)`
+`Tokens_Net = Focus_Blocks - Distractions` (每次分心扣1个银币)
 
 Use this exact rating precedence:
 
@@ -206,7 +206,7 @@ Before returning JSON, verify:
    start.
 5. No adult-only or UNOBSERVED stage exists.
 6. Focus, Distraction, and Eye Rest totals equal the stage-derived totals.
-7. Tokens_Net uses integer floor division by 3 and excludes Eye Rest.
+7. Tokens_Net subtracts each Distraction 1:1 and excludes Eye Rest.
 8. Rating follows the precedence above and uses an exact allowed string.
 9. An absent output has no stages and all numeric totals are zero.
 10. The response is parseable raw JSON with no extra text.

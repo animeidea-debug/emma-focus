@@ -50,7 +50,7 @@ service without explicit user authorization.
 - Count one Focus Block per qualifying Focus stage.
 - Count one Distraction per Distraction stage and one per Screen stage longer
   than 30 minutes.
-- Calculate `Tokens_Net = Focus_Blocks - floor(Distractions / 3)`.
+- Calculate `Tokens_Net = Focus_Blocks - Distractions` (每次分心扣1个银币).
 - Apply rating precedence: absent, danger, excellent, warning.
 - Return exactly one timeline row for the audited date.
 - Keep observations factual and concise. Write summaries and notes in Chinese.

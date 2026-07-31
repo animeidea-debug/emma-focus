@@ -133,7 +133,7 @@ For each frame, identify: Is Emma present? What is she doing? Any screens visibl
 Then output ONE JSON object:
 {{"date":"{date}","timeline":[{{"Focus_Blocks":N,"Distractions":N,"Eye_Rest_Minutes":N,"Absent":false}}],"evaluations":{{"Summary":"中文总结","Rating":"🟢优秀/🟡警告/🔴危险","Tokens_Net":N}},"stages":[{{"start":"HH:MM","end":"HH:MM","duration":N,"category":"Focus/Coaching/Screen/Distraction/Eye Rest","stage":"中文标签"}}]}}
 
-Focus=30+min study. Distraction=off-task. Screen>30min=+1 distraction. Tokens=Focus-floor(Dist/3). 🔴 if Dist>=3. Raw JSON only."""
+Focus=30+min study. Distraction=off-task. Screen>30min=+1 distraction. Tokens=Focus-Dist (1:1). 🔴 if Dist>=3. Raw JSON only."""
 
 
 def run_benchmark(args: argparse.Namespace) -> int:
