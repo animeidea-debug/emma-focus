@@ -20,7 +20,7 @@
 #      本脚本不涉及任何 docker-compose.yml 的同步
 #
 # 用法：
-#   sh deploy.sh
+#   sh deploy/legacy-webdav-push.sh
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
