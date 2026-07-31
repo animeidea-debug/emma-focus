@@ -1,4 +1,4 @@
-# Emma Focus — 项目进度
+# Emma Focus - 项目进度
 
 > 当前交接快照。长期规则见 `AGENTS.md`，稳定产品和操作说明见 `README.md`。
 > 日期级视频、审计结果、家长反馈和生产数据不进入本文件。
@@ -19,9 +19,19 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - 安全的本地候选运行器（`run_tonight.sh`），默认拒绝未 ready 视频；
 - parent feedback 闭环：流水线自动加载之前日期的家长修正经验作为 VLM 提示词；
 - GitHub SSH 与统一 `AGENTS.md` / `README.md` / `docs/progress.md` 文档规范；
-- Codex morning-brief 插件 v0.1.1：ZConnect 重定向检测、LAN HTTP 支持、scoped read token；
-- GitHub Action 自动同步 morning-brief 插件到 family marketplace；
-- 07-30 首次完整实战：pipeline 候选 → 家长审核修正 → 提交入库 → 写入 parent feedback。
+- 07-30 首次完整实战：pipeline 候选 -> 家长审核修正 -> 提交入库 -> 写入 parent feedback。
+
+### 插件合并 (2026-07-31)
+
+- `emma-focus-morning-brief` 已与 `tmos-morning-brief` 合并为统一的
+  `emma-daily-brief` 插件，存放在 marketplace 仓库
+  (`animeidea-debug/codex-family-marketplace`, commit `1f77e3e`)。
+- 合并后的插件提供 3 个 MCP 工具：`check_connection`（双源连接检查）、
+  `get_tmos_brief`（TMOS 每日数据）、`get_focus_brief`（Emma Focus 每日数据）。
+- 已从本仓库删除 `plugins/emma-focus-morning-brief/` 源码目录和
+  `.github/workflows/sync-to-marketplace.yml` 同步 Action——合并后的插件
+  仅存在于 marketplace 仓库，不再从产品仓库自动同步。
+- `emma-daily-brief@family` v1.0.0 已在 Gary 的 Mac 安装启用。
 
 ## 安全与发布边界
 
@@ -36,7 +46,8 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 1. 连续积累人工审核样本（已有 2026-07-28 和 07-30 两天 parent feedback）；
 2. 完成缓存/状态机和 Pushover 候选完成或失败通知；
 3. 根据 accumulated feedback 量化流水线对身份、Screen、Coaching 的准确率；
-4. Emma Mac 端 pull 最新代码后在内网完成 morning-brief token 配置；
+4. Emma Mac 端迁移到 `emma-daily-brief`：卸载旧插件 -> 升级 marketplace ->
+   安装 `emma-daily-brief@family` -> 在内网运行 `configure.mjs`；
 5. 为代币记账、评估改写、兑换、备份和恢复补齐可重复测试；
 6. 审查所有状态变更 API 的认证与外网暴露边界。
 
@@ -54,6 +65,6 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - 集成边界：`docs/emma-review/integration.md`；
 - Work 交接：`docs/emma-review/work-handoff.md`；
 - 部署和恢复：`README.md` 与 NAS 仓库的 `nas-deploy` 文档；
-- Morning brief 配置：`docs/runbooks/configure-emma-focus-morning-brief.md`；
-- Morning brief 设计决策：`docs/decisions/agent-morning-brief-integration.md`；
+- Daily brief 配置：marketplace 仓库 `plugins/emma-daily-brief/scripts/configure.mjs`；
+- Daily brief 设计决策：`docs/decisions/agent-morning-brief-integration.md`；
 - 每晚视频分析：`EMMA_VIDEO_DIR=... EMMA_REVIEW_MODEL=... sh run_tonight.sh YYYY-MM-DD`。

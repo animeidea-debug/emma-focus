@@ -1,4 +1,0 @@
-interface:
-  display_name: "Emma Focus Daily Brief"
-  short_description: "Create a warm read-only focus brief."
-  default_prompt: "Generate Emma’s morning focus brief from authoritative Emma Focus data."

@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "emma-focus-morning-brief": {
-      "command": "node",
-      "args": ["./scripts/mcp-server.mjs"],
-      "cwd": "."
-    }
-  }
-}
