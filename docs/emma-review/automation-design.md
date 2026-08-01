@@ -69,6 +69,33 @@ sh run_tonight.sh YYYY-MM-DD
 运行器会将视频和 matching ready manifest 复制到本地缓存，再调用流水线。它不
 接收 PIN、不调用生产 API；输出是本地候选 JSON 与 review metadata。
 
+## 每日自动触发与通知
+
+截至 2026-08-01，最近 6 个正常逐日 ready 时间为 22:34、22:36、22:38、
+22:44、22:44 和 22:59；一次 22:00 批量记录是历史清单补写，不代表日常完成
+时间。默认自动窗口据此设为每天 22:30–00:00，每 60 秒只检查当天书房
+`Study_YYYYMMDD.ready.json`。窗口结束仍未 ready 时停止，并发送一次失败通知。
+
+```sh
+EMMA_VIDEO_DIR="/path/to/export_videos/书房" \
+EMMA_REVIEW_MODEL="/path/to/local-model" \
+EMMA_REVIEW_WAIT_SECONDS=5400 \
+EMMA_REVIEW_POLL_SECONDS=60 \
+sh run_ready_review.sh YYYY-MM-DD
+```
+
+触发器会把结果保存在视频目录旁的 Git 外 `.emma-review/DATE/`，并在同一视频
+已有可验证的 `pending_review` 候选时跳过昂贵的重复分析。成功通知只报告汇总
+和“待家长复核”；失败通知说明是未 ready 还是分析失败。两者都不会提交生产。
+
+Codex 每日任务只负责在 22:30 启动上述本机触发器。Pushover 的 Video Merge
+通知仍是给家长看的即时确认，不作为程序输入；即使通知延迟或丢失，matching
+ready manifest 仍可可靠启动分析。
+
+本机 Codex 自动任务 `Emma Review 书房视频候选` 已启用。它只运行当前工作区的
+只读候选流程，不提交、部署或改写生产数据；任务是否启用和时间调整由 Codex
+应用的 Automations 页面管理。
+
 ## 验收门槛
 
 在缩小人工审核或讨论自动导入前，必须在多日人工金标准上验证：

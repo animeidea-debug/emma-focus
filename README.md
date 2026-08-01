@@ -135,6 +135,11 @@ sh run_tonight.sh YYYY-MM-DD
 它只在本地生成 `pending_review` 候选；视频、结果、家长反馈和任何身份参考图
 均保留在 Git 外。
 
+每日无人值守候选使用 `run_ready_review.sh`：默认在 Codex 任务于 22:30 启动后
+轮询至 00:00，只接受当天书房 matching ready manifest，完成或失败均通过
+Pushover 通知，并始终停在家长审核前。详见
+`docs/emma-review/automation-design.md`。
+
 ## 部署流程
 
 ### NAS Git release（推荐）

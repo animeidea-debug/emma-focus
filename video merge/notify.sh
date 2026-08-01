@@ -19,7 +19,7 @@
 # 显式环境变量优先于 .env，便于 cron/临时运行覆盖配置。
 _EXPLICIT_PUSHOVER_TOKEN="${PUSHOVER_NAS_TOKEN:-}"
 _EXPLICIT_PUSHOVER_USER="${PUSHOVER_NAS_USER:-}"
-_ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
+_ENV_FILE="${PUSHOVER_ENV_FILE:-$(cd "$(dirname "$0")" && pwd)/.env}"
 if [ -f "$_ENV_FILE" ]; then
     . "$_ENV_FILE"
 fi

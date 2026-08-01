@@ -1,4 +1,4 @@
-# Emma Audit Directive v5.5.1
+# Emma Audit Directive v5.6
 
 Copy the directive below exactly. Replace `{{DATE}}` and
 `{{VIDEO_FILENAME}}` before analysis.
@@ -52,13 +52,19 @@ Admin Console.
 - Emit only confirmed Emma intervals.
 - Sort stages by `start`; stages must not overlap.
 - Merge adjacent intervals with the same category when behavior is continuous.
-- Omit minor transitions shorter than 20 minutes, such as fetching stationery
-  or brief sorting, or merge them into the surrounding dominant stage when
-  evidence supports continuity.
+- Merge a minor transition only when Emma remains confirmed in view and the
+  same dominant activity visibly resumes. Never bridge Emma leaving/re-entering,
+  empty-room, adult-only, unresolved-identity, clear task-reset, or category-
+  change boundaries, regardless of gap length.
+- Recheck every proposed stage longer than 90 minutes with intermediate OSD
+  evidence. Split it at verified breaks; do not assume long continuity from
+  similar first/last frames.
 - A brief study-tool or AI lookup lasting 5 minutes or less does not split an
   otherwise continuous Focus stage. Mention it in the stage note.
 - Never use an object alone to infer behavior. A book on the desk does not
   prove reading.
+- A visible computer, tablet, or phone does not prove Screen. Require active
+  attention to or interaction with the display.
 - Notes must state visible evidence and avoid intent claims.
 
 ## 3. Category Enum
@@ -68,7 +74,7 @@ Every `stages[].category` must be exactly one of:
 ### `Focus`
 
 - Continuous independent paper-based writing, reading, homework, or deep
-  academic study lasting at least 30 minutes.
+  academic study lasting at least 30 minutes. Exactly 30 minutes qualifies.
 - A qualifying Focus stage contributes exactly `1` Focus Block.
 - Brief screen use of 5 minutes or less for lookup, checking answers, AI, or a
   study tool remains inside Focus.
@@ -210,3 +216,7 @@ Before returning JSON, verify:
 8. Rating follows the precedence above and uses an exact allowed string.
 9. An absent output has no stages and all numeric totals are zero.
 10. The response is parseable raw JSON with no extra text.
+11. Every stage longer than 90 minutes and every low-light identity interval was
+    explicitly rechecked with intermediate evidence.
+12. Exactly-30-minute Focus and Screen stages use the inclusive thresholds
+    above: Focus qualifies; Screen is not a Distraction.

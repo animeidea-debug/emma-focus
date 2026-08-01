@@ -1,4 +1,4 @@
 interface:
   display_name: "Emma Review"
-  short_description: "审核 Emma 书房视频并安全校验后台 JSON"
-  default_prompt: "Use $emma-review to prepare and validate one dated Emma study-video audit before parent review."
+  short_description: "分析并复核 Emma 书房视频候选，安全校验 JSON"
+  default_prompt: "Use $emma-review to wait for the exact Study ready manifest, analyze one dated video, evidence-review identity and boundaries, validate the candidate, and stop for parent approval."

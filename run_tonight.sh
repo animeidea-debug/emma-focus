@@ -61,7 +61,10 @@ mkdir -p "$CACHE_ROOT/.ready" "$OUTPUT_DIR"
 
 if [ ! -f "$LOCAL_VIDEO" ] || [ "$SOURCE_VIDEO" -nt "$LOCAL_VIDEO" ]; then
   echo "📋 Copying video to local cache..."
+  # Preserve only producer mtime. `cp -p` also copies NAS file flags, which can
+  # fail on the local cache; plain cp alone makes a finished video look new.
   cp "$SOURCE_VIDEO" "$LOCAL_VIDEO"
+  touch -r "$SOURCE_VIDEO" "$LOCAL_VIDEO"
 fi
 
 if [ "$ALLOW_LEGACY" -eq 0 ]; then

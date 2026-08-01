@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import re
@@ -581,6 +582,55 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_summary(args: argparse.Namespace) -> int:
+    path = args.result.resolve()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"INVALID: {exc}", file=sys.stderr)
+        return 1
+    errors = validate_result(data, args.expected_date)
+    if errors:
+        print("INVALID: " + "; ".join(errors), file=sys.stderr)
+        return 1
+    row = data["timeline"][0]
+    print(
+        f"Focus {row['Focus_Blocks']}｜分心 {row['Distractions']}｜"
+        f"银币 {data['evaluations']['Tokens_Net']:+d}｜"
+        f"{data['evaluations']['Rating']}"
+    )
+    return 0
+
+
+def cmd_candidate_status(args: argparse.Namespace) -> int:
+    result = args.result.resolve()
+    metadata = result.with_suffix(".review.json")
+    video = args.video.resolve()
+    try:
+        data = json.loads(result.read_text(encoding="utf-8"))
+        review = json.loads(metadata.read_text(encoding="utf-8"))
+        result_digest = hashlib.sha256(result.read_bytes()).hexdigest()
+        video_stat = video.stat()
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"NOT_REUSABLE: {exc}")
+        return 1
+    errors = validate_result(data, args.expected_date)
+    reusable = (
+        not errors
+        and review.get("status") == "pending_review"
+        and review.get("date") == data.get("date")
+        and review.get("result_sha256") == result_digest
+        and review.get("video", {}).get("file") == video.name
+        and review.get("video", {}).get("bytes") == video_stat.st_size
+    )
+    if not reusable:
+        reason = "; ".join(errors) if errors else "metadata/video mismatch"
+        print(f"NOT_REUSABLE: {reason}")
+        return 1
+    print(f"REUSABLE: {result}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -609,6 +659,19 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("result", type=Path)
     validate.add_argument("--expected-date")
     validate.set_defaults(func=cmd_validate)
+    summary = sub.add_parser(
+        "summary", help="print a validated parent-notification summary"
+    )
+    summary.add_argument("result", type=Path)
+    summary.add_argument("--expected-date")
+    summary.set_defaults(func=cmd_summary)
+    candidate_status = sub.add_parser(
+        "candidate-status", help="check whether a pending candidate is reusable"
+    )
+    candidate_status.add_argument("result", type=Path)
+    candidate_status.add_argument("--video", required=True, type=Path)
+    candidate_status.add_argument("--expected-date")
+    candidate_status.set_defaults(func=cmd_candidate_status)
     return parser
 
 

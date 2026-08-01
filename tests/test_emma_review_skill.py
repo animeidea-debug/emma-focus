@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import tempfile
 import time
@@ -94,6 +95,58 @@ class EmmaReviewValidationTests(unittest.TestCase):
                 {"result": path, "expected_date": "2026-07-26"},
             )
             self.assertEqual(emma_review.cmd_validate(args), 0)
+
+    def test_exact_thirty_minute_focus_and_screen_thresholds(self):
+        result = valid_result()
+        result["timeline"][0].update({
+            "Time_End": "10:00",
+            "Focus_Blocks": 1,
+            "Distractions": 0,
+        })
+        result["evaluations"].update({
+            "Tokens_Net": 1,
+            "Rating": "🟡 警告",
+        })
+        result["stages"] = [
+            {
+                "date": "2026-07-26", "stage": "学习", "start": "09:00",
+                "end": "09:30", "duration": 30, "category": "Focus",
+                "note": "连续纸面学习。",
+            },
+            {
+                "date": "2026-07-26", "stage": "屏幕", "start": "09:30",
+                "end": "10:00", "duration": 30, "category": "Screen",
+                "note": "主动使用屏幕。",
+            },
+        ]
+        self.assertEqual(emma_review.validate_result(result, "2026-07-26"), [])
+
+    def test_candidate_status_reuses_only_matching_pending_result(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            video = root / "Study_20260726.mp4"
+            result = root / "result_pipeline.json"
+            video.write_bytes(b"video")
+            result.write_text(
+                json.dumps(valid_result(), ensure_ascii=False), encoding="utf-8"
+            )
+            result.with_suffix(".review.json").write_text(
+                json.dumps({
+                    "status": "pending_review",
+                    "date": "2026-07-26",
+                    "result_sha256": hashlib.sha256(result.read_bytes()).hexdigest(),
+                    "video": {"file": video.name, "bytes": video.stat().st_size},
+                }),
+                encoding="utf-8",
+            )
+            args = type("Args", (), {
+                "result": result,
+                "video": video,
+                "expected_date": "2026-07-26",
+            })
+            self.assertEqual(emma_review.cmd_candidate_status(args), 0)
+            video.write_bytes(b"changed")
+            self.assertEqual(emma_review.cmd_candidate_status(args), 1)
 
 
 class EmmaReviewReadinessTests(unittest.TestCase):
