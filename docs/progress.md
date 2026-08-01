@@ -58,8 +58,8 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
    跨午休、>100min"碎片学习"）必须在长时间空档、成人活动变化处拆分；晚间
    低光/局部画面身份误判为假阳性，需多线索确认身份；
 4. 根据 accumulated feedback 量化流水线对身份、Screen、Coaching 的准确率；
-5. Emma Mac 端迁移到 `emma-daily-brief`：卸载旧插件 -> 升级 marketplace ->
-   安装 `emma-daily-brief@family` -> 在内网运行 `configure.mjs`；
+5. 继续维护已安装的 `emma-daily-brief@family`，并按 marketplace runbook 完成
+   双源连接检查与令牌轮换；
 6. 评估 `zspace-docker` 插件用于只读检查 `site_backend`（ps/logs/stats）
    和受控 `web` 部署；需先完成 zspace-nas runtime 的 venv setup；
 7. 审查所有状态变更 API 的认证与外网暴露边界。
@@ -82,6 +82,7 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
 - 集成边界：`docs/emma-review/integration.md`；
 - Work 交接：`docs/emma-review/work-handoff.md`；
 - 部署和恢复：`README.md` 与 NAS 仓库的 `nas-deploy` 文档；
-- Daily brief 配置：marketplace 仓库 `plugins/emma-daily-brief/scripts/configure.mjs`；
+- Daily brief 配置：`docs/runbooks/configure-emma-daily-brief.md` 与 marketplace
+  仓库的 `plugins/emma-daily-brief/scripts/configure.mjs`；
 - Daily brief 设计决策：`docs/decisions/agent-morning-brief-integration.md`；
 - 每晚视频分析：`EMMA_VIDEO_DIR=... EMMA_REVIEW_MODEL=... sh run_tonight.sh YYYY-MM-DD`。

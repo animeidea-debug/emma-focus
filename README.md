@@ -33,7 +33,9 @@
 ```
 
 > **⚠️ 重要**：Docker Compose 和 nginx 配置由 `~/Desktop/NAS` 项目统一管理。
-> 修改 `infra/web/` 后需同步到 NAS 项目并执行 `sh ~/Desktop/NAS/deploy/deploy.sh web`。
+> 修改 `infra/web/` 后，先提交并推送 Emma Focus，再按完整 SHA 使用 NAS 的
+> `nas-deploy emma-focus --ref <full-40-char-commit-sha>` 发布。Compose、nginx
+> 和 cron 仍由 NAS 仓库维护。
 
 ## 文档与协作入口
 
@@ -92,13 +94,13 @@ python3 skills/emma-review/scripts/emma_review.py \
 
 ## Codex morning brief
 
-`plugins/emma-focus-morning-brief/` 是仓库内的只读 Codex 插件。它只暴露
-`check_connection` 和 `get_focus_brief` 两个 MCP 工具，并从 macOS Keychain 读取
-可撤销、会过期的 `focus-brief:read` 令牌；它不读取家长 PIN，也没有生产写权限。
+统一的 `emma-daily-brief@family` 插件位于 marketplace 仓库，组合 TMOS 和 Emma
+Focus 两个只读数据源。它提供 `check_connection`、`get_tmos_brief` 和
+`get_focus_brief` 三个 MCP 工具；令牌从 macOS Keychain 读取，不读取家长 PIN，
+也没有生产写权限。
 
-先部署经审阅的后端，再按
-`docs/runbooks/configure-emma-focus-morning-brief.md` 在家长的 Mac 上生成并保存令牌。
-接口边界和设计理由见 `docs/decisions/agent-morning-brief-integration.md`。
+配置与迁移以 marketplace 仓库的 runbook 为准；接口边界和设计理由见
+`docs/decisions/agent-morning-brief-integration.md`。
 
 本地视觉流水线当前以 Qwen2.5-VL-7B 4-bit 为主模型，输入按最长边 640px
 等比例缩放，不再把 16:9 画面拉伸成正方形。它支持使用 Git 外的家长确认
@@ -144,8 +146,8 @@ nas-deploy emma-focus --latest
 
 该命令由 NAS 基础设施仓库管理，会在 NAS 上拉取源码、运行测试、备份
 SQLite、切换网页/后端/受控视频脚本并执行健康检查。数据库、`.env` 和统一
-`notify.sh` 不属于 release。旧的 `sh deploy/legacy-webdav-push.sh` WebDAV
-流程只保留为迁移期应急路径，非常规发布通道。
+`notify.sh` 不属于 release。旧 WebDAV 推送脚本只保留为明确的灾难恢复路径，
+不是常规发布通道。
 
 ### 数据迁移（仅首次）
 ```sh

@@ -3,9 +3,9 @@
 ## Decision
 
 Emma Focus exposes a separate, versioned `focus-brief:read` projection for
-Codex morning briefs. The repository-owned `emma-focus-morning-brief` plugin
-uses only that projection through two MCP tools: `check_connection` and
-`get_focus_brief`.
+Codex morning briefs. The unified `emma-daily-brief@family` marketplace plugin
+reads that projection through `get_focus_brief` and combines it with TMOS's
+read-only projection; it also exposes `check_connection` and `get_tmos_brief`.
 
 ## Boundaries
 
@@ -22,7 +22,7 @@ uses only that projection through two MCP tools: `check_connection` and
 
 ## Consequences
 
-The plugin must be configured only after a reviewed backend release. A brief
+The marketplace plugin must be configured only after a reviewed backend release. A brief
 may describe authoritative stored facts but cannot repair, evaluate, reward,
 redeem, exchange, or submit data. Cross-product composition joins TMOS and
 Emma Focus only by local date; each product remains authoritative for its own
