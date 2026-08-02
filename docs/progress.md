@@ -38,8 +38,9 @@ Emma Focus 是私有家庭专注力工具：原生 HTML 前端、FastAPI/SQLite 
   `pending_review` 时跳过重复推理。
 - Codex 自动任务 `Emma Review 书房视频候选` 已启用，每天 22:30 在 Emma Focus
   本地项目启动该只读流程；生产提交仍须家长审核。
-- 08-02 发布候选已完成本地 Skill 校验、51 项测试和 ready 超时演练；待提交并
-  通过 NAS `nas-deploy` 发布，自动任务本身已在 Codex 应用中启用。
+- 08-02 发布已完成：commit `93502d0c8a58aab1cc704d1f66e6af9a29b74ca6`
+  已推送并通过 NAS `nas-deploy` 发布；发布前 SQLite 备份已创建，51 项测试和
+  最终前后端健康检查均通过。自动任务仍在 Codex 应用中启用。
 
 ### 插件合并 (2026-07-31)
 
